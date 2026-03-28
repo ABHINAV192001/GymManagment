@@ -1,0 +1,134 @@
+{
+  "info": {
+    "name": "GYMbross Authentication API",
+    "description": "Postman collection for testing GYMbross authentication endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register Organization",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"BKJ Fitness Center\",\n  \"ownerEmail\": \"owner@bkjfitness.com\",\n  \"phone\": \"9876543210\",\n  \"password\": \"SecurePass123!\",\n  \"branches\": [\n    {\n      \"name\": \"BKJ Downtown Branch\",\n      \"adminEmail\": \"testing123@gmail.com\",\n      \"password\": \"AdminPass123!\"\n    },\n    {\n      \"name\": \"BKJ Uptown Branch\",\n      \"adminEmail\": \"admin.uptown@bkjfitness.com\",\n      \"password\": \"AdminPass456!\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/register-organization",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "auth", "register-organization"]
+        },
+        "description": "Register a new organization with multiple branches"
+      },
+      "response": []
+    },
+    {
+      "name": "Register Organization (Minimal - Single Branch)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Iron Pumpers Gym\",\n  \"ownerEmail\": \"owner@ironpumpers.com\",\n  \"phone\": \"8765432109\",\n  \"password\": \"StrongPass123!\",\n  \"branches\": [\n    {\n      \"name\": \"Iron Pumpers Main\",\n      \"adminEmail\": \"admin@ironpumpers.com\",\n      \"password\": \"BranchPass123!\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/register-organization",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "auth", "register-organization"]
+        },
+        "description": "Register organization with single branch"
+      },
+      "response": []
+    },
+    {
+      "name": "Login with Email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"owner@bkjfitness.com\",\n  \"password\": \"SecurePass123!\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/login",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "auth", "login"]
+        },
+        "description": "Login using email as identifier"
+      },
+      "response": []
+    },
+    {
+      "name": "Login with Username (After Implementation)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"BKJ0987\",\n  \"password\": \"SecurePass123!\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/login",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "auth", "login"]
+        },
+        "description": "Login using generated username (will work after implementation)"
+      },
+      "response": []
+    },
+    {
+      "name": "Login Branch Admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"testing123@gmail.com\",\n  \"password\": \"AdminPass123!\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/login",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "auth", "login"]
+        },
+        "description": "Login as branch admin"
+      },
+      "response": []
+    }
+  ]
+}
