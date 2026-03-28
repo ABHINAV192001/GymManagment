@@ -1,0 +1,224 @@
+/* ----- MAIN PAGE ----- */
+.login-wrapper {
+    min-height: 100vh;
+    background: transparent;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+/* Overlay for better text readability if needed */
+.login-wrapper::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.4);
+    /* Light overlay to keep it "Light Theme" */
+    z-index: 0;
+}
+
+/* ----- OUTER CONTAINER ----- */
+.login-container {
+    position: relative;
+    z-index: 1;
+    /* Sit above overlay */
+    width: 90%;
+    max-width: 1100px;
+    /* Glassmorphism / Transparent Card */
+    background: rgba(255, 255, 255, 0.85);
+    /* Increased opacity slightly for readability */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 26px;
+    padding: 50px;
+    display: flex;
+    gap: 50px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+
+
+/* LEFT TEXT AREA -----------------------------------------*/
+.login-left {
+    flex: 1;
+    padding-right: 20px;
+    color: var(--text);
+}
+
+.login-left-title {
+    font-size: 26px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text);
+}
+
+.login-left-line {
+    width: 100%;
+    height: 2px;
+    background: var(--primary);
+    /* Lime Green */
+    margin-bottom: 20px;
+}
+
+.login-left-text {
+    font-size: 15px;
+    line-height: 24px;
+    color: var(--text-secondary);
+}
+
+/* RIGHT FORM AREA ----------------------------------------*/
+.login-right {
+    flex: 1;
+    padding-left: 20px;
+}
+
+/* FLOATING LABEL INPUT -----------------------------------*/
+.float-box {
+    position: relative;
+    margin-bottom: 28px;
+}
+
+.float-box input {
+    width: 100%;
+    padding: 16px 14px;
+    background: var(--bg-dark);
+    /* White input background */
+    border-radius: 12px;
+    border: 1.5px solid var(--border-color);
+    color: var(--text);
+    font-size: 16px;
+    transition: all 0.25s ease;
+}
+
+/* hover glow */
+.float-box input:hover {
+    border-color: var(--primary-dark);
+    /* Darker border on hover */
+}
+
+/* focus glow */
+.float-box input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 12px rgba(217, 250, 112, 0.3);
+    /* Lime Green glow */
+    outline: none;
+}
+
+/* HIDE placeholder */
+.float-box input::placeholder {
+    opacity: 0;
+}
+
+/* LABEL STYLE */
+.float-box label {
+    position: absolute;
+    left: 14px;
+    top: 17px;
+    font-size: 16px;
+    color: var(--text-secondary);
+    transition: 0.25s;
+    pointer-events: none;
+}
+
+/* FLOAT ON TYPING OR FOCUS */
+.float-box input:focus+label,
+.float-box input:not(:placeholder-shown)+label {
+    top: -8px;
+    font-size: 12px;
+    color: #4d7c0f;
+    /* Darker Green (Lime-700 equivalent) for readability */
+    background: var(--bg-dark);
+    padding: 0 6px;
+    font-weight: 600;
+}
+
+/* Dark Mode Overrides */
+.dark .login-container {
+    background: rgba(23, 23, 23, 0.85);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .float-box input:focus+label,
+.dark .float-box input:not(:placeholder-shown)+label {
+    background: var(--bg-dark);
+    color: var(--primary);
+}
+
+/* ERROR INPUT --------------------------------------------*/
+.error-input input {
+    border-color: #ff4d4d !important;
+    box-shadow: 0 0 8px rgba(255, 77, 77, 0.2);
+}
+
+.error-input label {
+    color: #ff4d4d !important;
+}
+
+.error-text {
+    color: #ff4d4d;
+    font-size: 13px;
+    margin-top: -22px;
+    margin-bottom: 18px;
+}
+
+/* BUTTON ---------------------------------------------------*/
+.login-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 18px;
+    font-weight: bold;
+    background: var(--primary);
+    color: black;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: 0.25s;
+}
+
+.login-btn.active {
+    opacity: 1;
+}
+
+.login-btn.active:hover {
+    background: var(--primary-dark);
+    box-shadow: 0 0 14px rgba(217, 250, 112, 0.4);
+}
+
+/* LINKS ----------------------------------------------------*/
+.login-links a {
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.login-links a:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+.create-account {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 15px;
+}
+
+.create-account a {
+    color: var(--primary-dark);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.create-account a:hover {
+    text-decoration: underline;
+}
+
+/* RESPONSIVE ----------------------------------------------*/
+@media (max-width: 850px) {
+    .login-container {
+        flex-direction: column;
+    }
+}
