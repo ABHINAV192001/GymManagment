@@ -41,9 +41,6 @@ export const BRANCH_ADMIN_NAV_LINKS = [
 
 export const TRAINER_NAV_LINKS = [
     { name: "Dashboard", href: "/branch/trainer-dashboard", icon: <FaHome /> },
-    { name: "My Members", href: "/branch/users", icon: <FaUsers /> },
-    { name: "Sessions", href: "/branch/sessions", icon: <FaDumbbell /> },
-    { name: "Assign Plan", href: "/admin/assign-workout", icon: <FaDumbbell /> },
 ];
 
 export const USER_NAV_LINKS = [

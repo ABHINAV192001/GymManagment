@@ -5,23 +5,30 @@ import styles from './dashboard.module.css';
 import { FaUsers, FaDumbbell, FaChartLine, FaArrowUp, FaArrowDown, FaUserPlus, FaBoxOpen } from 'react-icons/fa';
 import Link from 'next/link';
 import { getDashboardStats } from '@/lib/api/branch';
+import { getProfile } from '@/lib/api/user';
 
 export default function BranchDashboard() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const checkRoleAndFetchStats = async () => {
             try {
-                const data = await getDashboardStats();
+                const profile = await getProfile();
+                if (profile?.role?.toUpperCase() === 'TRAINER') {
+                    window.location.href = '/branch/trainer-dashboard';
+                    return;
+                }
+                const data = await getDashboardStats('', { skipAuthRedirect: true });
                 setStats(data);
             } catch (error) {
-                console.error('Error fetching branch stats:', error);
+                console.error('Graceful failure fetching stats:', error);
+                setStats(null); 
             } finally {
                 setLoading(false);
             }
         };
-        fetchStats();
+        checkRoleAndFetchStats();
     }, []);
 
     const getInitials = (name) => {

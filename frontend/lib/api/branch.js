@@ -97,6 +97,6 @@ export const deleteInventoryItem = async (id) => {
 
 // --- DASHBOARD ---
 
-export const getDashboardStats = async () => {
-    return apiGet('/api/admin/dashboard/stats');
+export const getDashboardStats = async (params = {}, options = {}) => {
+    return apiGet('/api/admin/dashboard/stats', params, options);
 };

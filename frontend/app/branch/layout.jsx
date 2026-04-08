@@ -16,19 +16,29 @@ import {
 
 import AuthGuard from '@/app/components/AuthGuard';
 import ChatWidget from '@/app/components/ChatWidget';
+import { setCookie } from '@/lib/cookie';
 import { getProfile } from '@/lib/api/user';
 import { BRANCH_ADMIN_NAV_LINKS, TRAINER_NAV_LINKS, ROLES } from '@/constants/navigation';
 
 export default function BranchLayout({ children }) {
-  const [role, setRole] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     getProfile().then(p => {
-      if (p) setRole(p.role);
+      if (p) {
+        setProfile(p);
+        // Sync role cookie for middleware consistency
+        setCookie('userRole', p.role, 7);
+      }
     }).catch(err => console.error("Layout profile fetch failed", err));
   }, []);
 
-  const navLinks = role === ROLES.TRAINER ? TRAINER_NAV_LINKS : BRANCH_ADMIN_NAV_LINKS;
+  if (!mounted) return null;
+
+  const upperRole = profile?.role?.toUpperCase() || '';
+  const navLinks = upperRole === 'TRAINER' ? TRAINER_NAV_LINKS : BRANCH_ADMIN_NAV_LINKS;
 
   return (
     <AuthGuard>

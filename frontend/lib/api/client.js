@@ -1,5 +1,5 @@
 import { API_BASE_URL, API_ENDPOINTS, getDefaultHeaders, WORKOUT_API_BASE_URL } from './config';
-import { removeCookie } from '../cookie';
+import { removeCookie, getCookie, setCookie } from '../cookie';
 
 export { WORKOUT_API_BASE_URL };
 
@@ -16,14 +16,40 @@ export class APIError extends Error {
 }
 
 /**
+ * Internal helper to wait for the authentication token to propagate to cookies
+ */
+const waitForToken = async (timeoutMs = 1000) => {
+    if (typeof window === 'undefined') return false;
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeoutMs) {
+        const token = getCookie('accessToken') || getCookie('authToken') || getCookie('isLoggedIn') === 'true';
+        if (token) return true;
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return false;
+};
+
+/**
  * Base API request handler with error handling
  */
 export const apiRequest = async (endpoint, options = {}) => {
     const baseUrl = options.baseUrl || API_BASE_URL;
     const url = `${baseUrl}${endpoint}`;
 
+    // --- AUTH CONTEXT ---
+    const isPublic = endpoint.startsWith('/api/auth/') || endpoint.startsWith('/api/public/');
+    const hasToken = typeof window !== 'undefined' && 
+        (getCookie('accessToken') || getCookie('authToken') || getCookie('isLoggedIn') === 'true');
+
+    // --- INTERNAL AUTH SYNC ---
+    if (typeof window !== 'undefined' && !isPublic && !hasToken && !options.skipAuth) {
+        // We wait briefly for a possible cookie sync, but we NEVER block the request.
+        // If it's HttpOnly, the browser will handle it; if it's truly missing, the server will 401.
+        await waitForToken(500);
+    }
+
     const config = {
-        credentials: options.skipAuth ? 'same-origin' : 'include', // Don't send cookies for public auth requests
+        credentials: options.skipAuth ? 'same-origin' : 'include',
         ...options,
         headers: {
             ...(options.skipAuth ? { 'Content-Type': 'application/json' } : getDefaultHeaders()),
@@ -32,138 +58,72 @@ export const apiRequest = async (endpoint, options = {}) => {
     };
 
     try {
-        console.log(`DEBUG: [apiRequest] Rendering ${config.method || 'GET'} to ${url}`);
+        console.log(`DEBUG: [apiRequest] Fetching ${config.method || 'GET'} to ${url}`);
         const response = await fetch(url, config);
 
-        // Handle non-JSON responses (like 204 No Content)
         if (response.status === 204) {
             return null;
         }
 
-        // Check if the response has content
-        const contentType = response.headers.get('content-type');
-        const hasJsonContent = contentType && contentType.includes('application/json');
-
-        // Get response text first
         const responseText = await response.text();
-
-        // Try to parse JSON if available
         let data = null;
         if (responseText) {
             try {
                 data = JSON.parse(responseText);
             } catch (parseError) {
-                // If parsing fails and response is not OK, throw a meaningful error
                 if (!response.ok) {
-                    throw new APIError(
-                        `Server returned ${response.status}: ${responseText.substring(0, 100)}`,
-                        response.status,
-                        null
-                    );
+                    throw new APIError(`Server returned ${response.status}: ${responseText.substring(0, 100)}`, response.status, null);
                 }
-
-                // If response is OK but not JSON, treat raw text as the data/message
                 data = { message: responseText };
             }
         }
 
         if (!response.ok) {
-            // Check for 401 Unauthorized
             if (response.status === 401) {
-                // Only redirect if this is a main API request and NOT an auth endpoint
-                if (typeof window !== 'undefined' &&
-                    baseUrl === API_BASE_URL &&
-                    !endpoint.startsWith('/api/auth/') &&
-                    !endpoint.startsWith('/api/public/')) {
-                    // Clear any auth-related cookies to prevent redirect loops in middleware
+                if (typeof window !== 'undefined' && baseUrl === API_BASE_URL && !isPublic && !options.skipAuthRedirect) {
+                    console.warn("DEBUG: [apiRequest] Unauthorized! Redirecting to login.");
                     removeCookie('accessToken');
                     removeCookie('authToken');
-                    removeCookie('userRole');
-                    removeCookie('organizationId');
-                    removeCookie('branchId');
-
+                    removeCookie('isLoggedIn');
                     window.location.href = '/auth/login';
                 }
             }
+            throw new APIError(data?.message || data?.error || `HTTP ${response.status}`, response.status, data?.errors || null);
+        }
 
-            // Handle error responses
-            throw new APIError(
-                data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`,
-                response.status,
-                data?.errors || null
-            );
+        // --- SESSION SYNC ---
+        if (response.ok && !isPublic && typeof window !== 'undefined') {
+            setCookie('isLoggedIn', 'true', null);
         }
 
         return data;
     } catch (error) {
-        if (error instanceof APIError) {
-            throw error;
-        }
-
-        // Network or other errors
-        throw new APIError(
-            error.message || 'Network error occurred',
-            0,
-            null
-        );
+        if (error instanceof APIError) throw error;
+        throw new APIError(error.message || 'Network error occurred', 0, null);
     }
 };
 
 /**
- * GET request helper
+ * Helpers
  */
 export const apiGet = (endpoint, params = {}, options = {}) => {
     const queryString = new URLSearchParams(params).toString();
     const url = queryString ? `${endpoint}?${queryString}` : endpoint;
-
-    return apiRequest(url, {
-        method: 'GET',
-        ...options
-    });
+    return apiRequest(url, { method: 'GET', ...options });
 };
 
-/**
- * POST request helper
- */
-/**
- * POST request helper
- */
 export const apiPost = (endpoint, body, options = {}) => {
-    return apiRequest(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(body),
-        ...options
-    });
+    return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(body), ...options });
 };
 
-/**
- * PUT request helper
- */
 export const apiPut = (endpoint, body, options = {}) => {
-    return apiRequest(endpoint, {
-        method: 'PUT',
-        body: JSON.stringify(body),
-        ...options
-    });
+    return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(body), ...options });
 };
 
-/**
- * PATCH request helper
- */
 export const apiPatch = (endpoint, body, options = {}) => {
-    return apiRequest(endpoint, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-        ...options
-    });
+    return apiRequest(endpoint, { method: 'PATCH', body: JSON.stringify(body), ...options });
 };
 
-/**
- * DELETE request helper
- */
 export const apiDelete = (endpoint, options = {}) => {
-    return apiRequest(endpoint, {
-        method: 'DELETE',
-        ...options
-    });
+    return apiRequest(endpoint, { method: 'DELETE', ...options });
 };

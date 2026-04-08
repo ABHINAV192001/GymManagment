@@ -12,13 +12,16 @@
 export const setCookie = (name, value, days = 7) => {
     if (typeof document === 'undefined') return;
 
+    // Default to 7 days if null or undefined is passed explicitly
+    const expiryDays = (days === null || days === undefined) ? 7 : days;
+
     let expires = "";
-    if (days) {
+    if (expiryDays) {
         const date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        date.setTime(date.getTime() + (expiryDays * 24 * 60 * 60 * 1000));
         expires = "; expires=" + date.toUTCString();
     }
-    // SameSite=Lax for better compatibility on localhost across ports, Path=/ to be checking across app
+    // SameSite=Lax and Path=/ to ensure cookie is sent to all routes and middleware
     document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax";
 };
 

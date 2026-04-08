@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 export function middleware(request) {
     const token = request.cookies.get('accessToken')?.value || request.cookies.get('authToken')?.value;
     const { pathname } = request.nextUrl;
+    const role = request.cookies.get('userRole')?.value;
 
     // Handle case-sensitivity for Explore route
     if (pathname === '/user/Explore') {
@@ -11,46 +12,56 @@ export function middleware(request) {
     }
 
     // Define paths
-    // Routes that logged-in users shouldn't visit (redirect to dashboard)
     const authRoutes = ['/auth/login', '/auth/register', '/auth/signup'];
-    // Routes that require authentication
     const protectedRoutes = ['/branch', '/admin', '/user'];
-
-    // Exception: verify-otp might be needed even if token exists (depending on flow)
-    // For now, let's assuming if they have a token they might still need to verify. 
-    // But usually verify is part of auth. If they are FULLY logged in they shouldn't be here.
-    // Let's stick to Login and Register for auto-redirects to be safe.
 
     const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
     const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
 
+    // Debug logging (Full-Debug Mode)
+    if (isProtectedRoute || isAuthRoute) {
+        console.log(`DEBUG: [Middleware] Path: ${pathname}, TokenFound: ${!!token}, Role: ${role || 'None'}`);
+    }
+
     // 1. Protect Private Routes: Redirect to Login if no token
     if (isProtectedRoute && !token) {
+        console.warn(`DEBUG: [Middleware] Redirecting to login! Missing token for path: ${pathname}`);
         return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
     // 2. Redirect from Auth Routes if Logged In
     if (isAuthRoute && token) {
-        // Determine dashboard based on role
-        const role = request.cookies.get('userRole')?.value;
-        let targetDashboard = '/branch/dashboard'; // Default for Branch Admin/Staff
+        let targetDashboard = '/branch/dashboard'; 
+        const upperRole = role?.toUpperCase() || '';
 
-        if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'OWNER' || role === 'ORG_ADMIN') {
+        if (['ADMIN', 'SUPER_ADMIN', 'OWNER', 'ORG_ADMIN'].includes(upperRole)) {
             targetDashboard = '/admin/dashboard';
-        } else if (role === 'TRAINER') {
+        } else if (upperRole === 'TRAINER') {
             targetDashboard = '/branch/trainer-dashboard';
-        } else if (role === 'USER' || role === 'PREMIUM_USER') {
+        } else if (upperRole === 'USER' || upperRole === 'PREMIUM_USER') {
             targetDashboard = '/user';
         }
 
+        // Avoid infinite loop if already on the target dashboard
+        if (pathname === targetDashboard) {
+            return NextResponse.next();
+        }
+
+        console.log(`DEBUG: [Middleware] Logged-in user at auth route. Redirecting to: ${targetDashboard}`);
         return NextResponse.redirect(new URL(targetDashboard, request.url));
     }
 
-    // 3. Cache Control (Fix "Back" button issue)
-    // Prevent the browser from caching protected pages so back button triggers a reload (and thus middleware check)
-    const response = NextResponse.next();
+    // 3. Proactive Guard for Specialized Dashboards (Strict Enclosure for Trainers)
+    const trainerAllowedPrefixes = ['/branch/trainer-dashboard', '/branch/users', '/branch/profile', '/branch/inventory', '/branch/sessions'];
+    const isTrainerAllowed = trainerAllowedPrefixes.some(prefix => pathname.startsWith(prefix));
 
-    // specific cache control for protected routes logic
+    if (pathname.startsWith('/branch/') && !isTrainerAllowed && role?.toUpperCase() === 'TRAINER') {
+        console.log(`DEBUG: [Middleware] Trainer attempting access to unauthorized branch path: ${pathname}. Redirecting to Trainer Terminal.`);
+        return NextResponse.redirect(new URL('/branch/trainer-dashboard', request.url));
+    }
+
+    // 4. Cache Control
+    const response = NextResponse.next();
     if (isProtectedRoute || isAuthRoute) {
         response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         response.headers.set('Pragma', 'no-cache');

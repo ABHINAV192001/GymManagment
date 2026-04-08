@@ -4,89 +4,134 @@
 /*  THEME VARIABLES & JOYFUL ACCENTS             */
 /* --------------------------------------------- */
 :root {
-  /* -- FORCED DARK THEME (Global) -- */
-  --bg-base: #0f172a;
-  /* Slate 900 */
-  --text: #f8fafc;
-  /* Slate 50 */
-  --text-secondary: #94a3b8;
-  /* Slate 400 */
-  --border-color: #334155;
-  /* Slate 700 */
+  /* -- TOTAL GLASSMORPHISM THEME -- */
+  --bg-dark: #0b0b0b;
+  --bg-darker: #050505;
+  --text: #ffffff;
+  --text-secondary: #a0a0a0;
+  
+  --primary: #3b82f6; /* Modern Blue Accent */
+  --accent-lime: #ccff33;
+  --accent-teal: #00f5ff;
+  --accent-orange: #ff9d00;
 
-  --primary: #ccff33;
-  /* Bright Lime */
-
-  /* Blob Colors - Vibrant Neon */
-  --blob-1: radial-gradient(circle, #8b5cf6, #ec4899);
-  /* Violet/Pink */
-  --blob-2: radial-gradient(circle, #10b981, #06b6d4);
-  /* Emerald/Cyan */
-  --blob-3: radial-gradient(circle, #f59e0b, #ef4444);
-  /* Amber/Red */
-
-  --grid-line: rgba(255, 255, 255, 0.05);
-
-  --glass-bg: rgba(30, 41, 59, 0.4);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --card-bg: #1e293b;
-  /* Slate 800 */
-  --card-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
+  --glass-bg: rgba(10, 10, 10, 0.45); /* Darker, more solid glass */
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-blur: 40px; /* Intense backdrop blur as seen in reference */
+  
+  --card-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.85);
 
   --foreground: var(--text);
-  --background: var(--bg-base);
-
-  /* Compatibility Vars - DARK MODE MAPPING */
-  --bg-dark: #1e293b;
-  /* Card Background (Slate 800) */
-  --bg-darker: #0f172a;
-  /* Input Background (Slate 900) */
+  --background: var(--bg-dark);
 }
 
-.dark {
-  /* -- Dark Mode Palette -- */
-  --bg-base: #0f172a;
-  /* Slate 900 */
-  --text: #f8fafc;
-  /* Slate 50 */
-  --text-secondary: #94a3b8;
-  /* Slate 400 */
-  --border-color: #334155;
-  /* Slate 700 */
-
-  --primary: #ccff33;
-  /* Bright Lime */
-  --primary-dark: #a3cc00;
-
-  /* Blob Colors - Vibrant Neon for Dark Mode */
-  --blob-1: radial-gradient(circle, #8b5cf6, #ec4899);
-  /* Violet/Pink */
-  --blob-2: radial-gradient(circle, #10b981, #06b6d4);
-  /* Emerald/Cyan */
-  --blob-3: radial-gradient(circle, #f59e0b, #ef4444);
-  /* Amber/Red */
-
-  --grid-line: rgba(255, 255, 255, 0.05);
-
-  --glass-bg: rgba(30, 41, 59, 0.4);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --card-bg: #1e293b;
-  /* Slate 800 */
-  --card-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
-
-  --foreground: var(--text);
-  --background: var(--bg-base);
+/* --- High-Fidelity Text Gradient Animation --- */
+@keyframes shimmer-loop {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
-/* --------------------------------------------- */
-/*  GLOBAL BASE                                  */
-/* --------------------------------------------- */
+.animate-shimmer-infinite {
+  animation: shimmer-loop 3s infinite linear;
+}
+
+@keyframes gradient-move {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-text-gradient {
+  display: inline-block;
+  background-size: 300% auto;
+  animation: gradient-move 8s linear infinite;
+}
+
+/* --- Premium Glassmorphism Advanced Utility --- */
+.glass-premium {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--card-shadow);
+  border-radius: 40px; /* Restored for global consistency */
+  position: relative;
+  overflow: hidden;
+  
+  /* Precision Rendering Fixes (Preventing text blur on hover/tilt) */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0); 
+  -webkit-transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Refractive Top Lighting */
+.glass-premium::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
+  z-index: 1;
+}
+
+.glass-premium-hover:hover {
+  background: rgba(20, 20, 20, 0.55);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-4px);
+  box-shadow: 0 60px 120px -30px rgba(0, 0, 0, 0.95);
+}
+
+/* --- Glowing Accent Blobs (High Fidelity) --- */
+.glow-blob {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.glow-lime { background: var(--accent-lime); }
+.glow-teal { background: var(--accent-teal); }
+.glow-orange { background: var(--accent-orange); }
+
+.glass-surface {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+
+/* --- Animated Background Blobs --- */
+.bg-blob {
+  position: fixed;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.15;
+  pointer-events: none;
+  animation: blob-float 20s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);
+}
+
+@keyframes blob-float {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(100px, 150px) scale(1.1); }
+  66% { transform: translate(-80px, 120px) scale(0.9); }
+  100% { transform: translate(50px, -100px) scale(1); }
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg-base);
-  /* Fallback or base */
+  background: var(--bg-dark);
   color: var(--text);
   font-family: var(--font-poppins), sans-serif;
   overflow-x: hidden;

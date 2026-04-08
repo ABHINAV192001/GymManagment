@@ -44,7 +44,7 @@ export const registerOrganization = async (data) => {
         if (response.token) {
             setCookie('accessToken', response.token, null);
             setCookie('userRole', response.role, null);
-            setCookie('organizationId', response.organizationId, null);
+            setCookie('isLoggedIn', 'true', null);
             if (response.branchId) {
                 setCookie('branchId', response.branchId, null);
             }
@@ -76,7 +76,7 @@ export const login = async (credentials) => {
         if (response.token) {
             setCookie('accessToken', response.token, null);
             setCookie('userRole', response.role, null);
-            setCookie('organizationId', response.organizationId, null);
+            setCookie('isLoggedIn', 'true', null);
             if (response.branchId) {
                 setCookie('branchId', response.branchId, null);
             }
@@ -186,6 +186,7 @@ export const logout = () => {
     removeCookie('accessToken');
     removeCookie('authToken'); // Clear old one too
     removeCookie('userRole');
+    removeCookie('isLoggedIn');
     removeCookie('organizationId');
     removeCookie('branchId');
     if (typeof window !== 'undefined') {
@@ -199,7 +200,12 @@ export const logout = () => {
  */
 export const isAuthenticated = () => {
     if (typeof window === 'undefined') return false;
-    return !!(getCookie('authToken') || getCookie('accessToken'));
+    // Check for either the client-side "isLoggedIn" hint OR the actual tokens.
+    // This provides robustness against both HttpOnly restrictions and session transitions.
+    const hasToken = !!(getCookie('accessToken') || getCookie('authToken'));
+    const hasHint = getCookie('isLoggedIn') === 'true';
+    
+    return hasToken || hasHint;
 };
 
 /**
@@ -209,8 +215,12 @@ export const isAuthenticated = () => {
 export const getCurrentUser = () => {
     if (typeof window === 'undefined') return null;
 
+    const tokenHint = getCookie('isLoggedIn') === 'true';
     const token = getCookie('accessToken') || getCookie('authToken');
-    if (!token) return null;
+    
+    // We only return null if the hint is missing AND the token is missing.
+    // If the hint is true, we assume authentication is active (token might be HttpOnly).
+    if (!tokenHint && !token) return null;
 
     return {
         token,

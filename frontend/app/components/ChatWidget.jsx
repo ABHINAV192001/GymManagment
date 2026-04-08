@@ -179,11 +179,11 @@ export default function ChatWidget() {
             <button
                 type="button"
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 w-14 h-14 bg-[var(--primary)] text-black rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center z-[9999] animate-bounce-slow"
+                className="fixed bottom-10 right-10 w-16 h-16 bg-black/60 border-2 border-[#00f5ff] text-[#00f5ff] rounded-full shadow-[0_0_20px_rgba(0,245,255,0.4)] backdrop-blur-xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center z-[9999] group"
             >
-                <FaCommentDots className="text-2xl" />
+                <FaCommentDots className="text-2xl group-hover:rotate-[15deg] transition-transform" />
                 {totalUnread > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
+                    <span className="absolute -top-1 -right-1 bg-[#ccff33] text-black text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-black animate-pulse shadow-[0_0_10px_#ccff33]">
                         {totalUnread > 9 ? '9+' : totalUnread}
                     </span>
                 )}
@@ -192,19 +192,25 @@ export default function ChatWidget() {
     }
 
     return (
-        <div ref={widgetRef} className="fixed bottom-6 right-6 w-[350px] h-[500px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 flex flex-col z-[9999] overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+        <div ref={widgetRef} className="fixed bottom-10 right-10 w-[380px] h-[580px] bg-black/35 backdrop-blur-[40px] rounded-[2rem] shadow-[0_-20px_50px_-20px_rgba(0,245,255,0.4)] border-t-4 border-t-[#00f5ff] border-x-2 border-x-[#00f5ff]/20 border-b-2 border-b-white/5 flex flex-col z-[9999] overflow-hidden animate-in fade-in slide-in-from-bottom-10 duration-500">
 
             {/* Header */}
-            <div className="bg-[var(--primary)] p-4 flex justify-between items-center text-black">
-                <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-r from-[#00f5ff]/10 to-transparent p-6 flex justify-between items-center border-b border-white/5">
+                <div className="flex items-center gap-4">
                     {view !== 'LIST' && (
-                        <button type="button" onClick={() => setView('LIST')} className="hover:bg-black/10 p-1 rounded-full"><FaChevronLeft /></button>
+                        <button type="button" onClick={() => setView('LIST')} className="w-8 h-8 flex items-center justify-center bg-white/5 hover:bg-[#00f5ff]/20 text-[#00f5ff] rounded-lg transition-colors"><FaChevronLeft size={12} /></button>
                     )}
-                    <h3 className="font-bold text-lg">
-                        {view === 'LIST' ? 'Messages' : view === 'CONTACTS' ? 'New Message' : activeChat?.partner?.name}
-                    </h3>
+                    <div className="space-y-0.5">
+                        <h3 className="font-black text-xs uppercase tracking-[3px] text-white">
+                            {view === 'LIST' ? 'Terminal' : view === 'CONTACTS' ? 'New Protocol' : activeChat?.partner?.name}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                             <span className="w-1.5 h-1.5 bg-[#ccff33] rounded-full animate-pulse shadow-[0_0_5px_#ccff33]"></span>
+                             <span className="text-[7px] font-black uppercase tracking-widest text-[#ccff33]/70">Messages</span>
+                        </div>
+                    </div>
                 </div>
-                <button type="button" onClick={() => setIsOpen(false)} className="hover:bg-black/10 p-1 rounded-full"><FaTimes /></button>
+                <button type="button" onClick={() => setIsOpen(false)} className="w-8 h-8 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-500 rounded-lg transition-all"><FaTimes size={14} /></button>
             </div>
 
             {/* List View */}
@@ -213,34 +219,32 @@ export default function ChatWidget() {
                     <button
                         type="button"
                         onClick={handleNewChat}
-                        className="w-full bg-slate-100 dark:bg-white/5 p-3 rounded-xl mb-3 text-left text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition flex items-center gap-2"
+                        className="w-full bg-white/5 border border-white/10 p-4 rounded-xl mb-4 text-left text-[10px] font-black uppercase tracking-[2px] text-white/40 hover:text-[#00f5ff] hover:border-[#00f5ff]/40 transition-all flex items-center gap-3 group"
                     >
-                        <FaSearch /> Find someone to chat...
+                        <FaSearch className="group-hover:scale-110 transition-transform" /> Sync New Connection...
                     </button>
 
                     {conversations.map(conv => (
                         <div
                             key={conv.id}
                             onClick={() => handleOpenChat(conv)}
-                            className="p-3 mb-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl cursor-pointer transition flex gap-3 items-center border-b border-gray-100 dark:border-white/5 last:border-0"
+                            className="p-4 mb-2 bg-white/[0.02] hover:bg-[#00f5ff]/5 !border-l-2 !border-l-transparent hover:!border-l-[#00f5ff] rounded-xl cursor-pointer transition-all flex gap-4 items-center border border-white/5"
                         >
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                            <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-[#ccff33] text-lg font-black shadow-inner">
                                 {conv.partner.name[0]}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-baseline">
-                                    <h4 className="font-bold text-slate-800 dark:text-white truncate">{conv.partner.name}</h4>
-                                    <span className="text-[10px] text-slate-400">{conv.timestamp}</span>
+                                <div className="flex justify-between items-baseline mb-0.5">
+                                    <h4 className="font-black text-[11px] uppercase tracking-tight text-white/90">{conv.partner.name}</h4>
+                                    <span className="text-[8px] font-black uppercase text-white/20">{conv.timestamp}</span>
                                 </div>
-                                <p className={`text-sm truncate ${conv.unread > 0 ? 'font-bold text-black dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
+                                <p className={`text-[10px] font-bold truncate tracking-tight ${conv.unread > 0 ? 'text-[#00f5ff]' : 'text-white/40'}`}>
                                     {conv.lastMessage}
                                 </p>
                             </div>
                             {conv.unread > 0 && (
-                                <div className="flex flex-col items-end gap-1">
-                                    <div className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center">
-                                        {conv.unread}
-                                    </div>
+                                <div className="bg-[#ccff33] text-black text-[9px] font-black min-w-[20px] h-[20px] rounded-full flex items-center justify-center shadow-[0_0_10px_#ccff33]">
+                                    {conv.unread}
                                 </div>
                             )}
                         </div>
@@ -283,12 +287,12 @@ export default function ChatWidget() {
                             const isMe = senderId === 'me' || senderId === currentUserId;
                             return (
                                 <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[80%] rounded-2xl p-3 text-sm ${isMe
-                                        ? 'bg-[var(--primary)] text-black rounded-tr-none'
-                                        : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-sm rounded-tl-none border border-gray-100 dark:border-white/5'
+                                    <div className={`max-w-[85%] rounded-2xl p-4 text-[11px] font-bold tracking-tight leading-relaxed shadow-xl ${isMe
+                                        ? 'bg-[#00f5ff]/20 text-[#00f5ff] rounded-tr-none border border-[#00f5ff]/30'
+                                        : 'bg-white/5 text-white/80 rounded-tl-none border border-white/10'
                                         }`}>
                                         <p>{msg.text}</p>
-                                        <span className="text-[10px] opacity-60 block text-right mt-1">{msg.time}</span>
+                                        <span className={`text-[8px] font-black uppercase mt-2 block ${isMe ? 'text-[#00f5ff]/60' : 'text-white/20'}`}>{msg.time}</span>
                                     </div>
                                 </div>
                             )
@@ -296,15 +300,17 @@ export default function ChatWidget() {
                         <div ref={messagesEndRef} />
                     </div>
 
-                    <form onSubmit={handleSend} className="p-3 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-white/10 flex gap-2">
-                        <input
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                            placeholder="Type a message..."
-                            className="flex-1 bg-slate-100 dark:bg-white/5 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)] text-slate-800 dark:text-white placeholder-slate-400"
-                        />
-                        <button type="submit" className="w-10 h-10 bg-[var(--primary)] text-black rounded-full flex items-center justify-center hover:opacity-90 transition">
-                            <FaPaperPlane className="text-sm ml-0.5" />
+                    <form onSubmit={handleSend} className="p-4 bg-black/40 backdrop-blur-md border-t border-white/5 flex gap-3 items-center">
+                        <div className="flex-1 relative">
+                            <input
+                                value={inputText}
+                                onChange={(e) => setInputText(e.target.value)}
+                                placeholder="Transmit data..."
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-[11px] font-bold uppercase tracking-widest outline-none focus:border-[#00f5ff]/50 transition-all text-white placeholder:text-white/20"
+                            />
+                        </div>
+                        <button type="submit" className="w-12 h-12 bg-[#00f5ff] text-black rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(0,245,255,0.4)] group">
+                            <FaPaperPlane className="text-sm group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                         </button>
                     </form>
                 </>

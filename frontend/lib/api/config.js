@@ -3,11 +3,11 @@
  * Central configuration for all API calls
  */
 
-// Base API URL - Update this based on your backend deployment
+// Base API URL - Proxy paths via next.config.mjs
 import { getCookie } from '../cookie';
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-export const CHAT_API_BASE_URL = process.env.NEXT_PUBLIC_CHAT_API_URL || 'http://localhost:8082';
-export const WORKOUT_API_BASE_URL = process.env.NEXT_PUBLIC_WORKOUT_API_URL || 'http://localhost:8083';
+export const API_BASE_URL = '/proxy/main';
+export const CHAT_API_BASE_URL = '/proxy/chat';
+export const WORKOUT_API_BASE_URL = '/proxy/workout';
 
 // API endpoints
 export const API_ENDPOINTS = {
