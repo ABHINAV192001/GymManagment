@@ -14,6 +14,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.Gym.GymCommonServices.util.JwtUtil;
+
 import java.io.IOException;
 
 @Component
@@ -33,11 +35,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // System.out.println("JwtAuthFilter: Processing path: " + path);
 
         // ✅ SKIP PUBLIC APIs - DO NOT PROCESS JWT FOR THESE PATHS
-        if (path.contains("/api/auth/")
-                || path.contains("/api/chat/")
-                || path.contains("/api/otp/")
-                || path.contains("/api/user/food/debug/schema")
-                || path.contains("/api/public/")) {
+        if (path.contains("/api/auth/login")
+                || path.contains("/api/auth/register")
+                || path.contains("/api/public/")
+                || path.contains("/api/otp/")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -123,11 +124,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
             System.err.println("JwtAuthFilter: JWT Token EXPIRED: " + e.getMessage());
+            request.setAttribute("jwt_error", "EXPIRED");
         } catch (io.jsonwebtoken.security.SignatureException e) {
-            System.err.println("JwtAuthFilter: JWT Signature INVALID: " + e.getMessage());
+            System.err.println("JwtAuthFilter: JWT Signature INVALID Check secret key encoding. Error: " + e.getMessage());
+            request.setAttribute("jwt_error", "INVALID_SIGNATURE");
         } catch (Exception e) {
             System.err.println("JwtAuthFilter: JWT Token validation failed: " + e.getClass().getSimpleName() + " - "
                     + e.getMessage());
+            request.setAttribute("jwt_error", "GENERAL_ERROR");
             e.printStackTrace();
         }
 

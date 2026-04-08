@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { CHAT_API_BASE_URL } from '@/lib/api/config';
 
 export default function ChatLoginPage() {
     const [username, setUsername] = useState('');
@@ -10,7 +11,7 @@ export default function ChatLoginPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const endpoint = isLogin ? 'http://localhost:8082/auth/login' : 'http://localhost:8082/auth/signup';
+        const endpoint = isLogin ? `${CHAT_API_BASE_URL}/auth/login` : `${CHAT_API_BASE_URL}/auth/signup`;
 
         try {
             const res = await fetch(endpoint, {

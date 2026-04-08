@@ -1,31 +1,44 @@
 package com.gymbross.chatservice.controller;
 
+import com.Gym.GymCommonServices.dto.ApiResponse;
 import com.Gym.GymCommonServices.entity.Notification;
 import com.gymbross.chatservice.service.NotificationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/notifications")
+@RequestMapping("/api/chat/notifications") // Standardized path
+@RequiredArgsConstructor
 public class NotificationController {
 
-    @Autowired
-    private NotificationService notificationService;
+    private final NotificationService notificationService;
 
     @GetMapping("/{username}")
-    public List<Notification> getNotifications(@PathVariable String username) {
-        return notificationService.getNotifications(username);
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<Notification>>> getNotifications(@PathVariable String username) {
+        if ("undefined".equals(username) || username == null) {
+            return ResponseEntity.ok(ApiResponse.success(java.util.Collections.emptyList()));
+        }
+        return ResponseEntity.ok(ApiResponse.success(notificationService.getNotifications(username)));
     }
 
     @GetMapping("/{username}/unread-count")
-    public long getUnreadCount(@PathVariable String username) {
-        return notificationService.getUnreadCount(username);
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Long>> getUnreadCount(@PathVariable String username) {
+        if ("undefined".equals(username) || username == null) {
+            return ResponseEntity.ok(ApiResponse.success(0L));
+        }
+        return ResponseEntity.ok(ApiResponse.success(notificationService.getUnreadCount(username)));
     }
 
     @PutMapping("/{id}/read")
-    public void markAsRead(@PathVariable Long id) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id) {
         notificationService.markAsRead(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Notification marked as read"));
     }
 }

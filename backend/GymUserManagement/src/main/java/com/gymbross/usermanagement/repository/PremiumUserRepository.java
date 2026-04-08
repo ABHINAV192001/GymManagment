@@ -11,7 +11,9 @@ public interface PremiumUserRepository extends JpaRepository<PremiumUser, Long> 
 
     Optional<PremiumUser> findByUsername(String username);
 
-    Optional<PremiumUser> findByPremiumCode(String premiumCode);
-
     Optional<PremiumUser> findTopByEmailIgnoreCase(String email);
+
+    boolean existsByEmailIgnoreCase(String email);
+
+    boolean existsByEmail(String email);
 }

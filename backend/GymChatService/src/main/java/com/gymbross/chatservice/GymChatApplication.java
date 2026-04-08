@@ -8,6 +8,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         "com.gymbross.chatservice.model" })
 @org.springframework.data.jpa.repository.config.EnableJpaRepositories(basePackages = {
         "com.Gym.GymCommonServices.repository", "com.gymbross.chatservice.repository" })
+@org.springframework.context.annotation.ComponentScan(basePackages = { "com.gymbross.chatservice",
+        "com.Gym.GymCommonServices" })
 public class GymChatApplication {
 
     public static void main(String[] args) {

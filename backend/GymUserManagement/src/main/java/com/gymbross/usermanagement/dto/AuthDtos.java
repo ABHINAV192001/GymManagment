@@ -85,10 +85,19 @@ public class AuthDtos {
     @AllArgsConstructor
     public static class AuthResponse {
         private String token;
+        private String refreshToken;
         private String role;
         private Long organizationId;
         private Long branchId;
         private Boolean isOnboardingCompleted;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TokenRefreshRequest {
+        @NotBlank(message = "Refresh token is required")
+        private String refreshToken;
     }
 
     @Data

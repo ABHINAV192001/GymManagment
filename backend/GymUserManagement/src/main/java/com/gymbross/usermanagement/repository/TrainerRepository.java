@@ -22,4 +22,5 @@ public interface TrainerRepository extends JpaRepository<Trainer, Long> {
     Optional<Trainer> findTopByEmailIgnoreCase(String email);
 
     boolean existsByEmailIgnoreCase(String email);
+    boolean existsByEmail(String email);
 }

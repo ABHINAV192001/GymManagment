@@ -81,7 +81,9 @@ export const getAuthHeader = () => {
     const token = getCookie('accessToken') || getCookie('authToken') || getCookie('jwt') || getCookie('token');
 
     if (!token) {
-        console.warn("DEBUG: [getAuthHeader] No token found in any common cookie keys!");
+        if (typeof window !== 'undefined') {
+            console.warn("DEBUG: [getAuthHeader] No token found in any common cookie keys!");
+        }
     } else {
         console.log(`DEBUG: [getAuthHeader] Token found (key fallback check, length: ${token.length})`);
     }

@@ -80,12 +80,40 @@ export const apiRequest = async (endpoint, options = {}) => {
 
         if (!response.ok) {
             if (response.status === 401) {
+<<<<<<< Updated upstream
                 if (typeof window !== 'undefined' && baseUrl === API_BASE_URL && !isPublic && !options.skipAuthRedirect) {
                     console.warn("DEBUG: [apiRequest] Unauthorized! Redirecting to login.");
                     removeCookie('accessToken');
                     removeCookie('authToken');
                     removeCookie('isLoggedIn');
                     window.location.href = '/auth/login';
+=======
+                console.error(`DEBUG: [apiRequest] 401 Unauthorized from ${url}`);
+                
+                // Only redirect if this is a main API request and NOT an auth endpoint
+                if (typeof window !== 'undefined' &&
+                    baseUrl === API_BASE_URL &&
+                    !endpoint.startsWith('/api/auth/') &&
+                    !endpoint.startsWith('/api/public/')) {
+                    
+                    // Check if this was a fresh login (don't logout immediately on the first failure)
+                    const sessionReceived = sessionStorage.getItem('received_session');
+                    if (sessionReceived === 'true') {
+                         console.warn("DEBUG: [apiRequest] Suppressing immediate logout for potentially fresh session. Retrying manually might help.");
+                         // Instead of redirecting instantly, we could try to refresh or just throw the error
+                         // For now, let's keep the logout but log it extensively
+                    }
+
+                    console.log("DEBUG: [apiRequest] Clearing session and redirecting to login.");
+                    // Clear any auth-related cookies to prevent redirect loops in middleware
+                    removeCookie('accessToken');
+                    removeCookie('authToken');
+                    removeCookie('userRole');
+                    removeCookie('organizationId');
+                    removeCookie('branchId');
+
+                    window.location.href = '/auth/login?reason=unauthorized';
+>>>>>>> Stashed changes
                 }
             }
             throw new APIError(data?.message || data?.error || `HTTP ${response.status}`, response.status, data?.errors || null);

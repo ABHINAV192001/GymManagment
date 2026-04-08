@@ -25,6 +25,7 @@ import AddWaterModal from "../components/User/AddWaterModal";
 import DailyLogModal from "../components/User/DailyLogModal";
 import { rateTrainer } from "@/lib/api/trainer";
 import { getProfile } from "@/lib/api/user";
+import { API_BASE_URL, WORKOUT_API_BASE_URL } from "@/lib/api/config";
 
 export default function UserDashboard() {
   const { theme } = useTheme();
@@ -81,7 +82,7 @@ export default function UserDashboard() {
       }
 
       // 1. Fetch User Dashboard Stats (User Info, Calories, Macros)
-      const res = await fetch(`http://localhost:8080/api/user/dashboard?date=${selectedDate}`, {
+      const res = await fetch(`${API_BASE_URL}/api/user/dashboard?date=${selectedDate}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -102,7 +103,7 @@ export default function UserDashboard() {
         const user = JSON.parse(userStr);
         try {
           // Fetch weekly plan from Workout Service (8083)
-          const weeklyRes = await fetch(`http://localhost:8083/api/workout/user-plan/${user.id}/weekly`, {
+          const weeklyRes = await fetch(`${WORKOUT_API_BASE_URL}/api/workout/user-plan/${user.id}/weekly`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
 
@@ -114,7 +115,7 @@ export default function UserDashboard() {
 
             if (workoutId) {
               // Fetch workout title
-              const workoutInfoRes = await fetch(`http://localhost:8083/api/user/workout/${workoutId}`, {
+              const workoutInfoRes = await fetch(`${WORKOUT_API_BASE_URL}/api/user/workout/${workoutId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
               });
               if (workoutInfoRes.ok) {

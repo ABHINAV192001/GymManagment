@@ -64,6 +64,18 @@ public class JwtUtil {
         return extractClaim(token, Claims::getExpiration);
     }
 
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    public Long extractOrganizationId(String token) {
+        return extractClaim(token, claims -> claims.get("organizationId", Long.class));
+    }
+
+    public Long extractBranchId(String token) {
+        return extractClaim(token, claims -> claims.get("branchId", Long.class));
+    }
+
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
@@ -73,7 +85,12 @@ public class JwtUtil {
     }
 
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        if (secretKey == null || secretKey.isEmpty()) {
+            System.err.println("JwtUtil: CRITICAL ERROR - secretKey is NULL or EMPTY! Check application.properties.");
+        } else {
+            // System.out.println("JwtUtil: SecretKey length: " + secretKey.length());
+        }
+        byte[] keyBytes = java.util.HexFormat.of().parseHex(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

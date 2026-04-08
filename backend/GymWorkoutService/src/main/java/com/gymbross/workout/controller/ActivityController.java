@@ -1,9 +1,12 @@
 package com.gymbross.workout.controller;
 
+import com.Gym.GymCommonServices.dto.ApiResponse;
 import com.gymbross.workout.entity.Activity;
 import com.gymbross.workout.repository.ActivityRepository;
+import com.Gym.GymCommonServices.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,53 +19,58 @@ public class ActivityController {
     private final ActivityRepository activityRepository;
 
     @GetMapping
-    public ResponseEntity<List<Activity>> getAllActivities(@RequestParam(required = false) String category) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<Activity>>> getAllActivities(@RequestParam(required = false) String category) {
         if (category != null) {
-            return ResponseEntity.ok(activityRepository.findByCategory(category));
+            return ResponseEntity.ok(ApiResponse.success(activityRepository.findByCategory(category)));
         }
-        return ResponseEntity.ok(activityRepository.findAll());
+        return ResponseEntity.ok(ApiResponse.success(activityRepository.findAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Activity> getActivityById(@PathVariable Long id) {
-        return activityRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Activity>> getActivityById(@PathVariable Long id) {
+        Activity activity = activityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Activity not found with id: " + id));
+        return ResponseEntity.ok(ApiResponse.success(activity));
     }
 
     @PostMapping
-    public ResponseEntity<Activity> createActivity(@RequestBody Activity activity) {
-        return ResponseEntity.ok(activityRepository.save(activity));
+    @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
+    public ResponseEntity<ApiResponse<Activity>> createActivity(@RequestBody Activity activity) {
+        return ResponseEntity.ok(ApiResponse.success(activityRepository.save(activity), "Activity created successfully"));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Activity> updateActivity(@PathVariable Long id, @RequestBody Activity updatedActivity) {
-        return activityRepository.findById(id)
-                .map(existing -> {
-                    existing.setTitle(updatedActivity.getTitle());
-                    existing.setTime(updatedActivity.getTime());
-                    existing.setCalories(updatedActivity.getCalories());
-                    existing.setImage(updatedActivity.getImage());
-                    existing.setGradient(updatedActivity.getGradient());
-                    existing.setDescription(updatedActivity.getDescription());
-                    existing.setBenefits(updatedActivity.getBenefits());
-                    existing.setSchedule(updatedActivity.getSchedule());
-                    existing.setInstructorName(updatedActivity.getInstructorName());
-                    existing.setInstructorRole(updatedActivity.getInstructorRole());
-                    existing.setInstructorImage(updatedActivity.getInstructorImage());
-                    existing.setCategory(updatedActivity.getCategory());
-                    existing.setLinkedWorkoutId(updatedActivity.getLinkedWorkoutId());
-                    return ResponseEntity.ok(activityRepository.save(existing));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
+    public ResponseEntity<ApiResponse<Activity>> updateActivity(@PathVariable Long id, @RequestBody Activity updatedActivity) {
+        Activity existing = activityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Activity not found with id: " + id));
+        
+        existing.setTitle(updatedActivity.getTitle());
+        existing.setTime(updatedActivity.getTime());
+        existing.setCalories(updatedActivity.getCalories());
+        existing.setImage(updatedActivity.getImage());
+        existing.setGradient(updatedActivity.getGradient());
+        existing.setDescription(updatedActivity.getDescription());
+        existing.setBenefits(updatedActivity.getBenefits());
+        existing.setSchedule(updatedActivity.getSchedule());
+        existing.setInstructorName(updatedActivity.getInstructorName());
+        existing.setInstructorRole(updatedActivity.getInstructorRole());
+        existing.setInstructorImage(updatedActivity.getInstructorImage());
+        existing.setCategory(updatedActivity.getCategory());
+        existing.setLinkedWorkoutId(updatedActivity.getLinkedWorkoutId());
+        
+        return ResponseEntity.ok(ApiResponse.success(activityRepository.save(existing), "Activity updated successfully"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteActivity(@PathVariable Long id) {
+    @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteActivity(@PathVariable Long id) {
         if (activityRepository.existsById(id)) {
             activityRepository.deleteById(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(ApiResponse.success(null, "Activity deleted successfully"));
         }
-        return ResponseEntity.notFound().build();
+        throw new ResourceNotFoundException("Activity not found with id: " + id);
     }
 }

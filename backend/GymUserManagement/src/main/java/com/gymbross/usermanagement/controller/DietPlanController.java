@@ -1,10 +1,13 @@
 package com.gymbross.usermanagement.controller;
 
 import com.Gym.GymCommonServices.entity.UserDietPlan;
+import com.Gym.GymCommonServices.dto.ApiResponse;
 import com.gymbross.usermanagement.service.DietPlanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -16,21 +19,24 @@ public class DietPlanController {
     private final DietPlanService dietPlanService;
 
     @PostMapping(value = "/assign", consumes = { "multipart/form-data" })
-    public ResponseEntity<UserDietPlan> assignDietPlan(
+    @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
+    public ResponseEntity<ApiResponse<UserDietPlan>> assignDietPlan(
             @RequestParam Long userId,
             @RequestPart("dietPlan") UserDietPlan dietPlan,
-            @RequestPart(value = "file", required = false) org.springframework.web.multipart.MultipartFile file) {
-        return ResponseEntity.ok(dietPlanService.assignDietPlan(userId, dietPlan, file));
+            @RequestPart(value = "file", required = false) MultipartFile file) {
+        return ResponseEntity.ok(ApiResponse.success(dietPlanService.assignDietPlan(userId, dietPlan, file), "Diet plan assigned successfully"));
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<UserDietPlan>> getUserDietPlans(@PathVariable Long userId) {
-        return ResponseEntity.ok(dietPlanService.getUserDietPlans(userId));
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<UserDietPlan>>> getUserDietPlans(@PathVariable Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(dietPlanService.getUserDietPlans(userId)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteDietPlan(@PathVariable Long id) {
+    @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
+    public ResponseEntity<ApiResponse<Void>> deleteDietPlan(@PathVariable Long id) {
         dietPlanService.deleteDietPlan(id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success(null, "Diet plan deleted successfully"));
     }
 }
