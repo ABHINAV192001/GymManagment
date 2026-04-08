@@ -10,6 +10,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -29,42 +31,66 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
+        
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
+        String jwt = null;
         final String userEmail;
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // 1. Try to get token from Header
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            jwt = authHeader.substring(7);
+        }
+        
+        // 2. Try to get token from Cookie if header is missing
+        if (jwt == null && request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if ("accessToken".equals(cookie.getName())) {
+                    jwt = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (jwt == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7);
         try {
             userEmail = jwtUtil.extractUsername(jwt);
 
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // In a real scenario, we might call a UserDetailsService to load user data from
-                // DB or Cache.
-                // For this microservice, we trust the token if the signature is valid.
-                // We create a minimal UserDetails object based on the token claims.
-                UserDetails userDetails = new User(userEmail, "", new ArrayList<>());
+                String role = jwtUtil.extractRole(jwt);
+                Long organizationId = jwtUtil.extractOrganizationId(jwt);
+                Long branchId = jwtUtil.extractBranchId(jwt);
+
+                // Create authorities from role
+                List<org.springframework.security.core.authority.SimpleGrantedAuthority> authorities = new ArrayList<>();
+                if (role != null) {
+                    authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority(role));
+                }
+
+                UserDetails userDetails = new org.springframework.security.core.userdetails.User(userEmail, "", authorities);
 
                 if (jwtUtil.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null,
                             userDetails.getAuthorities());
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request));
+                    
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    
+                    // Set context attributes for controllers
+                    if (organizationId != null) request.setAttribute("organizationId", organizationId);
+                    if (branchId != null) request.setAttribute("branchId", branchId);
+                    
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            // Log expiration but allow request to proceed (will be blocked by security
-            // config if auth required)
-            System.out.println("JWT Expired: " + e.getMessage());
+            System.out.println("WorkoutService: JWT Expired for " + request.getRequestURI());
         } catch (Exception e) {
-            System.out.println("JWT Error: " + e.getMessage());
+            System.out.println("WorkoutService: JWT Error: " + e.getMessage());
         }
         filterChain.doFilter(request, response);
     }

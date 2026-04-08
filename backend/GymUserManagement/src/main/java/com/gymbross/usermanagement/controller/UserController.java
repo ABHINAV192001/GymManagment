@@ -1,102 +1,72 @@
 package com.gymbross.usermanagement.controller;
 
+import com.Gym.GymCommonServices.dto.ApiResponse;
 import com.gymbross.usermanagement.dto.UserProfileDto;
-import com.gymbross.usermanagement.security.JwtUtil;
 import com.gymbross.usermanagement.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class UserController {
 
     private final UserService userService;
-    private final JwtUtil jwtUtil;
 
     @GetMapping("/profile")
-    public ResponseEntity<UserProfileDto> getProfile(Principal principal) {
-        System.out.println(
-                "UserController: getProfile called for: " + (principal != null ? principal.getName() : "null"));
-        // Principal.getName() returns the username (email or username depending on
-        // config)
-        try {
-            return ResponseEntity.ok(userService.getProfile(principal.getName()));
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
-        }
+    public ResponseEntity<ApiResponse<UserProfileDto>> getProfile(Principal principal) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getProfile(principal.getName())));
     }
 
     @PutMapping("/profile")
-    public ResponseEntity<UserProfileDto> updateProfile(
-            Principal principal,
-            @RequestBody UserProfileDto dto) {
-        return ResponseEntity.ok(userService.updateProfile(principal.getName(), dto));
-    }
-
-    @PatchMapping("/status")
-    public ResponseEntity<Void> toggleStatus(@RequestParam boolean isActive, Principal principal) {
-        userService.toggleUserStatus(principal.getName(), isActive);
-        return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/attendance")
-    public ResponseEntity<java.util.List<Object>> getAttendanceHistory(Principal principal) {
-        return ResponseEntity.ok(userService.getAttendanceHistory(principal.getName()));
-    }
-
-    @GetMapping("/subscription-history")
-    public ResponseEntity<java.util.List<Object>> getSubscriptionHistory(Principal principal) {
-        return ResponseEntity.ok(userService.getSubscriptionHistory(principal.getName()));
+    public ResponseEntity<ApiResponse<UserProfileDto>> updateProfile(Principal principal, @RequestBody UserProfileDto dto) {
+        return ResponseEntity.ok(ApiResponse.success(userService.updateProfile(principal.getName(), dto)));
     }
 
     @PostMapping("/onboarding")
-    public ResponseEntity<Void> submitOnboarding(Principal principal,
-            @RequestBody com.gymbross.usermanagement.dto.OnboardingDto dto) {
+    public ResponseEntity<ApiResponse<Void>> submitOnboarding(Principal principal, @RequestBody com.gymbross.usermanagement.dto.OnboardingDto dto) {
         userService.submitOnboarding(principal.getName(), dto);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success(null, "Onboarding submitted successfully"));
     }
 
     @GetMapping("/dashboard")
-    public ResponseEntity<com.gymbross.usermanagement.dto.DashboardDto> getDashboardStats(
+    public ResponseEntity<ApiResponse<com.gymbross.usermanagement.dto.DashboardDto>> getDashboardStats(
             Principal principal,
             @RequestParam(required = false) String date) {
-        return ResponseEntity.ok(userService.getDashboardStats(principal.getName(), date));
+        return ResponseEntity.ok(ApiResponse.success(userService.getDashboardStats(principal.getName(), date)));
     }
 
     @PostMapping("/water/log")
-    public ResponseEntity<Void> logWater(Principal principal, @RequestBody java.util.Map<String, Object> payload) {
+    public ResponseEntity<ApiResponse<Void>> logWater(Principal principal, @RequestBody Map<String, Object> payload) {
         double amount = Double.parseDouble(payload.get("amount").toString());
         String date = (String) payload.get("date");
         userService.logWater(principal.getName(), amount, date);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success(null, "Water logged successfully"));
     }
 
     @GetMapping("/daily-log")
-    public ResponseEntity<com.gymbross.usermanagement.dto.DailyLogDto> getDailyLog(
+    public ResponseEntity<ApiResponse<com.gymbross.usermanagement.dto.DailyLogDto>> getDailyLog(
             Principal principal,
             @RequestParam(required = false) String date) {
-        return ResponseEntity.ok(userService.getDailyLog(principal.getName(), date));
+        return ResponseEntity.ok(ApiResponse.success(userService.getDailyLog(principal.getName(), date)));
     }
 
     @DeleteMapping("/food/log/{id}")
-    public ResponseEntity<?> deleteFoodLog(@PathVariable Long id,
-            @RequestHeader(HttpHeaders.AUTHORIZATION) String token) {
-        String username = jwtUtil.extractUsername(token.substring(7));
-        userService.deleteFoodLog(id, username);
-        return ResponseEntity.ok("Deleted");
+    public ResponseEntity<ApiResponse<Void>> deleteFoodLog(@PathVariable Long id, Principal principal) {
+        userService.deleteFoodLog(id, principal.getName());
+        return ResponseEntity.ok(ApiResponse.success(null, "Food log deleted"));
     }
 
     @DeleteMapping("/water/log/{id}")
-    public ResponseEntity<?> deleteWaterLog(@PathVariable Long id,
-            @RequestHeader(HttpHeaders.AUTHORIZATION) String token) {
-        String username = jwtUtil.extractUsername(token.substring(7));
-        userService.deleteWaterLog(id, username);
-        return ResponseEntity.ok("Deleted");
+    public ResponseEntity<ApiResponse<Void>> deleteWaterLog(@PathVariable Long id, Principal principal) {
+        userService.deleteWaterLog(id, principal.getName());
+        return ResponseEntity.ok(ApiResponse.success(null, "Water log deleted"));
     }
 }

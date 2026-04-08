@@ -11,6 +11,7 @@ const poppins = Poppins({
 
 import { Providers } from "./components/Providers";
 import JoyfulBackground from "./components/JoyfulBackground";
+import ConnectionStatus from "@/components/ConnectionStatus";
 
 export default function RootLayout({ children }) {
   return (
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
         <Providers>
           <JoyfulBackground />
           {children}
+          <ConnectionStatus />
         </Providers>
       </body>
     </html>

@@ -31,14 +31,30 @@ export function middleware(request) {
 
     // 2. Redirect from Auth Routes if Logged In
     if (isAuthRoute && token) {
+<<<<<<< Updated upstream
         let targetDashboard = '/branch/dashboard'; 
         const upperRole = role?.toUpperCase() || '';
 
         if (['ADMIN', 'SUPER_ADMIN', 'OWNER', 'ORG_ADMIN'].includes(upperRole)) {
+=======
+        // Determine dashboard based on role (Normalize to uppercase and handle ROLE_ prefix)
+        const rawRole = request.cookies.get('userRole')?.value || '';
+        const role = rawRole.toUpperCase().replace('ROLE_', '');
+        
+        console.log(`DEBUG: [Middleware] Decoded Role: ${role} from Raw: ${rawRole}`);
+
+        let targetDashboard = '/branch/dashboard'; // Default for Branch Admin/Staff
+
+        if (['ADMIN', 'SUPER_ADMIN', 'OWNER', 'ORG_ADMIN'].includes(role)) {
+>>>>>>> Stashed changes
             targetDashboard = '/admin/dashboard';
         } else if (upperRole === 'TRAINER') {
             targetDashboard = '/branch/trainer-dashboard';
+<<<<<<< Updated upstream
         } else if (upperRole === 'USER' || upperRole === 'PREMIUM_USER') {
+=======
+        } else if (['USER', 'PREMIUM_USER'].includes(role)) {
+>>>>>>> Stashed changes
             targetDashboard = '/user';
         }
 

@@ -1,5 +1,6 @@
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
+import { CHAT_API_BASE_URL } from './api/config';
 
 let stompClient = null;
 
@@ -9,7 +10,7 @@ export const initStomp = (onConnected) => {
         return;
     }
 
-    const socket = new SockJS('http://localhost:8082/chat');
+    const socket = new SockJS(`${CHAT_API_BASE_URL}/chat`);
     stompClient = Stomp.over(socket);
 
     // Disable debug logging in production

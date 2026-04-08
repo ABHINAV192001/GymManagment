@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { FiClock, FiActivity, FiFilter, FiList } from "react-icons/fi";
 import { FaFire } from "react-icons/fa";
+import { WORKOUT_API_BASE_URL } from "@/lib/api/config";
 
 import { getCookie } from "@/lib/cookie";
 
@@ -28,7 +29,7 @@ export default function WorkoutSelectionPage() {
   useEffect(() => {
     setLoading(true);
     const token = getCookie('authToken');
-    fetch(`http://localhost:8083/api/user/workout?category=${selectedType}`, {
+    fetch(`${WORKOUT_API_BASE_URL}/api/user/workout?category=${selectedType}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'

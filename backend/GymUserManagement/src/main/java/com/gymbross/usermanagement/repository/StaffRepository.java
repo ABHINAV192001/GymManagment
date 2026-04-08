@@ -22,4 +22,5 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
     Optional<Staff> findTopByEmailIgnoreCase(String email);
 
     boolean existsByEmailIgnoreCase(String email);
+    boolean existsByEmail(String email);
 }

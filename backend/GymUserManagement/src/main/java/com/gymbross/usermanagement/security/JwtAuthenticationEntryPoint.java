@@ -22,7 +22,13 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
+        String errorMessage = "JWT is expired or invalid, please create a new one";
+        String jwtError = (String) request.getAttribute("jwt_error");
+        if (jwtError != null) {
+            errorMessage += " [Detail: " + jwtError + "]";
+        }
+        
         response.getWriter().write(
-                "{\"status\": 401, \"error\": \"Unauthorized\", \"message\": \"JWT is expired or invalid, please create a new one\"}");
+                "{\"status\": 401, \"error\": \"Unauthorized\", \"message\": \"" + errorMessage + "\"}");
     }
 }

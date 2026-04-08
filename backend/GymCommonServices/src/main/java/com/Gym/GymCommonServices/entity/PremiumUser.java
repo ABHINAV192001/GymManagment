@@ -15,7 +15,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "premium_users")
@@ -61,10 +60,20 @@ public class PremiumUser implements UserDetails {
     private LocalDateTime createdAt;
 
     @Builder.Default
+    @Column(name = "is_email_verified")
     private Boolean isEmailVerified = false;
 
     @Builder.Default
+    @Column(name = "is_phone_verified")
     private Boolean isPhoneVerified = false;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false, columnDefinition = "boolean default false")
+    private Boolean isActive = false;
+
+    @Builder.Default
+    @Column(name = "is_deleted", nullable = false, columnDefinition = "boolean default false")
+    private Boolean isDeleted = false;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -98,6 +107,6 @@ public class PremiumUser implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return Boolean.TRUE.equals(isActive);
     }
 }
