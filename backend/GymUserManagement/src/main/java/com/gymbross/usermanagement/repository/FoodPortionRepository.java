@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface FoodPortionRepository extends JpaRepository<FoodPortion, Long> {
+public interface FoodPortionRepository extends JpaRepository<FoodPortion, java.util.UUID> {
 }

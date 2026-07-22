@@ -33,7 +33,7 @@ public class WorkoutController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<WorkoutDto>> getWorkout(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<WorkoutDto>> getWorkout(@PathVariable java.util.UUID id) {
         return ResponseEntity.ok(ApiResponse.success(workoutService.getWorkoutById(id)));
     }
 
@@ -45,13 +45,13 @@ public class WorkoutController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
-    public ResponseEntity<ApiResponse<WorkoutDto>> updateWorkout(@PathVariable Long id, @RequestBody WorkoutDto workoutDto) {
+    public ResponseEntity<ApiResponse<WorkoutDto>> updateWorkout(@PathVariable java.util.UUID id, @RequestBody WorkoutDto workoutDto) {
         return ResponseEntity.ok(ApiResponse.success(workoutService.updateWorkout(id, workoutDto), "Workout updated successfully"));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deleteWorkout(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteWorkout(@PathVariable java.util.UUID id) {
         workoutService.deleteWorkout(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Workout deleted successfully"));
     }
@@ -66,7 +66,7 @@ public class WorkoutController {
 
     @Data
     public static class WorkoutHistoryRequest {
-        private Long workoutId;
+        private java.util.UUID workoutId;
         private Integer duration;
         private Integer calories;
     }

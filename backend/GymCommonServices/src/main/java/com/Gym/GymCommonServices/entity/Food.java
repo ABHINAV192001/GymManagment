@@ -12,11 +12,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "food")
-public class Food {
+public class Food extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @Column(name = "description", nullable = false)
     private String foodName;

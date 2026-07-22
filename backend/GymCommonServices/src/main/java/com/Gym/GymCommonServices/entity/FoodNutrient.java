@@ -14,11 +14,9 @@ import lombok.NoArgsConstructor;
 @Table(name = "food_nutrient", uniqueConstraints = {
         @UniqueConstraint(columnNames = { "food_id", "nutrient_id" })
 })
-public class FoodNutrient {
+public class FoodNutrient extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "food_id", nullable = false)

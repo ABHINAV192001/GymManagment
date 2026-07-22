@@ -14,12 +14,13 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
-@PreAuthorize("isAuthenticated()")
+
 public class ChatController {
 
     private final ChatService chatService;
 
     @PostMapping("/send")
+    @PreAuthorize("hasAuthority('CHAT:SEND')")
     public ResponseEntity<ApiResponse<Message>> sendMessage(@RequestBody Map<String, String> payload) {
         String senderId = payload.get("senderId");
         String receiverId = payload.get("receiverId");
@@ -31,11 +32,29 @@ public class ChatController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<ApiResponse<List<Message>>> getHistory(@RequestParam String userId) {
-        return ResponseEntity.ok(ApiResponse.success(chatService.getUserHistory(userId)));
+    @PreAuthorize("hasAuthority('CHAT:VIEW')")
+    public ResponseEntity<ApiResponse<List<Message>>> getHistory(
+            @RequestParam(required = false) String userId,
+            org.springframework.security.core.Authentication authentication) {
+        
+        String targetUserId = userId;
+        if (targetUserId == null || targetUserId.isBlank()) {
+            if (authentication != null && authentication.getPrincipal() instanceof com.Gym.GymCommonServices.entity.User user) {
+                targetUserId = user.getId().toString();
+            } else if (authentication != null) {
+                targetUserId = authentication.getName();
+            }
+        }
+
+        if (targetUserId == null || targetUserId.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.success(java.util.Collections.emptyList()));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(chatService.getUserHistory(targetUserId)));
     }
 
     @PostMapping("/mark-read")
+    @PreAuthorize("hasAuthority('CHAT:VIEW')")
     public ResponseEntity<ApiResponse<Void>> markRead(@RequestBody Map<String, String> payload) {
         String receiverId = payload.get("receiverId");
         String senderId = payload.get("senderId");

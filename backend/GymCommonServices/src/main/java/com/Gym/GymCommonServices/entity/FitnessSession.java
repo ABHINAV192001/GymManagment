@@ -15,11 +15,9 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class FitnessSession {
+public class FitnessSession extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @Column(nullable = false)
     private String sessionType; // e.g., Zumba, Cardio, Abs
@@ -44,10 +42,6 @@ public class FitnessSession {
 
     @Builder.Default
     private Boolean pollEnabled = false;
-
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
 
     // Poll results (stored as counts for simplicity, or we could have a separate
     // table for detailed responses)

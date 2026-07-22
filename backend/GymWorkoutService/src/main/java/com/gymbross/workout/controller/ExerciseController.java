@@ -25,20 +25,20 @@ public class ExerciseController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
-    public ResponseEntity<ApiResponse<ExerciseDto>> updateExercise(@PathVariable Long id, @RequestBody ExerciseDto exerciseDto) {
+    public ResponseEntity<ApiResponse<ExerciseDto>> updateExercise(@PathVariable java.util.UUID id, @RequestBody ExerciseDto exerciseDto) {
         return ResponseEntity.ok(ApiResponse.success(exerciseService.updateExercise(id, exerciseDto), "Exercise updated successfully"));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deleteExercise(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteExercise(@PathVariable java.util.UUID id) {
         exerciseService.deleteExercise(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Exercise deleted successfully"));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<ExerciseDto>> getExercise(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ExerciseDto>> getExercise(@PathVariable java.util.UUID id) {
         return ResponseEntity.ok(ApiResponse.success(exerciseService.getExercise(id)));
     }
 

@@ -21,4 +21,9 @@ public class PublicController {
             @RequestParam(required = false, defaultValue = "USER") String role) {
         return ResponseEntity.ok(ApiResponse.success(userService.getInviteDetails(userCode, adminCode, role)));
     }
+
+    @GetMapping("/health")
+    public ResponseEntity<ApiResponse<String>> getHealth() {
+        return ResponseEntity.ok(ApiResponse.success("UP"));
+    }
 }

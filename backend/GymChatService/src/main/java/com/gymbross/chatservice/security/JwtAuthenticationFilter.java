@@ -1,5 +1,6 @@
 package com.gymbross.chatservice.security;
 
+import com.Gym.GymCommonServices.security.TokenRevocationService;
 import com.Gym.GymCommonServices.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -26,6 +27,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final TokenRevocationService tokenRevocationService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -56,17 +58,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
+            String jti = jwtUtil.extractJti(jwt);
+            if (tokenRevocationService.isRevoked(jti)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             userEmail = jwtUtil.extractUsername(jwt);
 
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 String role = jwtUtil.extractRole(jwt);
-                Long organizationId = jwtUtil.extractOrganizationId(jwt);
-                Long branchId = jwtUtil.extractBranchId(jwt);
+                java.util.UUID organizationId = jwtUtil.extractOrganizationId(jwt);
+                java.util.UUID branchId = jwtUtil.extractBranchId(jwt);
 
-                // Create authorities from role
+                // Create authorities from role + permissions claim
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                 if (role != null) {
                     authorities.add(new SimpleGrantedAuthority(role));
+                }
+                for (String permission : jwtUtil.extractPermissions(jwt)) {
+                    authorities.add(new SimpleGrantedAuthority(permission));
                 }
 
                 UserDetails userDetails = new User(userEmail, "", authorities);

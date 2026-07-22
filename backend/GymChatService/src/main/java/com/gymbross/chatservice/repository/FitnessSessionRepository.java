@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface FitnessSessionRepository extends JpaRepository<FitnessSession, Long> {
+public interface FitnessSessionRepository extends JpaRepository<FitnessSession, java.util.UUID> {
 }

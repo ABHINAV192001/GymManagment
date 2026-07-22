@@ -7,6 +7,6 @@ import com.Gym.GymCommonServices.entity.User;
 import java.time.LocalDate;
 import java.util.List;
 
-public interface FoodLogRepository extends JpaRepository<FoodLog, Long> {
+public interface FoodLogRepository extends JpaRepository<FoodLog, java.util.UUID> {
     List<FoodLog> findByUserAndDate(User user, LocalDate date);
 }

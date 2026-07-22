@@ -16,8 +16,8 @@ import java.time.LocalDateTime;
 public class ChatMessage {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue
+    private java.util.UUID id;
 
     private String senderUsername;
     private String receiverUsername;

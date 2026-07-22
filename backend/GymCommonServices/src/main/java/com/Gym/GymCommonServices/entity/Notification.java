@@ -15,11 +15,9 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Notification {
+public class Notification extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @Column(name = "recipient_username", nullable = false)
     private String recipientUsername;
@@ -36,10 +34,6 @@ public class Notification {
     @Builder.Default
     @Column(name = "is_read", nullable = false)
     private Boolean isRead = false;
-
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
 
     @Column(name = "action_link")
     private String actionLink;

@@ -1,6 +1,6 @@
 package com.gymbross.usermanagement.dto;
 
-import com.Gym.GymCommonServices.entity.Role;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,10 +16,10 @@ public class RegisterStaffDto {
     private String email;
     private String phone;
     private String password;
-    private Long orgId;
-    private Long branchId;
+    private java.util.UUID orgId;
+    private java.util.UUID branchId;
     private java.math.BigDecimal salary;
     private String shiftTimings;
     private LocalDate startDate;
-    private Role role;
+    private String role;
 }

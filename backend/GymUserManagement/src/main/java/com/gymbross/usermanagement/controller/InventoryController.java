@@ -16,47 +16,50 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/inventory")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN')")
+
 public class InventoryController {
 
     private final InventoryService inventoryService;
 
+    @PreAuthorize("hasAuthority(\'INVENTORY:VIEW\')")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<InventoryDto>>> getAllInventory(@RequestAttribute(required = false) Long branchId) {
-        if (branchId == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Branch ID required", 400));
-        }
-        return ResponseEntity.ok(ApiResponse.success(inventoryService.getAllInventory(branchId)));
+    public ResponseEntity<ApiResponse<List<InventoryDto>>> getAllInventory(@RequestAttribute("organizationId") java.util.UUID orgId, @RequestAttribute(required = false) java.util.UUID branchId) {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getAllInventory(orgId, branchId)));
     }
 
     @GetMapping("/dashboard")
+    @PreAuthorize("hasAuthority('INVENTORY:VIEW')")
     public ResponseEntity<ApiResponse<Page<InventoryDto>>> getInventoryDashboard(
-            @RequestAttribute Long branchId,
+            @RequestAttribute("organizationId") java.util.UUID orgId,
+            @RequestAttribute(required = false) java.util.UUID branchId,
             @RequestParam(required = false) String period,
             @RequestParam(required = false) List<String> condition,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size));
-        return ResponseEntity.ok(ApiResponse.success(inventoryService.getFilteredInventory(branchId, period, condition, pageable)));
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getFilteredInventory(orgId, branchId, period, condition, pageable)));
     }
 
+    @PreAuthorize("hasAuthority(\'INVENTORY:CREATE\')")
     @PostMapping
-    public ResponseEntity<ApiResponse<Void>> addInventory(@RequestBody InventoryDto inventoryDto, @RequestAttribute Long branchId) {
-        inventoryService.addInventory(inventoryDto, branchId);
+    public ResponseEntity<ApiResponse<Void>> addInventory(@RequestBody InventoryDto inventoryDto, @RequestAttribute("organizationId") java.util.UUID orgId, @RequestAttribute(required = false) java.util.UUID branchId) {
+        inventoryService.addInventory(inventoryDto, orgId, branchId);
         return ResponseEntity.ok(ApiResponse.success(null, "Inventory added successfully"));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> updateInventory(@PathVariable Long id, @RequestBody InventoryDto inventoryDto,
-            @RequestAttribute Long branchId) {
-        inventoryService.updateInventory(id, inventoryDto, branchId);
+    @PreAuthorize("hasAuthority('INVENTORY:EDIT')")
+    public ResponseEntity<ApiResponse<Void>> updateInventory(@PathVariable java.util.UUID id, @RequestBody InventoryDto inventoryDto,
+            @RequestAttribute("organizationId") java.util.UUID orgId, @RequestAttribute(required = false) java.util.UUID branchId) {
+        inventoryService.updateInventory(id, inventoryDto, orgId, branchId);
         return ResponseEntity.ok(ApiResponse.success(null, "Inventory updated successfully"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> removeInventory(@PathVariable Long id, @RequestAttribute Long branchId) {
-        inventoryService.removeInventory(id, branchId);
+    @PreAuthorize("hasAuthority('INVENTORY:DELETE')")
+    public ResponseEntity<ApiResponse<Void>> removeInventory(@PathVariable java.util.UUID id, @RequestAttribute("organizationId") java.util.UUID orgId, @RequestAttribute(required = false) java.util.UUID branchId) {
+        inventoryService.removeInventory(id, orgId, branchId);
         return ResponseEntity.ok(ApiResponse.success(null, "Inventory removed successfully"));
     }
 }

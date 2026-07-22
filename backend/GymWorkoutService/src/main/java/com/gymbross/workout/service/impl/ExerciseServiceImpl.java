@@ -24,7 +24,7 @@ public class ExerciseServiceImpl implements ExerciseService {
     }
 
     @Override
-    public ExerciseDto updateExercise(Long id, ExerciseDto dto) {
+    public ExerciseDto updateExercise(java.util.UUID id, ExerciseDto dto) {
         Exercise exercise = exerciseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exercise not found"));
 
@@ -42,12 +42,12 @@ public class ExerciseServiceImpl implements ExerciseService {
     }
 
     @Override
-    public void deleteExercise(Long id) {
+    public void deleteExercise(java.util.UUID id) {
         exerciseRepository.deleteById(id);
     }
 
     @Override
-    public ExerciseDto getExercise(Long id) {
+    public ExerciseDto getExercise(java.util.UUID id) {
         Exercise exercise = exerciseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exercise not found"));
         return mapToDto(exercise);

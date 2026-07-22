@@ -7,8 +7,8 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface UserDietPlanRepository extends JpaRepository<UserDietPlan, Long> {
-    List<UserDietPlan> findByUserIdAndIsDeletedFalse(Long userId);
+public interface UserDietPlanRepository extends JpaRepository<UserDietPlan, java.util.UUID> {
+    List<UserDietPlan> findByUserIdAndIsDeletedFalse(java.util.UUID userId);
 
-    List<UserDietPlan> findByPremiumUserIdAndIsDeletedFalse(Long premiumUserId);
+    List<UserDietPlan> findByPremiumUserIdAndIsDeletedFalse(java.util.UUID premiumUserId);
 }

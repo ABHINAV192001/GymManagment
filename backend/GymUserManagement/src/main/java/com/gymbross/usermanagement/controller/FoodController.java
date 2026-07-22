@@ -33,7 +33,7 @@ public class FoodController {
 
     @GetMapping("/{id:[0-9-]+}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<FoodDto>> getFoodDetails(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<FoodDto>> getFoodDetails(@PathVariable java.util.UUID id) {
         log.info("Fetching details for Food ID: {}", id);
         return ResponseEntity.ok(ApiResponse.success(foodService.getFoodDetails(id)));
     }
@@ -70,7 +70,7 @@ public class FoodController {
     }
 
     @PostMapping("/import")
-    @PreAuthorize("hasAuthority('ORG_ADMIN')") // Admin only
+    @PreAuthorize("hasAuthority('DIET:CREATE')")
     public ResponseEntity<ApiResponse<String>> importFoodData(@RequestParam String directoryPath) {
         try {
             importService.fullImport(directoryPath);

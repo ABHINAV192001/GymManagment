@@ -15,7 +15,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // ✅ Enable RBAC via @PreAuthorize
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -28,11 +28,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/activities/**").permitAll()
-                        .requestMatchers("/api/user/workout/**").permitAll()
-                        .requestMatchers("/api/exercises/**").permitAll() 
-                        .requestMatchers("/api/workout/**").permitAll()
-                        .requestMatchers("/api/exercises/**").permitAll()
+                        // Previously permitAll on all workout/exercise/activity data with no auth at all.
                         .anyRequest().authenticated())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

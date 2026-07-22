@@ -12,26 +12,24 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Entity
 @Table(name = "weekly_workout_plans")
-public class WeeklyWorkoutPlan {
+public class WeeklyWorkoutPlan extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
-    private Long mondayWorkoutId;
-    private Long tuesdayWorkoutId;
-    private Long wednesdayWorkoutId;
-    private Long thursdayWorkoutId;
-    private Long fridayWorkoutId;
-    private Long saturdayWorkoutId;
-    private Long sundayWorkoutId;
+    private java.util.UUID mondayWorkoutId;
+    private java.util.UUID tuesdayWorkoutId;
+    private java.util.UUID wednesdayWorkoutId;
+    private java.util.UUID thursdayWorkoutId;
+    private java.util.UUID fridayWorkoutId;
+    private java.util.UUID saturdayWorkoutId;
+    private java.util.UUID sundayWorkoutId;
 
     // Helper method to get workout ID by day name
-    public Long getWorkoutIdForDay(String day) {
+    public java.util.UUID getWorkoutIdForDay(String day) {
         if (day == null)
             return null;
         return switch (day.toLowerCase()) {

@@ -21,9 +21,9 @@ public class RatingController {
     @PostMapping("/trainer/{trainerId}")
     public ResponseEntity<ApiResponse<Void>> rateTrainer(
             Principal principal,
-            @PathVariable Long trainerId,
+            @PathVariable java.util.UUID trainerId,
             @RequestBody RatingRequest request) {
         ratingService.rateTrainer(principal.getName(), trainerId, request.getRating(), request.getComment());
-        return ResponseEntity.ok(ApiResponse.success(null, "Trainer rated successfully"));
+        return ResponseEntity.ok(ApiResponse.success(null, "User rated successfully"));
     }
 }

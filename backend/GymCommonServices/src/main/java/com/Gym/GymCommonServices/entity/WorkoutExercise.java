@@ -9,11 +9,9 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Table(name = "workout_exercises")
-public class WorkoutExercise {
+public class WorkoutExercise extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @ManyToOne
     @JoinColumn(name = "workout_id")

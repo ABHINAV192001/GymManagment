@@ -11,6 +11,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,7 +31,7 @@ public class AuthDtos {
         private String name;
 
         @Email(message = "Invalid email format")
-        @NotBlank(message = "Admin email is required")
+        @NotBlank(message = "User email is required")
         private String adminEmail;
 
         @NotBlank(message = "Password is required")
@@ -40,24 +43,50 @@ public class AuthDtos {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RegisterRequest {
-        @NotBlank(message = "Organization name is required")
+        @JsonProperty("Gymname")
+        @NotBlank(message = "Gym name is required")
         private String name; // Organization name
 
         @Email(message = "Invalid email format")
         @NotBlank(message = "Owner email is required")
         private String ownerEmail; // Owner email
 
-        @Pattern(regexp = "^\\d{10}$", message = "Phone must be 10 digits")
-        private String phone; // Owner phone
-
         @NotBlank(message = "Password is required")
         @Size(min = 8, message = "Password must be at least 8 characters")
         private String password; // Org password
 
-        @NotEmpty(message = "At least one branch is required")
-        @Valid
-        private List<BranchRequest> branches; // Required list of branches to create
+        @NotBlank(message = "Address line 1 is required")
+        private String addressLine1;
+
+        private String addressLine2;
+
+        @NotBlank(message = "State is required")
+        private String state;
+
+        @NotBlank(message = "City is required")
+        private String city;
+
+        @NotBlank(message = "Pincode is required")
+        @Pattern(regexp = "^\\d{6}$", message = "Pincode must be exactly 6 digits")
+        private String pincode;
+
+        private String gst;
+
+        private Integer numberOfOwners;
+
+        @NotBlank(message = "Owner name is required")
+        private String ownerName;
+
+        private String ownerContactEmail;
+
+        private String pan;
+
+        @JsonProperty("Phone")
+        @NotBlank(message = "Phone number is required")
+        @Pattern(regexp = "^\\d{10}$", message = "Phone number must be exactly 10 digits")
+        private String phone;
     }
 
     @Data
@@ -66,7 +95,7 @@ public class AuthDtos {
     @AllArgsConstructor
     public static class RegisterResponse {
         private String message;
-        private Long organizationId;
+        private java.util.UUID organizationId;
         private String organizationCode;
     }
 
@@ -87,16 +116,15 @@ public class AuthDtos {
         private String token;
         private String refreshToken;
         private String role;
-        private Long organizationId;
-        private Long branchId;
-        private Boolean isOnboardingCompleted;
     }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class TokenRefreshRequest {
-        @NotBlank(message = "Refresh token is required")
+        // No longer @NotBlank - the refresh token is primarily read from the httpOnly
+        // cookie by the controller; this field is only a fallback for callers that still
+        // send it in the body.
         private String refreshToken;
     }
 
@@ -128,10 +156,10 @@ public class AuthDtos {
         @NotBlank(message = "User Code is required")
         private String userCode;
 
-        @NotBlank(message = "Admin Code is required")
+        @NotBlank(message = "User Code is required")
         private String adminCode;
 
-        @NotBlank(message = "Role is required")
+        @NotBlank(message = "String is required")
         private String role;
 
         @NotBlank(message = "Password is required")
@@ -149,7 +177,7 @@ public class AuthDtos {
         @NotBlank(message = "User Code is required")
         private String userCode;
 
-        @NotBlank(message = "Role is required")
+        @NotBlank(message = "String is required")
         private String role;
 
         // We can infer admin from authenticated user, or pass it if necessary.

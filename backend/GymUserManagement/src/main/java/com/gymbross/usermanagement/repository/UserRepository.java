@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, java.util.UUID> {
     Optional<User> findByEmail(String email);
 
     Optional<User> findTopByEmail(String email);
@@ -26,14 +26,22 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmailOrUsername(String email, String username);
 
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM User u WHERE u.memberProfile.plan.name = :planName")
+    java.util.List<User> findByPlanName(@org.springframework.data.repository.query.Param("planName") String planName);
+
+    @org.springframework.data.jpa.repository.Query("SELECT SUM(u.staffProfile.salary) FROM User u WHERE u.organization.id = :orgId AND (:branchId IS NULL OR u.branch.id = :branchId)")
+    java.math.BigDecimal sumSalaryByOrgAndBranch(@org.springframework.data.repository.query.Param("orgId") java.util.UUID orgId, @org.springframework.data.repository.query.Param("branchId") java.util.UUID branchId);
+
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Query("UPDATE User u SET u.isActive = true, u.isEmailVerified = true WHERE u.email = :email")
     void updateStatusByEmail(String email);
 
-    java.util.List<User> findByOrganizationId(Long orgId);
+    java.util.List<User> findByOrganizationId(java.util.UUID orgId);
 
-    java.util.List<User> findByBranchId(Long branchId);
+    java.util.List<User> findByBranchId(java.util.UUID branchId);
 
-    long countByBranchId(Long branchId);
+    long countByBranchId(java.util.UUID branchId);
+
+    Optional<User> findTopByBranchId(java.util.UUID branchId);
 }

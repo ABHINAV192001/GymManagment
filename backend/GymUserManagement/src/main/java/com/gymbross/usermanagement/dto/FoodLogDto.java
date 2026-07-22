@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FoodLogDto {
-    private Long id;
+    private java.util.UUID id;
     private String foodName;
     private double quantity;
     private String portionName; // e.g., "1 cup" or "100g"

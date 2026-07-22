@@ -9,11 +9,9 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Table(name = "exercises")
-public class Exercise {
+public class Exercise extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     private String name;
 

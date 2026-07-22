@@ -4,48 +4,48 @@ import com.gymbross.usermanagement.dto.AdminDashboardDtos;
 import java.util.List;
 
 public interface AdminService {
-    List<AdminDashboardDtos.UserDetailDto> getAllUsers(Long organizationId, Long branchId);
+    List<AdminDashboardDtos.UserDetailDto> getAllUsers(java.util.UUID organizationId, java.util.UUID branchId);
 
-    List<AdminDashboardDtos.StaffTrackingDto> getAllStaff(Long organizationId, Long branchId);
+    List<AdminDashboardDtos.StaffTrackingDto> getAllStaff(java.util.UUID organizationId, java.util.UUID branchId, java.util.UUID currentUserId);
 
     // User CRUD
-    void createUser(AdminDashboardDtos.UserDetailDto userDto, Long organizationId, Long branchId);
+    void createUser(AdminDashboardDtos.UserDetailDto userDto, java.util.UUID organizationId, java.util.UUID branchId);
 
-    AdminDashboardDtos.UserDetailDto getUserById(Long userId);
+    AdminDashboardDtos.UserDetailDto getUserById(java.util.UUID userId);
 
-    void updateUser(Long userId, AdminDashboardDtos.UserDetailDto userDto);
+    void updateUser(java.util.UUID userId, AdminDashboardDtos.UserDetailDto userDto);
 
-    void removeUser(Long userId); // Soft delete
+    void removeUser(java.util.UUID userId); // Soft delete
 
-    // Trainer CRUD
-    void createTrainer(AdminDashboardDtos.TrainerDetailDto trainerDto, Long organizationId, Long branchId);
+    // User CRUD
+    void createTrainer(AdminDashboardDtos.TrainerDetailDto trainerDto, java.util.UUID organizationId, java.util.UUID branchId);
 
-    AdminDashboardDtos.TrainerDetailDto getTrainerById(Long trainerId);
+    AdminDashboardDtos.TrainerDetailDto getTrainerById(java.util.UUID trainerId);
 
-    void updateTrainer(Long trainerId, AdminDashboardDtos.TrainerDetailDto trainerDto);
+    void updateTrainer(java.util.UUID trainerId, AdminDashboardDtos.TrainerDetailDto trainerDto);
 
-    void removeTrainer(Long trainerId);
+    void removeTrainer(java.util.UUID trainerId);
 
-    // Staff CRUD
-    void createStaff(AdminDashboardDtos.StaffDetailDto staffDto, Long organizationId, Long branchId);
+    // User CRUD
+    void createStaff(AdminDashboardDtos.StaffDetailDto staffDto, java.util.UUID organizationId, java.util.UUID branchId);
 
-    AdminDashboardDtos.StaffDetailDto getStaffById(Long staffId);
+    AdminDashboardDtos.StaffDetailDto getStaffById(java.util.UUID staffId);
 
-    void updateStaff(Long staffId, AdminDashboardDtos.StaffDetailDto staffDto);
+    void updateStaff(java.util.UUID staffId, AdminDashboardDtos.StaffDetailDto staffDto);
 
-    void removeStaff(Long staffId);
+    void removeStaff(java.util.UUID staffId);
 
-    void assignTrainer(Long userId, String trainerName);
+    void assignTrainer(java.util.UUID userId, String trainerName);
 
-    void updateDietPlan(Long userId, List<String> dietDetails);
+    void updateDietPlan(java.util.UUID userId, List<String> dietDetails);
 
-    void updateStaffPaymentStatus(Long staffId, String status);
+    void updateStaffPaymentStatus(java.util.UUID staffId, String status);
 
-    void updateTrainerPaymentStatus(Long trainerId, String status);
+    void updateTrainerPaymentStatus(java.util.UUID trainerId, String status);
 
-    AdminDashboardDtos.DashboardStatsDto getDashboardStats(Long organizationId, Long branchId);
+    AdminDashboardDtos.DashboardStatsDto getDashboardStats(java.util.UUID organizationId, java.util.UUID branchId);
 
-    List<AdminDashboardDtos.BranchDto> getBranches(Long organizationId);
+    List<AdminDashboardDtos.BranchDto> getBranches(java.util.UUID organizationId, java.util.UUID branchId, com.Gym.GymCommonServices.entity.User currentUser);
 
-    void resendAdminVerification(Long branchId);
+    void resendAdminVerification(java.util.UUID branchId);
 }

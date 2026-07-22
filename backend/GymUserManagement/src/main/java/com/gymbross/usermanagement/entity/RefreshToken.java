@@ -17,8 +17,8 @@ import java.time.Instant;
 public class RefreshToken {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue
+    private java.util.UUID id;
 
     @Column(nullable = false, unique = true)
     private String token;
@@ -27,7 +27,7 @@ public class RefreshToken {
     private Instant expiryDate;
 
     @Column(nullable = false)
-    private String userEmail; // Using email to identify the user across different entity types (Admin, Trainer, etc.)
+    private String userEmail; // Using email to identify the user across different entity types (User, User, etc.)
 
     public boolean isExpired() {
         return expiryDate.isBefore(Instant.now());

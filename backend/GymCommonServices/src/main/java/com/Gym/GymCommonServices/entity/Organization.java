@@ -7,20 +7,20 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "organizations")
+@SQLRestriction("deleted_at IS NULL")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Organization {
+public class Organization extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @Column(name = "org_code", unique = true, nullable = false)
     private String orgCode;
@@ -34,15 +34,41 @@ public class Organization {
     @Column(name = "owner_email", unique = true, nullable = false)
     private String ownerEmail;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String phone;
+
+    @Column(name = "address_line_1")
+    private String addressLine1;
+
+    @Column(name = "address_line_2")
+    private String addressLine2;
+
+    @Column(name = "state")
+    private String state;
+
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "pincode")
+    private String pincode;
+
+    @Column(name = "gst")
+    private String gst;
+
+    @Column(name = "number_of_owners")
+    private Integer numberOfOwners;
+
+    @Column(name = "owner_name")
+    private String ownerName;
+
+    @Column(name = "pan")
+    private String pan;
+
+    @Column(name = "owner_contact_email")
+    private String ownerContactEmail;
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
-
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
 
     @Builder.Default
     @Column(name = "is_email_verified")

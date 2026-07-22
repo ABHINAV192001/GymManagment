@@ -10,7 +10,7 @@ public interface FoodService {
 
     List<FoodDto> getAllFoods(int page, int size);
 
-    FoodDto getFoodDetails(Long id);
+    FoodDto getFoodDetails(java.util.UUID id);
 
     void logFood(String username, com.gymbross.usermanagement.dto.FoodLogRequestDto dto);
 

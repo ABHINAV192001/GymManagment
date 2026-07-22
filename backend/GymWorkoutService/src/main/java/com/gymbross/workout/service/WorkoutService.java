@@ -46,14 +46,14 @@ public class WorkoutService {
                 .collect(Collectors.toList());
     }
 
-    public WorkoutDto getWorkoutById(Long id) {
+    public WorkoutDto getWorkoutById(java.util.UUID id) {
         Workout workout = workoutRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Workout not found"));
         return mapToDto(workout);
     }
 
     @Transactional
-    public void saveWorkoutHistory(String userEmail, Long workoutId, Integer duration, Integer calories) {
+    public void saveWorkoutHistory(String userEmail, java.util.UUID workoutId, Integer duration, Integer calories) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -90,7 +90,7 @@ public class WorkoutService {
     }
 
     @Transactional
-    public WorkoutDto updateWorkout(Long id, WorkoutDto dto) {
+    public WorkoutDto updateWorkout(java.util.UUID id, WorkoutDto dto) {
         Workout workout = workoutRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Workout not found"));
 
@@ -107,7 +107,7 @@ public class WorkoutService {
     }
 
     @Transactional
-    public void deleteWorkout(Long id) {
+    public void deleteWorkout(java.util.UUID id) {
         workoutRepository.deleteById(id);
     }
 

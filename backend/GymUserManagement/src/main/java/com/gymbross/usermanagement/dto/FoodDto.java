@@ -8,7 +8,7 @@ import java.util.List;
 @Data
 @Builder
 public class FoodDto {
-    private Long id;
+    private java.util.UUID id;
     private Long fdcId;
     private String description;
     private String foodCategory;
@@ -32,7 +32,7 @@ public class FoodDto {
     @Data
     @Builder
     public static class FoodPortionDto {
-        private Long id;
+        private java.util.UUID id;
         private Double amount;
         private String measureUnit;
         private String modifier;

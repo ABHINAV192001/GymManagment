@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 @Data
 public class MessageResponse {
-    private Long id;
+    private java.util.UUID id;
     private String senderUsername;
     private String receiverUsername;
     private String content;

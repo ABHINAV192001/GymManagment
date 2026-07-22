@@ -26,16 +26,25 @@ public class InventoryServiceImpl implements InventoryService {
     private final BranchRepository branchRepository;
 
     @Override
-    public List<InventoryDto> getAllInventory(Long branchId) {
-        return inventoryRepository.findByBranchId(branchId).stream()
+    public List<InventoryDto> getAllInventory(java.util.UUID orgId, java.util.UUID branchId) {
+        List<Inventory> inventories;
+        if (branchId != null) {
+            inventories = inventoryRepository.findByBranchId(branchId);
+        } else {
+            inventories = inventoryRepository.findByOrganizationId(orgId);
+        }
+        return inventories.stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public void addInventory(InventoryDto dto, Long branchId) {
+    public void addInventory(InventoryDto dto, java.util.UUID orgId, java.util.UUID branchId) {
         Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new RuntimeException("Branch not found"));
+        if (!branch.getOrganization().getId().equals(orgId)) {
+            throw new RuntimeException("Unauthorized: Branch does not belong to your organization");
+        }
 
         Inventory inventory = Inventory.builder()
                 .name(dto.getName())
@@ -51,11 +60,14 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-    public void removeInventory(Long inventoryId, Long branchId) {
+    public void removeInventory(java.util.UUID inventoryId, java.util.UUID orgId, java.util.UUID branchId) {
         Inventory inventory = inventoryRepository.findById(inventoryId)
                 .orElseThrow(() -> new RuntimeException("Inventory not found"));
 
-        if (!inventory.getBranch().getId().equals(branchId)) {
+        if (!inventory.getBranch().getOrganization().getId().equals(orgId)) {
+            throw new RuntimeException("Unauthorized: Cannot remove inventory from another organization");
+        }
+        if (branchId != null && !inventory.getBranch().getId().equals(branchId)) {
             throw new RuntimeException("Unauthorized: Cannot remove inventory from another branch");
         }
 
@@ -63,11 +75,14 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-    public void updateInventory(Long inventoryId, InventoryDto dto, Long branchId) {
+    public void updateInventory(java.util.UUID inventoryId, InventoryDto dto, java.util.UUID orgId, java.util.UUID branchId) {
         Inventory inventory = inventoryRepository.findById(inventoryId)
                 .orElseThrow(() -> new RuntimeException("Inventory not found"));
 
-        if (!inventory.getBranch().getId().equals(branchId)) {
+        if (!inventory.getBranch().getOrganization().getId().equals(orgId)) {
+            throw new RuntimeException("Unauthorized: Cannot update inventory from another organization");
+        }
+        if (branchId != null && !inventory.getBranch().getId().equals(branchId)) {
             throw new RuntimeException("Unauthorized: Cannot update inventory from another branch");
         }
 
@@ -96,12 +111,13 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-    public Page<InventoryDto> getFilteredInventory(Long branchId, String period, List<String> condition,
+    public Page<InventoryDto> getFilteredInventory(java.util.UUID orgId, java.util.UUID branchId, String period, List<String> condition,
             Pageable pageable) {
         Specification<Inventory> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // 1. Branch Filter
+            // 1. Org/Branch Filter
+            predicates.add(criteriaBuilder.equal(root.get("branch").get("organization").get("id"), orgId));
             if (branchId != null) {
                 predicates.add(criteriaBuilder.equal(root.get("branch").get("id"), branchId));
             }

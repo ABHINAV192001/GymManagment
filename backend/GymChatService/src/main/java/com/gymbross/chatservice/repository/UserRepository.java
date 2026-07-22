@@ -9,10 +9,10 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, java.util.UUID> {
     Optional<User> findByUsername(String username);
     boolean existsByUsername(String username);
     
     // Required by FitnessSessionService for notification routing
-    List<User> findByBranchIdInAndRoleIn(List<Long> branchIds, List<Role> roles);
+    List<User> findByBranchIdInAndRoleIn(List<java.util.UUID> branchIds, List<Role> roles);
 }

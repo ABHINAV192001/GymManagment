@@ -43,7 +43,7 @@ public class NotificationService {
         return notificationRepository.findByRecipientUsernameOrderByCreatedAtDesc(username);
     }
 
-    public void markAsRead(Long notificationId) {
+    public void markAsRead(java.util.UUID notificationId) {
         notificationRepository.findById(notificationId).ifPresent(n -> {
             n.setIsRead(true);
             notificationRepository.save(n);

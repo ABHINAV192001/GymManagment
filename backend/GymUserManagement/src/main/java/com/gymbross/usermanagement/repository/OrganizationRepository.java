@@ -7,7 +7,10 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface OrganizationRepository extends JpaRepository<Organization, Long> {
+public interface OrganizationRepository extends JpaRepository<Organization, java.util.UUID> {
+    Optional<Organization> findByIdAndIsDeletedFalse(java.util.UUID id);
+    org.springframework.data.domain.Page<Organization> findByIsDeletedFalse(org.springframework.data.domain.Pageable pageable);
+
     Optional<Organization> findByOwnerEmail(String ownerEmail);
 
     Optional<Organization> findTopByOwnerEmail(String ownerEmail);

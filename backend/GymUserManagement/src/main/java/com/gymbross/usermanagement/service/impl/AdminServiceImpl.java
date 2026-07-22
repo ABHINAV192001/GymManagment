@@ -1,24 +1,25 @@
 package com.gymbross.usermanagement.service.impl;
 
 import com.Gym.GymCommonServices.entity.Organization;
-import com.Gym.GymCommonServices.entity.Staff;
+import com.Gym.GymCommonServices.entity.User;
 import com.Gym.GymCommonServices.entity.Branch;
-import com.Gym.GymCommonServices.entity.Trainer;
+import com.Gym.GymCommonServices.entity.User;
 import com.Gym.GymCommonServices.entity.User;
 import com.gymbross.usermanagement.dto.AdminDashboardDtos;
 import com.gymbross.usermanagement.repository.OrganizationRepository;
 import com.gymbross.usermanagement.repository.BranchRepository;
-import com.gymbross.usermanagement.repository.StaffRepository;
-import com.gymbross.usermanagement.repository.TrainerRepository;
 import com.gymbross.usermanagement.repository.UserRepository;
 import com.gymbross.usermanagement.service.AdminService;
-import com.Gym.GymCommonServices.entity.Admin;
-import com.gymbross.usermanagement.repository.AdminRepository;
+import com.Gym.GymCommonServices.entity.User;
 import com.gymbross.usermanagement.service.OtpService;
 import com.Gym.GymCommonServices.entity.UserDietPlan;
+import com.Gym.GymCommonServices.security.CurrentTenantResolver;
+import com.Gym.GymCommonServices.security.TenantAccessGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,15 +34,21 @@ import java.util.stream.Collectors;
 public class AdminServiceImpl implements AdminService {
 
         private final UserRepository userRepository;
-        private final StaffRepository staffRepository;
-        private final TrainerRepository trainerRepository;
-        private final OrganizationRepository organizationRepository;
+                        private final OrganizationRepository organizationRepository;
         private final BranchRepository branchRepository;
-        private final AdminRepository adminRepository;
-        private final OtpService otpService;
+                private final OtpService otpService;
+        private final TenantAccessGuard tenantAccessGuard;
+        private final CurrentTenantResolver currentTenantResolver;
+        private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+        private final com.gymbross.usermanagement.repository.RbacRoleRepository rbacRoleRepository;
+        @jakarta.persistence.PersistenceContext
+        private jakarta.persistence.EntityManager entityManager;
+
+        @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
+        private String frontendUrl;
 
         @Override
-        public List<AdminDashboardDtos.UserDetailDto> getAllUsers(Long organizationId, Long branchId) {
+        public List<AdminDashboardDtos.UserDetailDto> getAllUsers(java.util.UUID organizationId, java.util.UUID branchId) {
                 List<User> users;
                 if (branchId != null) {
                         users = userRepository.findByBranchId(branchId);
@@ -51,54 +58,66 @@ public class AdminServiceImpl implements AdminService {
                         users = userRepository.findByOrganizationId(org.getId());
                 }
 
+                java.util.UUID currentUserId = null;
+                boolean canViewAll = false;
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null) {
+                        if (auth.getPrincipal() instanceof User) {
+                                currentUserId = ((User) auth.getPrincipal()).getId();
+                        }
+                        canViewAll = auth.getAuthorities().stream()
+                                        .anyMatch(a -> a.getAuthority().equals("ORG_ADMIN") || a.getAuthority().equals("ROLE_ORG_ADMIN") || a.getAuthority().equals("USERS:VIEW_ALL"));
+                }
+                
+                final java.util.UUID loggedInUserId = currentUserId;
+                final boolean hasFullAccess = canViewAll;
+
                 return users.stream()
                                 .filter(user -> !Boolean.TRUE.equals(user.getIsDeleted()))
+                                // This endpoint backs the Members Directory - the org owner (ORG_ADMIN) is
+                                // not a gym member and must never appear in this list, even for themselves.
+                                .filter(user -> user.getRoles() == null
+                                                || user.getRoles().stream().noneMatch(r -> "ORG_ADMIN".equalsIgnoreCase(r.getName())))
+                                .filter(user -> hasFullAccess || loggedInUserId == null || loggedInUserId.equals(user.getCreatedBy()) || loggedInUserId.equals(user.getId()))
                                 .map(this::mapToUserDetailDto)
                                 .collect(Collectors.toList());
         }
 
         @Override
-        public List<AdminDashboardDtos.StaffTrackingDto> getAllStaff(Long organizationId, Long branchId) {
-                List<Staff> staffs;
-                List<Trainer> trainers;
+        public List<AdminDashboardDtos.StaffTrackingDto> getAllStaff(java.util.UUID organizationId, java.util.UUID branchId, java.util.UUID currentUserId) {
+                List<User> users;
 
                 if (branchId != null) {
-                        staffs = staffRepository.findByBranchId(branchId);
-                        trainers = trainerRepository.findByBranchId(branchId);
+                        users = userRepository.findByBranchId(branchId);
                 } else {
                         Organization org = organizationRepository.findById(organizationId)
                                         .orElseThrow(() -> new RuntimeException("Organization not found"));
-                        staffs = staffRepository.findByOrganizationId(org.getId());
-                        trainers = trainerRepository.findByOrganizationId(org.getId());
+                        users = userRepository.findByOrganizationId(org.getId());
                 }
 
-                staffs = staffs.stream().filter(s -> !Boolean.TRUE.equals(s.getIsDeleted()))
+                users = users.stream()
+                                .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
+                                .filter(u -> u.getStaffProfile() != null || "TRAINER".equalsIgnoreCase(u.getRole()) || "STAFF".equalsIgnoreCase(u.getRole()) || "EMPLOYEE".equalsIgnoreCase(u.getRole()) || "BRANCH_ADMIN".equalsIgnoreCase(u.getRole()))
+                                .filter(u -> currentUserId == null || !u.getId().equals(currentUserId))
                                 .collect(Collectors.toList());
-                trainers = trainers.stream().filter(t -> !Boolean.TRUE.equals(t.getIsDeleted()))
-                                .collect(Collectors.toList());
 
-                List<AdminDashboardDtos.StaffTrackingDto> result = new ArrayList<>();
-
-                result.addAll(staffs.stream().map(this::mapStaffToDto).collect(Collectors.toList()));
-                result.addAll(trainers.stream().map(this::mapTrainerToDto).collect(Collectors.toList()));
-
-                return result;
+                return users.stream().map(this::mapStaffToDto).collect(Collectors.toList());
         }
 
         // --- USER CRUD ---
 
         @Override
-        public void createUser(AdminDashboardDtos.UserDetailDto userDto, Long organizationId, Long branchId) {
+        public void createUser(AdminDashboardDtos.UserDetailDto userDto, java.util.UUID organizationId, java.util.UUID branchId) {
                 Organization org = organizationRepository.findById(organizationId)
                                 .orElseThrow(() -> new RuntimeException("Organization not found"));
 
                 Branch branch = null;
                 if (branchId != null) {
-                        // Branch Admin context
+                        // Branch User context
                         branch = branchRepository.findById(branchId)
                                         .orElseThrow(() -> new RuntimeException("Branch not found"));
                 } else if (userDto.getBranchId() != null) {
-                        // Org Admin context - specified branch
+                        // Org User context - specified branch
                         branch = branchRepository.findById(userDto.getBranchId())
                                         .orElseThrow(() -> new RuntimeException("Specified Branch not found"));
                 }
@@ -113,11 +132,11 @@ public class AdminServiceImpl implements AdminService {
                         throw new RuntimeException("User name is required");
                 }
 
-                Trainer trainer = null;
-                // Prefer Trainer Code for lookup
+                User trainer = null;
+                // Prefer User Code for lookup
                 if (userDto.getTrainerCode() != null && !userDto.getTrainerCode().trim().isEmpty()) {
                         System.out.println("DEBUG: Looking up trainer by CODE: '" + userDto.getTrainerCode() + "'");
-                        trainer = trainerRepository.findByOrganizationId(org.getId()).stream()
+                        trainer = userRepository.findByOrganizationId(org.getId()).stream()
                                         .filter(t -> t.getTrainerCode()
                                                         .equalsIgnoreCase(userDto.getTrainerCode().trim()))
                                         .findFirst()
@@ -126,7 +145,7 @@ public class AdminServiceImpl implements AdminService {
                 // Fallback to Name if Code is missing (for backward compatibility or UI quirks)
                 else if (userDto.getTrainerName() != null && !userDto.getTrainerName().trim().isEmpty()) {
                         System.out.println("DEBUG: Looking up trainer by NAME: '" + userDto.getTrainerName() + "'");
-                        trainer = trainerRepository.findByOrganizationId(org.getId()).stream()
+                        trainer = userRepository.findByOrganizationId(org.getId()).stream()
                                         .filter(t -> t.getName().trim()
                                                         .equalsIgnoreCase(userDto.getTrainerName().trim()))
                                         .findFirst()
@@ -134,10 +153,10 @@ public class AdminServiceImpl implements AdminService {
                 }
 
                 if (trainer != null) {
-                        System.out.println("DEBUG: Trainer Found: " + trainer.getName() + " ("
+                        System.out.println("DEBUG: User Found: " + trainer.getName() + " ("
                                         + trainer.getTrainerCode() + ")");
                 } else {
-                        System.out.println("DEBUG: Trainer NOT Found.");
+                        System.out.println("DEBUG: User NOT Found.");
                 }
 
                 User user = User.builder()
@@ -145,54 +164,127 @@ public class AdminServiceImpl implements AdminService {
                                 .email(userDto.getEmail())
                                 .phone(userDto.getPhone())
                                 .dob(userDto.getDob())
-                                .plan(userDto.getPlan())
-                                .amountPaid(userDto.getAmountPaid())
-                                .attendanceCount(0)
-                                .startDate(userDto.getStartDate())
                                 .organization(org)
                                 .branch(branch)
                                 .userCode("USER-" + System.currentTimeMillis())
                                 .username(userDto.getName().replaceAll("\\s+", "") + System.currentTimeMillis())
                                 .isActive(true)
                                 .isEmailVerified(false)
-                                .role(com.Gym.GymCommonServices.entity.Role
-                                                .valueOf(userDto.getRole() != null ? userDto.getRole() : "USER"))
-                                .trainer(trainer)
+                                .passwordHash("$2a$10$wN35gE42tD1yH86P8V8K3OlFmYj0.d1rFqR2k06L2Xv6H7F0E5D5m") // Default password: Password123
                                 .build();
+                user.setAmountPaid(userDto.getAmountPaid());
+                user.setAttendanceCount(0);
+                user.setStartDate(userDto.getStartDate());
+                String requestedRole = (userDto.getRole() != null && !userDto.getRole().trim().isEmpty()) 
+                        ? userDto.getRole().trim() 
+                        : "EMPLOYEE";
+                if ("ORG_ADMIN".equalsIgnoreCase(requestedRole) || "ADMIN".equalsIgnoreCase(requestedRole)) {
+                        String userEmail = userDto.getEmail() != null ? userDto.getEmail() : "";
+                        String orgEmail = org.getOwnerEmail() != null ? org.getOwnerEmail() : "";
+                        if (!userEmail.equalsIgnoreCase(orgEmail)) {
+                                throw new IllegalArgumentException("The ORG_ADMIN role is strictly reserved for the registered organization owner email (" + orgEmail + ").");
+                        }
+                }
+                
+                com.gymbross.usermanagement.entity.RbacRole rbacRole = rbacRoleRepository
+                        .findByNameAndOrgId(requestedRole, org.getId())
+                        .or(() -> rbacRoleRepository.findByNameAndOrgIdIsNull(requestedRole))
+                        .orElseGet(() -> {
+                                return rbacRoleRepository.save(com.gymbross.usermanagement.entity.RbacRole.builder()
+                                        .name(requestedRole)
+                                        .orgId(org.getId())
+                                        .isActive(true)
+                                        .isDeleted(false)
+                                        .build());
+                        });
+
+                user.getRoles().clear();
+                user.getRoles().add(entityManager.getReference(com.Gym.GymCommonServices.entity.RbacRole.class, rbacRole.getId()));
+                user.setTrainer(trainer);
+
+                if (userDto.getAccessibleBranchIds() != null && !userDto.getAccessibleBranchIds().isEmpty()) {
+                        String jsonBranchIds = userDto.getAccessibleBranchIds().stream()
+                                        .map(id -> "\"" + id.toString() + "\"")
+                                        .collect(Collectors.joining(",", "[", "]"));
+                        user.setAccessibleBranchIds(jsonBranchIds);
+                }
+
+                if (Boolean.TRUE.equals(userDto.getIsStaff())) {
+                        user.setStaffCode("STF-" + System.currentTimeMillis());
+                        com.Gym.GymCommonServices.entity.StaffProfile staffProfile = com.Gym.GymCommonServices.entity.StaffProfile.builder()
+                                        .user(user)
+                                        .salary(userDto.getAmountPaid() != null ? userDto.getAmountPaid() : java.math.BigDecimal.ZERO)
+                                        .startDate(userDto.getStartDate() != null ? userDto.getStartDate() : java.time.LocalDate.now())
+                                        .build();
+                        staffProfile.setOrgId(org.getId());
+                        user.setStaffProfile(staffProfile);
+                }
+
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof User) {
+                        user.setCreatedBy(((User) auth.getPrincipal()).getId());
+                }
 
                 userRepository.save(user);
+
+                // Send Invite & OTP Email for verification and password setup
+                if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                        String adminCode = "Unknown";
+                        if (branch != null) {
+                                adminCode = userRepository.findTopByBranchId(branch.getId())
+                                                .map(User::getAdminCode).orElse("Unknown");
+                        }
+                        String inviteLink = frontendUrl + "/auth/register/join?u=" + user.getUserCode() 
+                                        + "&ref=" + adminCode + "&role=" + user.getRole()
+                                        + "&email=" + java.net.URLEncoder.encode(user.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8);
+                        otpService.sendOtp(user.getEmail().trim(), user.getPhone(), "REGISTER", inviteLink);
+                }
         }
 
         @Override
-        public AdminDashboardDtos.UserDetailDto getUserById(Long userId) {
+        public AdminDashboardDtos.UserDetailDto getUserById(java.util.UUID userId) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(user);
                 return mapToUserDetailDto(user);
         }
 
         @Override
-        public void updateUser(Long userId, AdminDashboardDtos.UserDetailDto userDto) {
+        public void updateUser(java.util.UUID userId, AdminDashboardDtos.UserDetailDto userDto) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(user);
 
                 user.setName(userDto.getName());
                 user.setEmail(userDto.getEmail());
                 user.setPhone(userDto.getPhone());
                 user.setDob(userDto.getDob());
-                user.setPlan(userDto.getPlan());
                 user.setAmountPaid(userDto.getAmountPaid());
                 user.setStartDate(userDto.getStartDate());
-                user.setStartDate(userDto.getStartDate());
                 user.setAttendanceCount(userDto.getAttendanceCount());
+                if (userDto.getAccessibleBranchIds() != null) {
+                        String jsonBranchIds = userDto.getAccessibleBranchIds().stream()
+                                        .map(id -> "\"" + id.toString() + "\"")
+                                        .collect(Collectors.joining(",", "[", "]"));
+                        user.setAccessibleBranchIds(jsonBranchIds);
+                }
                 if (userDto.getRole() != null) {
-                        user.setRole(com.Gym.GymCommonServices.entity.Role.valueOf(userDto.getRole()));
+                        String reqRole = userDto.getRole();
+                        if ("ORG_ADMIN".equalsIgnoreCase(reqRole) || "ADMIN".equalsIgnoreCase(reqRole)) {
+                                String uEmail = user.getEmail() != null ? user.getEmail() : (userDto.getEmail() != null ? userDto.getEmail() : "");
+                                String oEmail = user.getOrganization() != null ? user.getOrganization().getOwnerEmail() : "";
+                                if (!uEmail.equalsIgnoreCase(oEmail)) {
+                                        throw new IllegalArgumentException("The ORG_ADMIN role is strictly reserved for the registered organization owner email (" + oEmail + ").");
+                                }
+                        }
+                        user.setRole(reqRole);
                 }
 
-                // Trainer Lookup: Prefer Code, then Name
+                // User Lookup: Prefer Code, then Name
                 if (userDto.getTrainerCode() != null && !userDto.getTrainerCode().trim().isEmpty()) {
                         System.out.println("DEBUG: Update User - Looking up trainer by CODE: '"
                                         + userDto.getTrainerCode() + "'");
-                        Trainer trainer = trainerRepository.findByOrganizationId(user.getOrganization().getId())
+                        User trainer = userRepository.findByOrganizationId(user.getOrganization().getId())
                                         .stream()
                                         .filter(t -> t.getTrainerCode()
                                                         .equalsIgnoreCase(userDto.getTrainerCode().trim()))
@@ -200,15 +292,15 @@ public class AdminServiceImpl implements AdminService {
                                         .orElse(null);
                         if (trainer != null) {
                                 user.setTrainer(trainer);
-                                System.out.println("DEBUG: Trainer assigned via Code: " + trainer.getName());
+                                System.out.println("DEBUG: User assigned via Code: " + trainer.getName());
                         } else {
-                                System.out.println("DEBUG: Trainer with Code '" + userDto.getTrainerCode()
+                                System.out.println("DEBUG: User with Code '" + userDto.getTrainerCode()
                                                 + "' NOT found.");
                         }
                 } else if (userDto.getTrainerName() != null && !userDto.getTrainerName().trim().isEmpty()) {
                         System.out.println("DEBUG: Update User - Looking up trainer by NAME: '"
                                         + userDto.getTrainerName() + "'");
-                        Trainer trainer = trainerRepository.findByOrganizationId(user.getOrganization().getId())
+                        User trainer = userRepository.findByOrganizationId(user.getOrganization().getId())
                                         .stream()
                                         .filter(t -> t.getName().trim()
                                                         .equalsIgnoreCase(userDto.getTrainerName().trim()))
@@ -216,9 +308,9 @@ public class AdminServiceImpl implements AdminService {
                                         .orElse(null);
                         if (trainer != null) {
                                 user.setTrainer(trainer);
-                                System.out.println("DEBUG: Trainer assigned via Name: " + trainer.getName());
+                                System.out.println("DEBUG: User assigned via Name: " + trainer.getName());
                         } else {
-                                System.out.println("DEBUG: Trainer with Name '" + userDto.getTrainerName()
+                                System.out.println("DEBUG: User with Name '" + userDto.getTrainerName()
                                                 + "' NOT found.");
                         }
                 } else {
@@ -236,9 +328,11 @@ public class AdminServiceImpl implements AdminService {
         }
 
         @Override
-        public void removeUser(Long userId) {
+        public void removeUser(java.util.UUID userId) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(user);
+                user.softDelete();
                 user.setIsDeleted(true);
                 userRepository.save(user);
         }
@@ -246,7 +340,7 @@ public class AdminServiceImpl implements AdminService {
         // --- TRAINER CRUD ---
 
         @Override
-        public void createTrainer(AdminDashboardDtos.TrainerDetailDto trainerDto, Long organizationId, Long branchId) {
+        public void createTrainer(AdminDashboardDtos.TrainerDetailDto trainerDto, java.util.UUID organizationId, java.util.UUID branchId) {
                 Organization org = organizationRepository.findById(organizationId)
                                 .orElseThrow(() -> new RuntimeException("Organization not found"));
 
@@ -267,64 +361,104 @@ public class AdminServiceImpl implements AdminService {
                 }
 
                 if (trainerDto.getName() == null) {
-                        throw new RuntimeException("Trainer name is required");
+                        throw new RuntimeException("User name is required");
                 }
 
-                Trainer trainer = Trainer.builder()
+                User trainer = User.builder()
                                 .name(trainerDto.getName())
                                 .email(trainerDto.getEmail())
                                 .phone(trainerDto.getPhone())
-                                .salary(trainerDto.getSalary())
-                                .startDate(trainerDto.getStartDate())
-                                .shiftTimings(trainerDto.getShiftTimings())
-                                .isPersonalTrainer(trainerDto.getIsPersonalTrainer())
                                 .organization(org)
                                 .branch(branch)
-                                .trainerCode("TRN-" + System.currentTimeMillis())
                                 .username(trainerDto.getName().replaceAll("\\s+", "") + System.currentTimeMillis())
-                                .experience(trainerDto.getExperience())
                                 .build();
-                trainerRepository.save(trainer);
+                trainer.setShiftTimings(trainerDto.getShiftTimings());
+                trainer.setStartDate(trainerDto.getStartDate());
+                trainer.setExperience(trainerDto.getExperience());
+                trainer.setIsPersonalTrainer(trainerDto.getIsPersonalTrainer());
+                trainer.setTrainerCode("TRN-" + System.currentTimeMillis());
+
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof User) {
+                        trainer.setCreatedBy(((User) auth.getPrincipal()).getId());
+                }
+
+                userRepository.save(trainer);
         }
 
         @Override
-        public AdminDashboardDtos.TrainerDetailDto getTrainerById(Long trainerId) {
-                Trainer trainer = trainerRepository.findById(trainerId)
-                                .orElseThrow(() -> new RuntimeException("Trainer not found"));
+        public AdminDashboardDtos.TrainerDetailDto getTrainerById(java.util.UUID trainerId) {
+                User trainer = userRepository.findById(trainerId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(trainer);
                 return mapToTrainerDetailDto(trainer);
         }
 
         @Override
-        public void updateTrainer(Long trainerId, AdminDashboardDtos.TrainerDetailDto trainerDto) {
-                Trainer trainer = trainerRepository.findById(trainerId)
-                                .orElseThrow(() -> new RuntimeException("Trainer not found"));
+        public void updateTrainer(java.util.UUID trainerId, AdminDashboardDtos.TrainerDetailDto trainerDto) {
+                User trainer = userRepository.findById(trainerId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(trainer);
 
                 trainer.setName(trainerDto.getName());
                 trainer.setEmail(trainerDto.getEmail());
                 trainer.setPhone(trainerDto.getPhone());
-                trainer.setSalary(trainerDto.getSalary());
                 trainer.setStartDate(trainerDto.getStartDate());
                 trainer.setShiftTimings(trainerDto.getShiftTimings());
                 trainer.setIsPersonalTrainer(trainerDto.getIsPersonalTrainer());
                 trainer.setExperience(trainerDto.getExperience());
 
-                trainerRepository.save(trainer);
+                userRepository.save(trainer);
         }
 
         @Override
-        public void removeTrainer(Long trainerId) {
-                Trainer trainer = trainerRepository.findById(trainerId)
-                                .orElseThrow(() -> new RuntimeException("Trainer not found"));
+        public void removeTrainer(java.util.UUID trainerId) {
+                User trainer = userRepository.findById(trainerId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(trainer);
+                trainer.softDelete();
                 trainer.setIsDeleted(true);
-                trainerRepository.save(trainer);
+                userRepository.save(trainer);
+        }
+
+        private void assertCallerOwnsOrgOf(Organization organization) {
+                java.util.UUID resourceOrgId = organization != null ? organization.getId() : null;
+                tenantAccessGuard.assertOwnedByOrg(resourceOrgId, currentTenantResolver.getOrganizationId());
+        }
+
+        /**
+         * Same visibility rule as getAllUsers(): ORG_ADMIN (or a role explicitly
+         * granted USERS:VIEW_ALL) can access any user in their org; everyone else
+         * may only access users they personally created, or themselves. Applies to
+         * users, staff, and trainers alike - they're all User rows.
+         */
+        private void assertCallerCanAccessUser(User user) {
+                assertCallerOwnsOrgOf(user.getOrganization());
+
+                java.util.UUID loggedInUserId = null;
+                boolean hasFullAccess = false;
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null) {
+                        if (auth.getPrincipal() instanceof User) {
+                                loggedInUserId = ((User) auth.getPrincipal()).getId();
+                        }
+                        hasFullAccess = auth.getAuthorities().stream()
+                                        .anyMatch(a -> a.getAuthority().equals("ORG_ADMIN") || a.getAuthority().equals("ROLE_ORG_ADMIN") || a.getAuthority().equals("USERS:VIEW_ALL"));
+                }
+
+                if (hasFullAccess || loggedInUserId == null
+                                || loggedInUserId.equals(user.getId()) || loggedInUserId.equals(user.getCreatedBy())) {
+                        return;
+                }
+                throw new RuntimeException("User not found");
         }
 
         // --- STAFF CRUD ---
 
         @Override
-        public void createStaff(AdminDashboardDtos.StaffDetailDto staffDto, Long organizationId, Long branchId) {
+        public void createStaff(AdminDashboardDtos.StaffDetailDto staffDto, java.util.UUID organizationId, java.util.UUID branchId) {
                 System.out.println("DEBUG: createStaff called for: " + staffDto.getName());
-                System.out.println("DEBUG: createStaff Role received: '" + staffDto.getRole() + "'");
+                System.out.println("DEBUG: createStaff String received: '" + staffDto.getRole() + "'");
 
                 Organization org = organizationRepository.findById(organizationId)
                                 .orElseThrow(() -> new RuntimeException("Organization not found"));
@@ -345,16 +479,15 @@ public class AdminServiceImpl implements AdminService {
                 }
 
                 if (staffDto.getName() == null) {
-                        throw new RuntimeException("Staff name is required");
+                        throw new RuntimeException("User name is required");
                 }
 
                 if ("TRAINER".equalsIgnoreCase(staffDto.getRole())) {
-                        System.out.println("DEBUG: Role matches TRAINER. Redirecting to createTrainer.");
+                        System.out.println("DEBUG: String matches TRAINER. Redirecting to createTrainer.");
                         AdminDashboardDtos.TrainerDetailDto trainerDto = AdminDashboardDtos.TrainerDetailDto.builder()
                                         .name(staffDto.getName())
                                         .email(staffDto.getEmail())
                                         .phone(staffDto.getPhone())
-                                        .salary(staffDto.getSalary())
                                         .startDate(staffDto.getStartDate())
                                         .shiftTimings(staffDto.getShiftTimings())
                                         .isPersonalTrainer(true)
@@ -365,34 +498,40 @@ public class AdminServiceImpl implements AdminService {
                         return;
                 }
 
-                Staff staff = Staff.builder()
+                User staff = User.builder()
                                 .name(staffDto.getName())
                                 .email(staffDto.getEmail())
                                 .phone(staffDto.getPhone())
-                                .salary(staffDto.getSalary())
-                                .startDate(staffDto.getStartDate())
-                                .shiftTimings(staffDto.getShiftTimings())
-                                .role(staffDto.getRole())
                                 .organization(org)
                                 .branch(branch)
-                                .staffCode("STF-" + System.currentTimeMillis())
                                 .username(staffDto.getName().replaceAll("\\s+", "") + System.currentTimeMillis())
-                                .experience(staffDto.getExperience())
                                 .build();
-                staffRepository.save(staff);
+                staff.setShiftTimings(staffDto.getShiftTimings());
+                staff.setStartDate(staffDto.getStartDate());
+                staff.setExperience(staffDto.getExperience());
+                staff.setStaffCode("STF-" + System.currentTimeMillis());
+
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof User) {
+                        staff.setCreatedBy(((User) auth.getPrincipal()).getId());
+                }
+
+                userRepository.save(staff);
         }
 
         @Override
-        public AdminDashboardDtos.StaffDetailDto getStaffById(Long staffId) {
-                Staff staff = staffRepository.findById(staffId)
-                                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        public AdminDashboardDtos.StaffDetailDto getStaffById(java.util.UUID staffId) {
+                User staff = userRepository.findById(staffId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(staff);
                 return mapToStaffDetailDto(staff);
         }
 
         @Override
-        public void updateStaff(Long staffId, AdminDashboardDtos.StaffDetailDto staffDto) {
-                Staff staff = staffRepository.findById(staffId)
-                                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        public void updateStaff(java.util.UUID staffId, AdminDashboardDtos.StaffDetailDto staffDto) {
+                User staff = userRepository.findById(staffId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(staff);
 
                 staff.setName(staffDto.getName());
                 staff.setEmail(staffDto.getEmail());
@@ -406,41 +545,45 @@ public class AdminServiceImpl implements AdminService {
                 }
                 staff.setExperience(staffDto.getExperience());
 
-                staffRepository.save(staff);
+                userRepository.save(staff);
         }
 
         @Override
-        public void removeStaff(Long staffId) {
-                Staff staff = staffRepository.findById(staffId)
-                                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        public void removeStaff(java.util.UUID staffId) {
+                User staff = userRepository.findById(staffId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(staff);
+                staff.softDelete();
                 staff.setIsDeleted(true);
-                staffRepository.save(staff);
+                userRepository.save(staff);
         }
 
         @Override
-        public void assignTrainer(Long userId, String trainerName) {
+        public void assignTrainer(java.util.UUID userId, String trainerName) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(user);
 
                 // Potential issue: Multiple trainers with same name? Ideally use ID.
                 // For now, finding first match in same org.
-                Trainer trainer = trainerRepository.findAll().stream()
+                User trainer = userRepository.findAll().stream()
                                 .filter(t -> t.getName().equalsIgnoreCase(trainerName)
                                                 && t.getOrganization().getId().equals(user.getOrganization().getId()))
                                 // Enforce same branch if user has branch
                                 .filter(t -> user.getBranch() == null || (t.getBranch() != null
                                                 && t.getBranch().getId().equals(user.getBranch().getId())))
                                 .findFirst()
-                                .orElseThrow(() -> new RuntimeException("Trainer not found: " + trainerName));
+                                .orElseThrow(() -> new RuntimeException("User not found: " + trainerName));
 
                 user.setTrainer(trainer);
                 userRepository.save(user);
         }
 
         @Override
-        public void updateDietPlan(Long userId, List<String> dietDetails) {
+        public void updateDietPlan(java.util.UUID userId, List<String> dietDetails) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(user);
 
                 List<UserDietPlan> plans = dietDetails.stream()
                                 .map(food -> UserDietPlan.builder()
@@ -460,44 +603,46 @@ public class AdminServiceImpl implements AdminService {
         }
 
         @Override
-        public void updateStaffPaymentStatus(Long staffId, String status) {
-                Staff staff = staffRepository.findById(staffId)
-                                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        public void updateStaffPaymentStatus(java.util.UUID staffId, String status) {
+                User staff = userRepository.findById(staffId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(staff);
                 staff.setPaymentStatus(status);
-                staffRepository.save(staff);
+                userRepository.save(staff);
         }
 
         @Override
-        public void updateTrainerPaymentStatus(Long trainerId, String status) {
-                Trainer trainer = trainerRepository.findById(trainerId)
-                                .orElseThrow(() -> new RuntimeException("Trainer not found"));
+        public void updateTrainerPaymentStatus(java.util.UUID trainerId, String status) {
+                User trainer = userRepository.findById(trainerId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                assertCallerCanAccessUser(trainer);
                 trainer.setPaymentStatus(status);
-                trainerRepository.save(trainer);
+                userRepository.save(trainer);
         }
 
         @Override
-        public AdminDashboardDtos.DashboardStatsDto getDashboardStats(Long organizationId, Long branchId) {
+        public AdminDashboardDtos.DashboardStatsDto getDashboardStats(java.util.UUID organizationId, java.util.UUID branchId) {
                 Organization org = organizationRepository.findById(organizationId)
                                 .orElseThrow(() -> new RuntimeException("Organization not found"));
 
                 List<User> users;
-                List<Trainer> trainers;
-                List<Staff> staff;
+                List<User> trainers;
+                List<User> staff;
 
                 if (branchId != null) {
                         users = userRepository.findByBranchId(branchId);
-                        trainers = trainerRepository.findByBranchId(branchId);
-                        staff = staffRepository.findByBranchId(branchId);
+                        trainers = userRepository.findByBranchId(branchId);
+                        staff = userRepository.findByBranchId(branchId);
                 } else {
                         users = userRepository.findByOrganizationId(org.getId());
-                        trainers = trainerRepository.findByOrganizationId(org.getId());
-                        staff = staffRepository.findByOrganizationId(org.getId());
+                        trainers = userRepository.findByOrganizationId(org.getId());
+                        staff = userRepository.findByOrganizationId(org.getId());
                 }
 
                 // 1. Total Members
                 long totalMembers = users.stream().filter(u -> !Boolean.TRUE.equals(u.getIsDeleted())).count();
 
-                // 2. Active Staff (Trainers + General Staff)
+                // 2. Active User (Trainers + General User)
                 long activeTrainersCount = trainers.stream().filter(t -> !Boolean.TRUE.equals(t.getIsDeleted()))
                                 .count();
                 long activeStaffCount = staff.stream().filter(s -> !Boolean.TRUE.equals(s.getIsDeleted())).count();
@@ -516,7 +661,7 @@ public class AdminServiceImpl implements AdminService {
                 long pendingRenewals = users.stream()
                                 .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
                                 .filter(u -> {
-                                        LocalDate endDate = calculateEndDate(u.getStartDate(), u.getPlan());
+                                        LocalDate endDate = calculateEndDate(u.getStartDate(), (u.getPlan() != null ? u.getPlan().getName() : null));
                                         return endDate != null && !endDate.isBefore(today)
                                                         && endDate.isBefore(nextWeek);
                                 })
@@ -558,13 +703,39 @@ public class AdminServiceImpl implements AdminService {
         }
 
         @Override
-        public List<AdminDashboardDtos.BranchDto> getBranches(Long organizationId) {
+        public List<AdminDashboardDtos.BranchDto> getBranches(java.util.UUID organizationId, java.util.UUID branchId, User currentUser) {
                 Organization org = organizationRepository.findById(organizationId)
                                 .orElseThrow(() -> new RuntimeException("Organization not found"));
 
-                return branchRepository.findByOrganizationId(org.getId()).stream()
+                List<Branch> branches;
+                boolean isOrgAdmin = currentUser != null && currentUser.getRoles() != null 
+                                && currentUser.getRoles().stream().anyMatch(r -> "ORG_ADMIN".equalsIgnoreCase(r.getName()));
+
+                if (isOrgAdmin) {
+                        // Org Admin always sees ALL branches of the organization
+                        branches = branchRepository.findByOrganizationId(org.getId());
+                } else if (currentUser != null) {
+                        java.util.Set<java.util.UUID> allowedBranchIds = new java.util.HashSet<>();
+                        if (currentUser.getBranch() != null) {
+                                allowedBranchIds.add(currentUser.getBranch().getId());
+                        }
+                        allowedBranchIds.addAll(currentUser.getAccessibleBranchUUIDs());
+                        if (allowedBranchIds.isEmpty() && branchId != null) {
+                                allowedBranchIds.add(branchId);
+                        }
+
+                        if (!allowedBranchIds.isEmpty()) {
+                                branches = branchRepository.findAllById(allowedBranchIds);
+                        } else {
+                                branches = branchRepository.findByOrganizationId(org.getId());
+                        }
+                } else {
+                        branches = branchRepository.findByOrganizationId(org.getId());
+                }
+
+                return branches.stream()
                                 .map(branch -> {
-                                        Admin branchAdmin = adminRepository.findTopByBranchId(branch.getId())
+                                        User branchAdmin = userRepository.findTopByBranchId(branch.getId())
                                                         .orElse(null);
                                         return AdminDashboardDtos.BranchDto.builder()
                                                         .id(branch.getId())
@@ -584,9 +755,9 @@ public class AdminServiceImpl implements AdminService {
         }
 
         @Override
-        public void resendAdminVerification(Long branchId) {
-                Admin branchAdmin = adminRepository.findTopByBranchId(branchId)
-                                .orElseThrow(() -> new RuntimeException("Branch Admin not found"));
+        public void resendAdminVerification(java.util.UUID branchId) {
+                User branchAdmin = userRepository.findTopByBranchId(branchId)
+                                .orElseThrow(() -> new RuntimeException("Branch User not found"));
 
                 // Trigger OTP/Verification Email via OtpService
                 otpService.sendOtp(branchAdmin.getEmail(), branchAdmin.getPhone(), "REGISTER");
@@ -605,26 +776,24 @@ public class AdminServiceImpl implements AdminService {
                 return AdminDashboardDtos.UserDetailDto.builder()
                                 .id(user.getId())
                                 .branchId(user.getBranch() != null ? user.getBranch().getId() : null)
+                                .accessibleBranchIds(user.getAccessibleBranchUUIDs())
                                 .userCode(user.getUserCode())
                                 .username(user.getUsername())
                                 .name(user.getName())
                                 .email(user.getEmail())
                                 .phone(user.getPhone())
                                 .dob(user.getDob())
-                                .plan(user.getPlan())
+                                .plan((user.getPlan() != null ? user.getPlan().getName() : null))
                                 .amountPaid(user.getAmountPaid())
-                                // user.getTrainer().getName() : null) // Modified to prevent lazy init if
-                                // needed, but entity should be fetched.
                                 .trainerName(user.getTrainer() != null ? user.getTrainer().getName() : null)
-                                .trainerCode(user.getTrainer() != null ? user.getTrainer().getTrainerCode() : null) // Added
-                                                                                                                    // trainerCode
+                                .trainerCode(user.getTrainer() != null ? user.getTrainer().getTrainerCode() : null)
                                 .startDate(user.getStartDate())
-                                .endDate(calculateEndDate(user.getStartDate(), user.getPlan()))
+                                .endDate(calculateEndDate(user.getStartDate(), (user.getPlan() != null ? user.getPlan().getName() : null)))
                                 .attendanceCount(user.getAttendanceCount())
                                 .isActive(user.getIsActive())
                                 .isEmailVerified(user.getIsEmailVerified())
                                 .status(Boolean.TRUE.equals(user.getIsActive()) ? "Active" : "Expired")
-                                .role(user.getRole() != null ? user.getRole().name() : null)
+                                .role(user.getRole() != null ? user.getRole() : null)
                                 .build();
         }
 
@@ -639,25 +808,28 @@ public class AdminServiceImpl implements AdminService {
                 return startDate.plusMonths(1); // Default
         }
 
-        private AdminDashboardDtos.StaffTrackingDto mapStaffToDto(Staff staff) {
+        private AdminDashboardDtos.StaffTrackingDto mapStaffToDto(User staff) {
+                boolean isTrainer = "TRAINER".equalsIgnoreCase(staff.getRole());
                 return AdminDashboardDtos.StaffTrackingDto.builder()
                                 .id(staff.getId())
-                                .code(staff.getStaffCode()) // Added
-                                .role(staff.getRole() != null ? staff.getRole() : "STAFF") // Added
-                                .entityType("STAFF") // Added for payment status update
-                                .paymentStatus(staff.getPaymentStatus() != null ? staff.getPaymentStatus() : "Pending") // Added
+                                .code(staff.getStaffCode() != null ? staff.getStaffCode() : staff.getUserCode())
+                                .username(staff.getUsername())
+                                .role(staff.getRole() != null ? staff.getRole() : "STAFF")
+                                .entityType(isTrainer ? "TRAINER" : "STAFF")
+                                .paymentStatus(staff.getPaymentStatus() != null ? staff.getPaymentStatus() : "Pending")
                                 .name(staff.getName())
                                 .email(staff.getEmail())
                                 .phoneNumber(staff.getPhone())
-                                .salary(staff.getSalary())
+                                .salary(staff.getSalary() != null ? staff.getSalary() : java.math.BigDecimal.ZERO)
                                 .startedDate(staff.getStartDate())
                                 .shiftTimings(staff.getShiftTimings())
-                                .isPersonalTrainer("TRAINER".equalsIgnoreCase(staff.getRole()))
+                                .isPersonalTrainer(isTrainer)
                                 .customerNames(Collections.emptyList())
+                                .accessibleBranchIds(staff.getAccessibleBranchUUIDs())
                                 .build();
         }
 
-        private AdminDashboardDtos.StaffDetailDto mapToStaffDetailDto(Staff staff) {
+        private AdminDashboardDtos.StaffDetailDto mapToStaffDetailDto(User staff) {
                 return AdminDashboardDtos.StaffDetailDto.builder()
                                 .id(staff.getId())
                                 .branchId(staff.getBranch() != null ? staff.getBranch().getId() : null)
@@ -674,26 +846,7 @@ public class AdminServiceImpl implements AdminService {
                                 .build();
         }
 
-        private AdminDashboardDtos.StaffTrackingDto mapTrainerToDto(Trainer trainer) {
-                return AdminDashboardDtos.StaffTrackingDto.builder()
-                                .id(trainer.getId())
-                                .code(trainer.getTrainerCode()) // Added
-                                .role("TRAINER") // Added
-                                .entityType("TRAINER") // Added
-                                .paymentStatus(trainer.getPaymentStatus() != null ? trainer.getPaymentStatus()
-                                                : "Pending") // Added
-                                .name(trainer.getName())
-                                .email(trainer.getEmail())
-                                .phoneNumber(trainer.getPhone())
-                                .salary(trainer.getSalary())
-                                .startedDate(trainer.getStartDate())
-                                .shiftTimings(trainer.getShiftTimings())
-                                .isPersonalTrainer(true) // Force true for Trainer entities
-                                .customerNames(Collections.emptyList()) // Fetch allocated users if needed
-                                .build();
-        }
-
-        private AdminDashboardDtos.TrainerDetailDto mapToTrainerDetailDto(Trainer trainer) {
+        private AdminDashboardDtos.TrainerDetailDto mapToTrainerDetailDto(User trainer) {
                 return AdminDashboardDtos.TrainerDetailDto.builder()
                                 .id(trainer.getId())
                                 .branchId(trainer.getBranch() != null ? trainer.getBranch().getId() : null)

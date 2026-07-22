@@ -59,18 +59,15 @@ public class FoodServiceImpl implements FoodService {
 
         @Override
         @Transactional(readOnly = true)
-        public FoodDto getFoodDetails(Long id) {
-                if (id < 0) {
-                        // It's a recipe
-                        Long recipeId = Math.abs(id);
-                        com.gymbross.usermanagement.entity.Recipe recipe = recipeRepository.findById(recipeId)
-                                        .orElseThrow(() -> new RuntimeException("Recipe not found"));
-                        return mapRecipeToSummaryDto(recipe);
+        public FoodDto getFoodDetails(java.util.UUID id) {
+                java.util.Optional<Food> foodOpt = foodRepository.findById(id);
+                if (foodOpt.isPresent()) {
+                    return mapToFullDto(foodOpt.get());
                 }
-                Food food = foodRepository.findById(id)
-                                .orElseThrow(() -> new RuntimeException("Food not found"));
-
-                return mapToFullDto(food);
+                
+                com.gymbross.usermanagement.entity.Recipe recipe = recipeRepository.findById(id)
+                                .orElseThrow(() -> new RuntimeException("Food or Recipe not found"));
+                return mapRecipeToSummaryDto(recipe);
         }
 
         private FoodDto mapToSummaryDto(Food food) {
@@ -190,7 +187,6 @@ public class FoodServiceImpl implements FoodService {
         }
 
         private FoodDto mapRecipeToSummaryDto(com.gymbross.usermanagement.entity.Recipe recipe) {
-                Long summaryId = -1 * recipe.getId();
                 // System.out.println("Mapping Recipe: " + recipe.getRecipeName() + " |
                 // Calories: " + recipe.getCalories());
                 System.out.println("Mapping Recipe ID: " + recipe.getId() + " - Name: " + recipe.getRecipeName()
@@ -230,7 +226,7 @@ public class FoodServiceImpl implements FoodService {
                         flags.add("High Fiber");
 
                 return FoodDto.builder()
-                                .id(summaryId)
+                                .id(recipe.getId())
                                 .description(recipe.getRecipeName())
                                 .foodCategory(recipe.getCategory())
                                 .calories(recipe.getCalories())

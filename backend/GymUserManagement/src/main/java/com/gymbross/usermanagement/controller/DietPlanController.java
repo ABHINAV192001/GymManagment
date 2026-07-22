@@ -19,24 +19,30 @@ public class DietPlanController {
     private final DietPlanService dietPlanService;
 
     @PostMapping(value = "/assign", consumes = { "multipart/form-data" })
-    @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
+    @PreAuthorize("hasAuthority('DIET:ASSIGN')")
     public ResponseEntity<ApiResponse<UserDietPlan>> assignDietPlan(
-            @RequestParam Long userId,
+            @RequestParam java.util.UUID userId,
             @RequestPart("dietPlan") UserDietPlan dietPlan,
-            @RequestPart(value = "file", required = false) MultipartFile file) {
-        return ResponseEntity.ok(ApiResponse.success(dietPlanService.assignDietPlan(userId, dietPlan, file), "Diet plan assigned successfully"));
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @RequestAttribute("organizationId") java.util.UUID orgId,
+            @RequestAttribute(required = false) java.util.UUID branchId) {
+        return ResponseEntity.ok(ApiResponse.success(dietPlanService.assignDietPlan(userId, dietPlan, file, orgId, branchId), "Diet plan assigned successfully"));
     }
 
     @GetMapping("/user/{userId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<UserDietPlan>>> getUserDietPlans(@PathVariable Long userId) {
-        return ResponseEntity.ok(ApiResponse.success(dietPlanService.getUserDietPlans(userId)));
+    public ResponseEntity<ApiResponse<List<UserDietPlan>>> getUserDietPlans(@PathVariable java.util.UUID userId,
+            @RequestAttribute("organizationId") java.util.UUID orgId,
+            @RequestAttribute(required = false) java.util.UUID branchId) {
+        return ResponseEntity.ok(ApiResponse.success(dietPlanService.getUserDietPlans(userId, orgId, branchId)));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
-    public ResponseEntity<ApiResponse<Void>> deleteDietPlan(@PathVariable Long id) {
-        dietPlanService.deleteDietPlan(id);
+    @PreAuthorize("hasAuthority('DIET:DELETE')")
+    public ResponseEntity<ApiResponse<Void>> deleteDietPlan(@PathVariable java.util.UUID id,
+            @RequestAttribute("organizationId") java.util.UUID orgId,
+            @RequestAttribute(required = false) java.util.UUID branchId) {
+        dietPlanService.deleteDietPlan(id, orgId, branchId);
         return ResponseEntity.ok(ApiResponse.success(null, "Diet plan deleted successfully"));
     }
 }

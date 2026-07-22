@@ -10,12 +10,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WeeklyWorkoutPlanDto {
-    private Long id;
-    private Long mondayWorkoutId;
-    private Long tuesdayWorkoutId;
-    private Long wednesdayWorkoutId;
-    private Long thursdayWorkoutId;
-    private Long fridayWorkoutId;
-    private Long saturdayWorkoutId;
-    private Long sundayWorkoutId;
+    private java.util.UUID id;
+    private java.util.UUID mondayWorkoutId;
+    private java.util.UUID tuesdayWorkoutId;
+    private java.util.UUID wednesdayWorkoutId;
+    private java.util.UUID thursdayWorkoutId;
+    private java.util.UUID fridayWorkoutId;
+    private java.util.UUID saturdayWorkoutId;
+    private java.util.UUID sundayWorkoutId;
 }

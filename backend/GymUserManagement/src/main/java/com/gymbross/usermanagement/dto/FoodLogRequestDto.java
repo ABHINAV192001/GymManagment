@@ -5,8 +5,8 @@ import java.time.LocalDate;
 
 @Data
 public class FoodLogRequestDto {
-    private Long foodId;
-    private Long portionId;
+    private java.util.UUID foodId;
+    private java.util.UUID portionId;
     private Double quantity;
     private LocalDate date;
     private String mealType;

@@ -11,7 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class WorkoutDto {
-    private Long id;
+    private java.util.UUID id;
     private String title;
     private String description;
     private String category;

@@ -16,11 +16,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "inventory")
-public class Inventory {
+public class Inventory extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @Column(nullable = false)
     private String name;
@@ -40,9 +38,4 @@ public class Inventory {
     @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
 }

@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-public interface OtpRepository extends JpaRepository<Otp, Long> {
+public interface OtpRepository extends JpaRepository<Otp, java.util.UUID> {
 
         Optional<Otp> findTopByEmailAndOtpTypeOrderByCreatedAtDesc(String email, String otpType);
 

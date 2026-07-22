@@ -23,7 +23,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // ✅ Enable RBAC via @PreAuthorize
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -38,10 +38,21 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/public/**", "/api/otp/**").permitAll()
+                        .requestMatchers(
+                                "/api/auth/login", "/api/auth/refresh",
+                                "/api/auth/register-organization", "/api/auth/register-user", "/api/auth/register-trainer",
+                                "/api/auth/verify-otp", "/api/auth/forgot-password", "/api/auth/reset-password",
+                                "/api/auth/resend-invite", "/api/auth/resend-otp", "/api/auth/complete-registration"
+                        ).permitAll()
+                        .requestMatchers("/api/public/**", "/api/otp/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                         .requestMatchers("/api/chat/**").permitAll()
+                        .requestMatchers("/api/auth/logout").authenticated()
+                        // String/permission-specific checks live on the controller methods via @PreAuthorize;
+                        // this layer just enforces "must be authenticated at all" as a baseline.
+                        .requestMatchers("/api/v1/recipes/**", "/api/v1/accounts/**", "/api/v1/notifications/**", "/api/v1/plans/**", "/api/v1/rbac/**").authenticated()
                         .requestMatchers("/api/user/**").authenticated()
-                        .requestMatchers("/api/admin/**").hasAnyAuthority("ORG_ADMIN", "BRANCH_ADMIN", "OWNER", "ADMIN", "TRAINER")
+                        .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

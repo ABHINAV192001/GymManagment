@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 
 @Data
@@ -11,10 +13,14 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserProfileDto {
-    private Long id;
+    private java.util.UUID id;
     private String username;
+    @NotBlank(message = "Name cannot be blank")
     private String name;
+    
+    @Email(message = "Email should be valid")
     private String email;
+    
     private String phone;
     private String role;
     private String userCode; // Member ID
@@ -32,7 +38,7 @@ public class UserProfileDto {
     private LocalDate endDate; // Calculated in service
     private String membershipStatus; // Active/Expired
     private String trainerName;
-    private Long trainerId;
+    private java.util.UUID trainerId;
     private Boolean hasTrainer;
     private String workoutPlanName;
 
@@ -67,12 +73,12 @@ public class UserProfileDto {
     // Social
     private String instagramProfile;
 
-    // Trainer Specific
+    // User Specific
     private Integer experience;
     private Boolean isPersonalTrainer;
     private String shiftTimings;
 
-    // Staff Specific
+    // User Specific
     private String staffRole;
     private String paymentStatus;
 

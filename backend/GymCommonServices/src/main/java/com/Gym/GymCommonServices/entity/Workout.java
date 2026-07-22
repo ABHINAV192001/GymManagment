@@ -10,11 +10,9 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @Table(name = "workouts")
-public class Workout {
+public class Workout extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     private String title;
 
