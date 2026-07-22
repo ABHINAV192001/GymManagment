@@ -53,6 +53,8 @@ export const Members: React.FC = () => {
     amountPaid: '',
     startDate: new Date().toISOString().split('T')[0],
     trainerCode: '',
+    branchId: '',
+    accessibleBranchIds: [] as string[],
   });
 
   // Validation & Error state
@@ -175,13 +177,14 @@ export const Members: React.FC = () => {
         amountPaid: newMember.amountPaid ? Number(newMember.amountPaid) : undefined,
         startDate: newMember.startDate || undefined,
         trainerCode: newMember.trainerCode || undefined,
-        branchId: selectedBranchId === 'ALL' ? undefined : selectedBranchId,
+        branchId: newMember.branchId || (selectedBranchId === 'ALL' ? undefined : selectedBranchId),
+        accessibleBranchIds: newMember.accessibleBranchIds.length > 0 ? newMember.accessibleBranchIds : undefined,
       });
 
       await refreshMembers();
       setIsFormOpen(false);
       const registeredName = newMember.name;
-      setNewMember({ role: '', isStaff: false, name: '', email: '', phone: '', dob: '', amountPaid: '', startDate: new Date().toISOString().split('T')[0], trainerCode: '' });
+      setNewMember({ role: '', isStaff: false, name: '', email: '', phone: '', dob: '', amountPaid: '', startDate: new Date().toISOString().split('T')[0], trainerCode: '', branchId: '', accessibleBranchIds: [] });
       setFormErrors({});
       setTouchedFields({});
       setIsSubmitAttempted(false);
@@ -1080,6 +1083,65 @@ export const Members: React.FC = () => {
                     </p>
                   )}
                 </div>
+
+                {/* 2. BRANCH ASSIGNMENT FIELD */}
+                <div>
+                  <label className="block font-bold mb-1 text-zinc-900 dark:text-zinc-100 flex items-center justify-between">
+                    <span>2. Assign Primary Branch *</span>
+                    <span className="text-[10px] text-zinc-500 font-normal">Target Location</span>
+                  </label>
+                  <select
+                    value={newMember.branchId || (selectedBranchId !== 'ALL' ? selectedBranchId : '')}
+                    onChange={(e) => setNewMember({ ...newMember, branchId: e.target.value })}
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold text-xs transition focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Select Target Branch --</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.branchCode})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-zinc-400">
+                    Select the main branch this user account belongs to.
+                  </p>
+                </div>
+
+                {/* ADDITIONAL ACCESSIBLE BRANCHES (MULTI-SELECT) */}
+                {branches.length > 1 && (
+                  <div>
+                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">
+                      Additional Accessible Branches (Optional)
+                    </label>
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto p-2 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
+                      {branches
+                        .filter(b => b.id !== (newMember.branchId || (selectedBranchId !== 'ALL' ? selectedBranchId : '')))
+                        .map(b => {
+                          const isChecked = newMember.accessibleBranchIds.includes(b.id);
+                          return (
+                            <label key={b.id} className="flex items-center gap-2 text-xs text-zinc-800 dark:text-zinc-200 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/60 p-1.5 rounded-lg transition">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setNewMember(prev => ({ ...prev, accessibleBranchIds: [...prev.accessibleBranchIds, b.id] }));
+                                  } else {
+                                    setNewMember(prev => ({ ...prev, accessibleBranchIds: prev.accessibleBranchIds.filter(id => id !== b.id) }));
+                                  }
+                                }}
+                                className="rounded text-blue-600 focus:ring-blue-500"
+                              />
+                              <span>{b.name} <span className="text-[10px] text-zinc-400">({b.branchCode})</span></span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                    <p className="mt-1 text-[10px] text-zinc-400">
+                      Grant this user permission to access & switch into additional branches.
+                    </p>
+                  </div>
+                )}
 
                 {/* STAFF & PAYROLL TOGGLE */}
                 <div className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 flex items-center justify-between gap-3">

@@ -52,7 +52,7 @@ export const StaffManagement: React.FC = () => {
 
     try {
       const created = await createStaff({
-        branchId: 'b-1',
+        branchId: newStaff.branchId || (branches[0]?.id || undefined),
         name: newStaff.name,
         email: newStaff.email,
         phone: newStaff.phone,
