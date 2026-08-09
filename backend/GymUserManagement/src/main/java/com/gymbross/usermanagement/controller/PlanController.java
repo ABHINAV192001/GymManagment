@@ -26,8 +26,10 @@ public class PlanController {
     @PreAuthorize("hasAuthority('PLANS:VIEW')")
     public ResponseEntity<ApiResponse<List<Plan>>> getPlans(
             @RequestAttribute("organizationId") UUID orgId,
-            @RequestAttribute(value = "branchId", required = false) UUID branchId) {
-        return ResponseEntity.ok(ApiResponse.success(planRepository.findByOrganizationIdAndBranchIdAndIsDeletedFalse(orgId, branchId)));
+            @RequestAttribute(value = "branchId", required = false) UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(planRepository.findByOrganizationIdAndBranchIdAndIsDeletedFalse(orgId, branchId), page, size));
     }
 
     @PostMapping
@@ -100,15 +102,16 @@ public class PlanController {
     @PreAuthorize("hasAuthority('PLANS:VIEW')")
     public ResponseEntity<ApiResponse<List<User>>> getSubscribers(
             @RequestAttribute("organizationId") UUID orgId,
-            @PathVariable UUID id) {
+            @PathVariable UUID id,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         Plan plan = planRepository.findByIdAndOrganizationIdAndIsDeletedFalse(id, orgId)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found"));
-        // Assuming subscribers are users in the org subscribed to this plan name
         List<User> subscribers = userRepository.findByPlanName(plan.getName());
         subscribers = subscribers.stream()
                 .filter(u -> u.getOrganization() != null && u.getOrganization().getId().equals(orgId))
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(ApiResponse.success(subscribers));
+        return ResponseEntity.ok(ApiResponse.paginated(subscribers, page, size));
     }
 
     @GetMapping("/stats")

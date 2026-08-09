@@ -41,4 +41,9 @@ public class Activity {
     private String category; // "CLASS" or "PROGRAM"
 
     private java.util.UUID linkedWorkoutId;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

@@ -40,4 +40,9 @@ public class Expense {
 
     @Column(name = "org_id")
     private UUID organizationId;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

@@ -4,12 +4,14 @@ import { Shield, ShieldCheck, CheckSquare, Square, Save, Loader2, Plus, Trash2, 
 
 // API imports
 import { getRoles, getRoleById, updateRolePermissions, getAllPermissions, createRole, deleteRole } from '../../lib/api/rbac';
+import { usePermissions } from '../../lib/usePermissions';
 
 // Canonical column order
-const ACTION_ORDER = ['view', 'create', 'edit', 'delete', 'assign', 'export', 'send'];
+const ACTION_ORDER = ['view', 'create', 'edit', 'delete', 'assign', 'export', 'send', 'bookspot'];
 
 export const RBAC: React.FC = () => {
   const { triggerAnnouncement } = useOutletContext<{ triggerAnnouncement: (msg: string) => void }>();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [roles, setRoles] = useState<any[]>([]);
   const [catalog, setCatalog] = useState<Record<string, string[]>>({});
   const [activeRoleIndex, setActiveRoleIndex] = useState(0);
@@ -215,16 +217,18 @@ export const RBAC: React.FC = () => {
       <div className="xl:col-span-1 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Operational Roles</span>
-          <button
-            onClick={() => {
-              setNewRoleName('');
-              setAddRoleError(null);
-              setIsAddModalOpen(true);
-            }}
-            className="flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-500 transition px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add Role
-          </button>
+          {canCreate('rbac') && (
+            <button
+              onClick={() => {
+                setNewRoleName('');
+                setAddRoleError(null);
+                setIsAddModalOpen(true);
+              }}
+              className="flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-500 transition px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Role
+            </button>
+          )}
         </div>
         
         <div className="space-y-1.5">
@@ -242,17 +246,19 @@ export const RBAC: React.FC = () => {
                 <Shield className="w-4 h-4 text-blue-500 shrink-0" />
                 <span className="truncate">{r.name.replace(/_/g, ' ')}</span>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setRoleToDelete(r);
-                }}
-                title="Delete Role"
-                className="p-1 text-zinc-400 hover:text-red-500 rounded transition opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-950/30"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {canDelete('rbac') && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRoleToDelete(r);
+                  }}
+                  title="Delete Role"
+                  className="p-1 text-zinc-400 hover:text-red-500 rounded transition opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-950/30"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           ))}
           {roles.length === 0 && (
@@ -273,7 +279,7 @@ export const RBAC: React.FC = () => {
                 <p className="text-xs text-zinc-500 mt-0.5">Toggle checkboxes to immediately alter what operators can read, create, edit, or delete.</p>
               </div>
 
-              {isDirty && (
+              {canEdit('rbac') && isDirty && (
                 <button
                   onClick={handleSaveChanges}
                   disabled={isSaving}
@@ -320,18 +326,28 @@ export const RBAC: React.FC = () => {
 
                             return (
                               <td key={act} className="p-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleTogglePermission(mod, act)}
-                                  className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-850 inline-block focus:outline-2 focus:outline-blue-500"
-                                  aria-label={`Toggle ${act} privilege for ${mod} module`}
-                                >
-                                  {isAllowed ? (
-                                    <CheckSquare className="w-5 h-5 text-blue-500 shrink-0" />
-                                  ) : (
-                                    <Square className="w-5 h-5 text-zinc-300 dark:text-zinc-700 shrink-0" />
-                                  )}
-                                </button>
+                                {canEdit('rbac') ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTogglePermission(mod, act)}
+                                    className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-850 inline-block focus:outline-2 focus:outline-blue-500"
+                                    aria-label={`Toggle ${act} privilege for ${mod} module`}
+                                  >
+                                    {isAllowed ? (
+                                      <CheckSquare className="w-5 h-5 text-blue-500 shrink-0" />
+                                    ) : (
+                                      <Square className="w-5 h-5 text-zinc-300 dark:text-zinc-700 shrink-0" />
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div className="p-1 inline-block">
+                                    {isAllowed ? (
+                                      <CheckSquare className="w-5 h-5 text-blue-500 shrink-0 opacity-70" />
+                                    ) : (
+                                      <Square className="w-5 h-5 text-zinc-300 dark:text-zinc-700 shrink-0 opacity-70" />
+                                    )}
+                                  </div>
+                                )}
                               </td>
                             );
                           })}
@@ -352,10 +368,10 @@ export const RBAC: React.FC = () => {
 
       {/* Add New Role Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="add-role-modal-heading">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsAddModalOpen(false)} />
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="add-role-modal-heading" onClick={() => setIsAddModalOpen(false)}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4">
+            <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
               
               <div className="flex justify-between items-center pb-3 border-b border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-center gap-2">
@@ -419,10 +435,10 @@ export const RBAC: React.FC = () => {
 
       {/* Delete Role Confirmation Modal */}
       {roleToDelete && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-role-dialog-heading">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setRoleToDelete(null)} />
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-role-dialog-heading" onClick={() => setRoleToDelete(null)}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4">
+            <div className="relative w-full max-w-sm bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 text-center space-y-6" onClick={(e) => e.stopPropagation()}>
               
               <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
                 <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/60 flex items-center justify-center shrink-0">

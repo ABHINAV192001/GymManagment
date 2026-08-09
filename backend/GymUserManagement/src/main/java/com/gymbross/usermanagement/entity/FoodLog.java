@@ -42,4 +42,9 @@ public class FoodLog {
     private LocalDate date;
 
     private String mealType; // Breakfast, Lunch, Dinner, Snack
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

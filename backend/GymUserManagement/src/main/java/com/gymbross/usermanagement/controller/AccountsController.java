@@ -33,8 +33,10 @@ public class AccountsController {
     @PreAuthorize("hasAuthority('ACCOUNTS:VIEW')")
     public ResponseEntity<ApiResponse<List<Payment>>> getPayments(
             @RequestAttribute("organizationId") UUID organizationId,
-            @RequestAttribute(required = false) UUID branchId) {
-        return ResponseEntity.ok(ApiResponse.success(accountsService.getPayments(organizationId, branchId)));
+            @RequestAttribute(required = false) UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(accountsService.getPayments(organizationId, branchId), page, size));
     }
 
     @PostMapping("/payments")
@@ -81,16 +83,20 @@ public class AccountsController {
     @PreAuthorize("hasAuthority('ACCOUNTS:VIEW')")
     public ResponseEntity<ApiResponse<List<Payment>>> getIncome(
             @RequestAttribute("organizationId") UUID organizationId,
-            @RequestAttribute(required = false) UUID branchId) {
-        return ResponseEntity.ok(ApiResponse.success(accountsService.getIncome(organizationId, branchId)));
+            @RequestAttribute(required = false) UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(accountsService.getIncome(organizationId, branchId), page, size));
     }
 
     @GetMapping("/expenses")
     @PreAuthorize("hasAuthority('ACCOUNTS:VIEW')")
     public ResponseEntity<ApiResponse<List<Expense>>> getExpenses(
             @RequestAttribute("organizationId") UUID organizationId,
-            @RequestAttribute(required = false) UUID branchId) {
-        return ResponseEntity.ok(ApiResponse.success(accountsService.getExpenses(organizationId, branchId)));
+            @RequestAttribute(required = false) UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(accountsService.getExpenses(organizationId, branchId), page, size));
     }
 
     @PostMapping("/expenses")
@@ -107,8 +113,20 @@ public class AccountsController {
     @PreAuthorize("hasAuthority('ACCOUNTS:VIEW')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSalaryRecords(
             @RequestAttribute("organizationId") UUID organizationId,
+            @RequestAttribute(required = false) UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(accountsService.getSalaryRecords(organizationId, branchId), page, size));
+    }
+
+    @GetMapping("/salary/components/{staffId}")
+    @PreAuthorize("hasAuthority('ACCOUNTS:VIEW')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStaffSalaryComponents(
+            @PathVariable UUID staffId,
+            @RequestParam(value = "period", required = false) String period,
+            @RequestAttribute("organizationId") UUID organizationId,
             @RequestAttribute(required = false) UUID branchId) {
-        return ResponseEntity.ok(ApiResponse.success(accountsService.getSalaryRecords(organizationId, branchId)));
+        return ResponseEntity.ok(ApiResponse.success(accountsService.getStaffSalaryComponents(staffId, period, organizationId, branchId)));
     }
 
     @GetMapping("/pl-report")
@@ -131,8 +149,10 @@ public class AccountsController {
     @PreAuthorize("hasAuthority('ACCOUNTS:VIEW')")
     public ResponseEntity<ApiResponse<List<Payment>>> getPendingPayments(
             @RequestAttribute("organizationId") UUID organizationId,
-            @RequestAttribute(required = false) UUID branchId) {
-        return ResponseEntity.ok(ApiResponse.success(accountsService.getPendingPayments(organizationId, branchId)));
+            @RequestAttribute(required = false) UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(accountsService.getPendingPayments(organizationId, branchId), page, size));
     }
 
     @GetMapping("/export")

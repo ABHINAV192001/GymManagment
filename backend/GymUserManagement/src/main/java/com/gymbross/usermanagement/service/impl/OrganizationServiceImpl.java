@@ -41,6 +41,7 @@ public class OrganizationServiceImpl implements OrganizationService {
                 .isEmailVerified(false)
                 .isPhoneVerified(false)
                 .isDeleted(false)
+                .logoUrl(request.getLogoUrl())
                 .build();
 
         organization = organizationRepository.save(organization);
@@ -52,16 +53,19 @@ public class OrganizationServiceImpl implements OrganizationService {
     public OrganizationResponse updateOrganization(UUID orgId, OrganizationRequest request) {
         Organization organization = getOrgOrThrow(orgId);
 
-        if (!organization.getOwnerEmail().equalsIgnoreCase(request.getOwnerEmail()) && 
-                organizationRepository.existsByOwnerEmailIgnoreCase(request.getOwnerEmail())) {
-            throw new IllegalArgumentException("Email already in use");
+        if (request.getOwnerEmail() != null && !organization.getOwnerEmail().equalsIgnoreCase(request.getOwnerEmail())) {
+            if (organizationRepository.existsByOwnerEmailIgnoreCase(request.getOwnerEmail())) {
+                throw new IllegalArgumentException("Email already in use");
+            }
+            organization.setOwnerEmail(request.getOwnerEmail());
         }
 
-        organization.setOrgCode(request.getOrgCode());
-        organization.setUsername(request.getUsername());
-        organization.setName(request.getName());
-        organization.setOwnerEmail(request.getOwnerEmail());
-        organization.setPhone(request.getPhone());
+        if (request.getOrgCode() != null) organization.setOrgCode(request.getOrgCode());
+        if (request.getUsername() != null) organization.setUsername(request.getUsername());
+        if (request.getName() != null) organization.setName(request.getName());
+        if (request.getPhone() != null) organization.setPhone(request.getPhone());
+        if (request.getLogoUrl() != null) organization.setLogoUrl(request.getLogoUrl());
+        if (request.getGst() != null) organization.setGst(request.getGst());
         
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             organization.setPasswordHash(passwordEncoder.encode(request.getPassword()));
@@ -126,6 +130,8 @@ public class OrganizationServiceImpl implements OrganizationService {
                 .isActive(org.getIsActive())
                 .isEmailVerified(org.getIsEmailVerified())
                 .isPhoneVerified(org.getIsPhoneVerified())
+                .logoUrl(org.getLogoUrl())
+                .gst(org.getGst())
                 .build();
     }
 }

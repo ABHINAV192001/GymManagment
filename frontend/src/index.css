@@ -1,1 +1,48 @@
 @import "tailwindcss";
+
+/* Enable class-based dark mode in Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+}
+
+/* High Contrast Light Theme */
+html.high-contrast-light, 
+html.high-contrast-light body {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+html.high-contrast-light * {
+  border-color: #000000 !important;
+  box-shadow: none !important;
+}
+
+/* High Contrast Dark Theme */
+html.high-contrast-dark, 
+html.high-contrast-dark body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+html.high-contrast-dark * {
+  border-color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* Dark mode base — controls canvas/body */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #09090b;
+  color: #fafafa;
+}
+
+/* Light mode base */
+html.light body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}

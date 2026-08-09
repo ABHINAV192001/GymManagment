@@ -53,4 +53,7 @@ public class Branch extends com.Gym.GymCommonServices.common.BaseEntity {
     @Builder.Default
     @Column(name = "is_deleted", nullable = false, columnDefinition = "boolean default false")
     private Boolean isDeleted = false;
+
+    @Column(name = "default_pt_trainer_percentage", precision = 5, scale = 2)
+    private java.math.BigDecimal defaultPtTrainerPercentage;
 }

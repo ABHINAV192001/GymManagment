@@ -14,5 +14,6 @@ public interface UserRepository extends JpaRepository<User, java.util.UUID> {
     boolean existsByUsername(String username);
     
     // Required by FitnessSessionService for notification routing
-    List<User> findByBranchIdInAndRoleIn(List<java.util.UUID> branchIds, List<Role> roles);
+    @org.springframework.data.jpa.repository.Query("SELECT DISTINCT u FROM User u JOIN u.roles r WHERE u.branch.id IN :branchIds AND r.name IN :roleNames")
+    List<User> findByBranchIdInAndRoleNamesIn(@org.springframework.data.repository.query.Param("branchIds") List<java.util.UUID> branchIds, @org.springframework.data.repository.query.Param("roleNames") List<String> roleNames);
 }

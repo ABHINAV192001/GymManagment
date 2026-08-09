@@ -117,6 +117,8 @@ public class WorkoutService {
                         .id(we.getId())
                         .exerciseId(we.getExercise().getId())
                         .name(we.getExercise().getName())
+                        .muscleGroup(we.getExercise().getMuscleGroup())
+                        .mechanics(we.getExercise().getMechanics() != null ? we.getExercise().getMechanics() : "COMPOUND")
                         .description(we.getExercise().getDescription())
                         .videoUrl(we.getExercise().getVideoUrl())
                         .sets(we.getSets())

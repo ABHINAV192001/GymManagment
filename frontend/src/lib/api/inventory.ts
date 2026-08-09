@@ -33,3 +33,10 @@ export async function updateInventoryItem(id: string, item: Partial<InventoryIte
 export async function deleteInventoryItem(id: string): Promise<void> {
   await fetchWithAuth(`${BASE_URL}/${id}`, { method: 'DELETE' });
 }
+
+export async function sellInventoryItem(id: string, quantity: number): Promise<InventoryItem> {
+  const response = await fetchWithAuth(`${BASE_URL}/${id}/sell?quantity=${quantity}`, {
+    method: 'POST',
+  });
+  return response.data;
+}

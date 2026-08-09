@@ -18,6 +18,7 @@ public interface AccountsService {
     List<Expense> getExpenses(UUID organizationId, UUID branchId);
     Expense recordExpense(Expense expense, UUID organizationId, UUID branchId);
     List<Map<String, Object>> getSalaryRecords(UUID organizationId, UUID branchId);
+    Map<String, Object> getStaffSalaryComponents(UUID staffId, String period, UUID organizationId, UUID branchId);
     Map<String, Object> getProfitLossReport(UUID organizationId, UUID branchId);
     Map<String, Object> getCashflow(UUID organizationId, UUID branchId);
     List<Payment> getPendingPayments(UUID organizationId, UUID branchId);

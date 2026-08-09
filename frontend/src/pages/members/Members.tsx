@@ -3,48 +3,72 @@ import { useOutletContext } from 'react-router-dom';
 import { 
   Search, X, DollarSign, UserPlus, Printer, Mail, Phone as PhoneIcon, 
   Edit, Trash2, Calendar, User, CheckCircle2, AlertTriangle, 
-  CreditCard, Eye, Award, Activity, Building2, Sparkles, ShieldCheck, AlertCircle
+  CreditCard, Eye, Award, Activity, Building2, Sparkles, ShieldCheck, AlertCircle,
+  CalendarCheck, Clock, LogOut, Check, Loader2
 } from 'lucide-react';
-import { Member, Branch, Staff, Payment } from '../../types';
-import { getUsers, createUser, updateUser, deleteUser, getAdminBranches, getStaff } from '../../lib/api/admin';
+import { Member, Branch, Staff, Payment, Plan } from '../../types';
+import { getUsers, createUser, updateUser, deleteUser, getAdminBranches, getStaff, resendPasswordNotification } from '../../lib/api/admin';
 import { getPayments, createPayment } from '../../lib/api/accounts';
 import { getRoles as getRbacRoles } from '../../lib/api/rbac';
+import { getPlans } from '../../lib/api/plans';
+import { getUserAttendance, checkIn, checkOut } from '../../lib/api/attendance';
+import { usePermissions } from '../../lib/usePermissions';
+import { SearchableSelect } from '../../components/shared/SearchableSelect';
 
-export const Members: React.FC = () => {
-  const { selectedBranchId, triggerAnnouncement } = useOutletContext<{ selectedBranchId: string; triggerAnnouncement: (msg: string) => void }>();
+export const MembersInternal: React.FC = () => {
+  const outletContext = useOutletContext<{ selectedBranchId?: string; triggerAnnouncement?: (msg: string) => void }>() || {};
+  const selectedBranchId = outletContext.selectedBranchId || 'ALL';
+  const triggerAnnouncementFn = outletContext.triggerAnnouncement;
+
+  const triggerAnnouncement = React.useCallback((msg: string) => {
+    if (typeof triggerAnnouncementFn === 'function') {
+      triggerAnnouncementFn(msg);
+    } else {
+      console.log(`[Announcement] ${msg}`);
+    }
+  }, [triggerAnnouncementFn]);
+
+  const { canCreate, canEdit, canDelete } = usePermissions();
+
   const [members, setMembers] = useState<Member[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [availableRoles, setAvailableRoles] = useState<{ id: string; name: string }[]>([]);
-
-  const refreshMembers = () => getUsers().then(setMembers);
-
-  useEffect(() => {
-    Promise.all([getUsers(), getAdminBranches(), getStaff(), getPayments(), getRbacRoles()])
-      .then(([mems, brs, stf, pays, rbacRoles]) => {
-        setMembers(mems);
-        setBranches(brs);
-        setStaff(stf);
-        setPayments(pays);
-        if (Array.isArray(rbacRoles)) {
-          setAvailableRoles(rbacRoles);
-        }
-      })
-      .catch(err => triggerAnnouncement(`Failed to load members data: ${err.message}`));
-  }, []);
+  const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'card'>('overview');
+  const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [staffFilter, setStaffFilter] = useState<'ALL' | 'STAFF' | 'MEMBERS'>('ALL');
+  const [branchFilter, setBranchFilter] = useState<string>('ALL');
+  const [startDateFrom, setStartDateFrom] = useState<string>('');
+  const [startDateTo, setStartDateTo] = useState<string>('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [paginationInfo, setPaginationInfo] = useState<{
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  }>({ page: 0, size: 10, totalElements: 0, totalPages: 1, hasNext: false, hasPrev: false });
 
+  // Modal & Drawer Component States (Declared BEFORE any useEffect hooks)
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'attendance' | 'card'>('overview');
+
+  const [userAttendanceLogs, setUserAttendanceLogs] = useState<any[]>([]);
+  const [totalAttendanceCount, setTotalAttendanceCount] = useState<number>(0);
+  const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Registration Form State — role selected from Roles API
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  // Form State & Validations
   const [newMember, setNewMember] = useState({
     role: '',
+    plan: '',
     isStaff: false,
     name: '',
     email: '',
@@ -57,20 +81,23 @@ export const Members: React.FC = () => {
     accessibleBranchIds: [] as string[],
   });
 
-  // Validation & Error state
   const [formErrors, setFormErrors] = useState<{ role?: string; name?: string; phone?: string; email?: string }>({});
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
   const [isSubmitAttempted, setIsSubmitAttempted] = useState(false);
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
 
-  // Edit Member State
+  // Edit & Delete States
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [memberToEdit, setMemberToEdit] = useState<Member | null>(null);
   const [editMemberData, setEditMemberData] = useState({
     name: '',
     email: '',
     phone: '',
     dob: '',
     startDate: '',
+    endDate: '',
+    plan: '',
+    status: 'Active',
     amountPaid: '',
     attendanceCount: '0',
     trainerCode: '',
@@ -78,21 +105,149 @@ export const Members: React.FC = () => {
     role: 'USER',
   });
 
-  // Delete Member State
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
 
-  // Record Payment state
   const [payAmount, setPayAmount] = useState('');
   const [payMode, setPayMode] = useState<'CASH' | 'UPI' | 'CARD' | 'BANK_TRANSFER'>('UPI');
+
+  // Top 1% High-Performance Memoized Computations (Google/Microsoft Standard)
+  const branchNameMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    branches.forEach(b => map.set(b.id, b.name));
+    return map;
+  }, [branches]);
+
+  const memberMetrics = React.useMemo(() => {
+    let active = 0;
+    let expired = 0;
+    let totalPaid = 0;
+    members.forEach(m => {
+      if (m.isActive) active++;
+      else expired++;
+      if (m.amountPaid) totalPaid += m.amountPaid;
+    });
+    return { active, expired, totalPaid, total: members.length };
+  }, [members]);
+
+  const fetchMembers = React.useCallback(() => {
+    let isStaffParam: boolean | undefined = undefined;
+    if (staffFilter === 'STAFF') isStaffParam = true;
+    if (staffFilter === 'MEMBERS') isStaffParam = false;
+
+    getUsers({
+      search: search.trim() || undefined,
+      role: roleFilter !== 'ALL' ? roleFilter : undefined,
+      status: statusFilter !== 'ALL' ? statusFilter : undefined,
+      isStaff: isStaffParam,
+      filterBranchId: branchFilter !== 'ALL' ? branchFilter : (selectedBranchId !== 'ALL' ? selectedBranchId : undefined),
+      startDateFrom: startDateFrom || undefined,
+      startDateTo: startDateTo || undefined,
+      page: page,
+      size: pageSize,
+    }).then(res => {
+      setMembers(Array.isArray(res?.members) ? res.members : []);
+      if (res?.pagination) setPaginationInfo(res.pagination);
+    }).catch(err => {
+      if (typeof triggerAnnouncementFn === 'function') {
+        triggerAnnouncementFn(`Failed to load members: ${err.message}`);
+      } else {
+        console.error(`Failed to load members: ${err.message}`);
+      }
+    });
+  }, [search, roleFilter, statusFilter, staffFilter, branchFilter, selectedBranchId, startDateFrom, startDateTo, page, pageSize, triggerAnnouncementFn]);
+
+  const refreshMembers = fetchMembers;
+
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
+
+  // Lazy load form metadata ONLY when user opens registration form modal
+  useEffect(() => {
+    if (isFormOpen && availablePlans.length === 0) {
+      Promise.all([getAdminBranches(), getStaff(), getPayments(), getRbacRoles(), getPlans()])
+        .then(([brs, stf, pays, rbacRoles, plns]) => {
+          setBranches(Array.isArray(brs) ? brs : []);
+          setStaff(Array.isArray(stf) ? stf : []);
+          setPayments(Array.isArray(pays) ? pays : []);
+          setAvailablePlans(Array.isArray(plns) ? plns : []);
+          if (Array.isArray(rbacRoles)) {
+            const uniqueRoles: typeof rbacRoles = [];
+            const seenNames = new Set<string>();
+            rbacRoles.forEach(r => {
+              if (r && r.name) {
+                const key = r.name.trim().toUpperCase();
+                if (!seenNames.has(key)) {
+                  seenNames.add(key);
+                  uniqueRoles.push(r);
+                }
+              }
+            });
+            setAvailableRoles(uniqueRoles);
+          }
+        })
+        .catch(err => triggerAnnouncement(`Failed to load metadata: ${err.message}`));
+    }
+  }, [isFormOpen, availablePlans.length, triggerAnnouncement]);
+
+  const fetchUserAttendanceLogs = React.useCallback(async (userId: string) => {
+    setIsLoadingAttendance(true);
+    try {
+      const res = await getUserAttendance(userId);
+      const logs = Array.isArray(res?.logs) ? res.logs : [];
+      const total = res?.totalElements ?? logs.length;
+      setUserAttendanceLogs(logs);
+      setTotalAttendanceCount(total);
+      setSelectedMember(prev => prev ? { ...prev, attendanceCount: total } : null);
+    } catch (err: any) {
+      console.error('Failed to load user attendance', err);
+    } finally {
+      setIsLoadingAttendance(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedMember && selectedMember.id) {
+      // Fetch attendance logs immediately on side bar drawer popup
+      fetchUserAttendanceLogs(selectedMember.id);
+    }
+  }, [selectedMember?.id, fetchUserAttendanceLogs]);
+
+  const handleCheckInMember = async () => {
+    if (!selectedMember) return;
+    try {
+      setIsSubmitting(true);
+      await checkIn(selectedMember.id, selectedMember.branchId);
+      triggerAnnouncement(`Attendance marked for ${selectedMember.name}`);
+      setSelectedMember(prev => prev ? { ...prev, attendanceCount: (prev.attendanceCount || 0) + 1 } : null);
+      fetchUserAttendanceLogs(selectedMember.id);
+      refreshMembers();
+    } catch (err: any) {
+      triggerAnnouncement(`Attendance note: ${err.message || 'Attendance already marked active'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCheckOutMember = async () => {
+    if (!selectedMember) return;
+    try {
+      setIsSubmitting(true);
+      await checkOut(selectedMember.id);
+      triggerAnnouncement(`Attendance session completed for ${selectedMember.name}`);
+      fetchUserAttendanceLogs(selectedMember.id);
+      refreshMembers();
+    } catch (err: any) {
+      triggerAnnouncement(`Attendance note: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Form Validation Logic
   const validateMemberForm = (data: { name: string; phone: string; email?: string; role?: string }) => {
     const errors: { name?: string; phone?: string; email?: string; role?: string } = {};
-
-    if (!data.role || data.role.trim() === '') {
-      errors.role = 'Please select a user role first.';
-    }
 
     if (!data.name || data.name.trim().length < 2) {
       errors.name = 'Full name must be at least 2 characters.';
@@ -117,12 +272,16 @@ export const Members: React.FC = () => {
   // Open Edit Modal with current member data
   const openEditModal = (member: Member, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    setMemberToEdit(member);
     setEditMemberData({
       name: member.name || '',
       email: member.email || '',
       phone: member.phone || '',
       dob: member.dob || '',
       startDate: member.startDate || new Date().toISOString().split('T')[0],
+      endDate: member.endDate || '',
+      plan: member.plan || '',
+      status: member.status || (member.isActive ? 'Active' : 'Inactive'),
       amountPaid: member.amountPaid != null ? String(member.amountPaid) : '0',
       attendanceCount: member.attendanceCount != null ? String(member.attendanceCount) : '0',
       trainerCode: member.trainerCode || '',
@@ -132,11 +291,39 @@ export const Members: React.FC = () => {
     setIsEditFormOpen(true);
   };
 
+  const closeEditModal = () => {
+    setIsEditFormOpen(false);
+    setMemberToEdit(null);
+  };
+
   // Open Delete Confirmation Modal
   const openDeleteModal = (member: Member, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setMemberToDelete(member);
     setIsDeleteConfirmOpen(true);
+  };
+
+  const handleResendPasswordNotification = async (member: Member, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!member.email) {
+      triggerAnnouncement(`Cannot send password notification: ${member.name} has no email registered.`);
+      return;
+    }
+    try {
+      const res = await resendPasswordNotification(member.id);
+      if (res?.inviteLink) {
+        try {
+          await navigator.clipboard.writeText(res.inviteLink);
+          triggerAnnouncement(`Password setup link sent to ${member.email} & copied to clipboard!`);
+        } catch {
+          triggerAnnouncement(`Password setup notification sent to ${member.email}!`);
+        }
+      } else {
+        triggerAnnouncement(`Password setup notification sent to ${member.email}!`);
+      }
+    } catch (err: any) {
+      triggerAnnouncement(`Failed to send password notification: ${err.message}`);
+    }
   };
 
   // Filters
@@ -167,8 +354,9 @@ export const Members: React.FC = () => {
     setFormErrorMessage(null);
     setIsSubmitting(true);
     try {
-      await createUser({
+      const createdUser = await createUser({
         role: newMember.role,
+        plan: newMember.plan || undefined,
         isStaff: newMember.isStaff,
         name: newMember.name.trim(),
         email: newMember.email ? newMember.email.trim() : undefined,
@@ -181,10 +369,31 @@ export const Members: React.FC = () => {
         accessibleBranchIds: newMember.accessibleBranchIds.length > 0 ? newMember.accessibleBranchIds : undefined,
       });
 
+      if (newMember.amountPaid && Number(newMember.amountPaid) > 0) {
+        try {
+          const pAmt = Number(newMember.amountPaid);
+          const newPay = await createPayment({
+            branchId: newMember.branchId || (selectedBranchId === 'ALL' ? undefined : selectedBranchId),
+            userId: (createdUser as any)?.id || undefined,
+            paymentType: 'MEMBERSHIP',
+            amount: pAmt,
+            currency: 'INR',
+            paymentMode: 'UPI',
+            referenceNo: `REG-${Math.floor(Math.random() * 900000 + 100000)}`,
+            paymentDate: new Date().toISOString().split('T')[0],
+            status: 'COMPLETED',
+            notes: `Registration subscription payment for plan: ${newMember.plan || 'Standard Membership'}`,
+          });
+          setPayments(prev => [...prev, newPay]);
+        } catch (payErr) {
+          console.error("Auto payment creation error:", payErr);
+        }
+      }
+
       await refreshMembers();
       setIsFormOpen(false);
       const registeredName = newMember.name;
-      setNewMember({ role: '', isStaff: false, name: '', email: '', phone: '', dob: '', amountPaid: '', startDate: new Date().toISOString().split('T')[0], trainerCode: '', branchId: '', accessibleBranchIds: [] });
+      setNewMember({ role: '', plan: '', isStaff: false, name: '', email: '', phone: '', dob: '', amountPaid: '', startDate: new Date().toISOString().split('T')[0], trainerCode: '', branchId: '', accessibleBranchIds: [] });
       setFormErrors({});
       setTouchedFields({});
       setIsSubmitAttempted(false);
@@ -199,7 +408,11 @@ export const Members: React.FC = () => {
 
   const handleUpdateMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedMember) return;
+    const targetMember = memberToEdit || selectedMember;
+    if (!targetMember) {
+      triggerAnnouncement("No member selected for updating.");
+      return;
+    }
 
     const errors = validateMemberForm({
       name: editMemberData.name,
@@ -215,12 +428,15 @@ export const Members: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await updateUser(selectedMember.id, {
+      await updateUser(targetMember.id, {
         name: editMemberData.name.trim(),
         email: editMemberData.email ? editMemberData.email.trim() : undefined,
         phone: editMemberData.phone.trim(),
         dob: editMemberData.dob || undefined,
         startDate: editMemberData.startDate || undefined,
+        endDate: editMemberData.endDate || undefined,
+        plan: editMemberData.plan || undefined,
+        status: editMemberData.status || undefined,
         amountPaid: editMemberData.amountPaid ? Number(editMemberData.amountPaid) : 0,
         attendanceCount: editMemberData.attendanceCount ? Number(editMemberData.attendanceCount) : 0,
         trainerCode: editMemberData.trainerCode || undefined,
@@ -230,14 +446,18 @@ export const Members: React.FC = () => {
 
       await refreshMembers();
 
-      const updatedTrainerName = staff.find(s => s.code === editMemberData.trainerCode)?.name || selectedMember.trainerName;
+      const updatedTrainerName = staff.find(s => s.code === editMemberData.trainerCode)?.name || targetMember.trainerName;
       const updated: Member = {
-        ...selectedMember,
+        ...targetMember,
         name: editMemberData.name,
         email: editMemberData.email,
         phone: editMemberData.phone,
         dob: editMemberData.dob,
         startDate: editMemberData.startDate,
+        endDate: editMemberData.endDate,
+        plan: editMemberData.plan,
+        status: editMemberData.status,
+        isActive: editMemberData.status === 'Active',
         amountPaid: editMemberData.amountPaid ? Number(editMemberData.amountPaid) : 0,
         attendanceCount: editMemberData.attendanceCount ? Number(editMemberData.attendanceCount) : 0,
         trainerCode: editMemberData.trainerCode,
@@ -245,8 +465,11 @@ export const Members: React.FC = () => {
         branchId: editMemberData.branchId,
         role: editMemberData.role,
       };
-      setSelectedMember(updated);
+      if (selectedMember?.id === targetMember.id) {
+        setSelectedMember(updated);
+      }
       setIsEditFormOpen(false);
+      setMemberToEdit(null);
       triggerAnnouncement(`Member profile for "${editMemberData.name}" updated successfully.`);
     } catch (err: any) {
       triggerAnnouncement(`Update Error: ${err.message}`);
@@ -311,44 +534,117 @@ export const Members: React.FC = () => {
     <div className="space-y-6">
       {/* Directory Header & Filters */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
-          <div className="relative">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 flex-1">
+          {/* 1. SEARCH */}
+          <div className="relative xl:col-span-2">
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search by name, phone, email, or code..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               className="w-full text-xs pl-9 pr-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/80 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
               aria-label="Search members"
             />
           </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="text-xs px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/80 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-            aria-label="Filter members by status"
-          >
-            <option value="ALL">All Statuses ({members.length})</option>
-            <option value="ACTIVE">Active members ({members.filter(m => m.isActive).length})</option>
-            <option value="INACTIVE">Inactive members ({members.filter(m => !m.isActive).length})</option>
-          </select>
+          {/* 2. ROLE FILTER */}
+          <div>
+            <select
+              value={roleFilter}
+              onChange={(e) => { setRoleFilter(e.target.value); setPage(0); }}
+              className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium appearance-none"
+            >
+              <option value="ALL">All Roles</option>
+              {availableRoles.map(r => (
+                <option key={r.id || r.name} value={r.name}>{r.name.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. STATUS FILTER */}
+          <div>
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value as any); setPage(0); }}
+              className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium appearance-none"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="ACTIVE">Active Members</option>
+              <option value="INACTIVE">Inactive Members</option>
+            </select>
+          </div>
+
+          {/* 4. STAFF/MEMBER FILTER */}
+          <div>
+            <select
+              value={staffFilter}
+              onChange={(e) => { setStaffFilter(e.target.value as any); setPage(0); }}
+              className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium appearance-none"
+            >
+              <option value="ALL">All Personnel</option>
+              <option value="MEMBERS">Gym Members</option>
+              <option value="STAFF">Staff Only</option>
+            </select>
+          </div>
+
+          {/* 5. BRANCH FILTER */}
+          <div>
+            <select
+              value={branchFilter}
+              onChange={(e) => { setBranchFilter(e.target.value); setPage(0); }}
+              className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium appearance-none"
+            >
+              <option value="ALL">All Branches</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 6. DATE RANGE: JOINED FROM */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-cyan-500" /> Joined From
+            </label>
+            <input
+              type="date"
+              value={startDateFrom}
+              onChange={(e) => { setStartDateFrom(e.target.value); setPage(0); }}
+              className="w-full text-xs px-2.5 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
+            />
+          </div>
+
+          {/* 7. DATE RANGE: JOINED TO */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-cyan-500" /> Joined To
+            </label>
+            <input
+              type="date"
+              value={startDateTo}
+              onChange={(e) => { setStartDateTo(e.target.value); setPage(0); }}
+              className="w-full text-xs px-2.5 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
+            />
+          </div>
+
         </div>
 
-        <button
-          onClick={() => {
-            setFormErrors({});
-            setTouchedFields({});
-            setIsSubmitAttempted(false);
-            setFormErrorMessage(null);
-            setIsFormOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition shadow-sm shadow-blue-500/20 active:scale-[0.98]"
-          aria-haspopup="dialog"
-        >
-          <UserPlus className="w-4 h-4" /> Add Member
-        </button>
+        {canCreate('users') && (
+          <button
+            onClick={() => {
+              setFormErrors({});
+              setTouchedFields({});
+              setIsSubmitAttempted(false);
+              setFormErrorMessage(null);
+              setIsFormOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition shadow-sm shadow-blue-500/20 active:scale-[0.98]"
+            aria-haspopup="dialog"
+          >
+            <UserPlus className="w-4 h-4" /> Add Member
+          </button>
+        )}
       </div>
 
       {/* Directory Table Grid */}
@@ -410,40 +706,58 @@ export const Members: React.FC = () => {
                         <span className="text-zinc-400 text-[11px] font-normal">Unassigned</span>
                       )}
                     </td>
-                    <td className="p-4 text-zinc-600 dark:text-zinc-400">{m.startDate || '—'}</td>
+                    <td className="p-4 text-zinc-600 dark:text-zinc-400 font-mono text-xs">
+                      <div>{m.startDate || '—'}</div>
+                      {m.endDate && <div className="text-[10px] text-zinc-400">Expires: {m.endDate}</div>}
+                    </td>
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                        m.isActive
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                          : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700'
+                        m.status === 'Expired'
+                          ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                          : m.isActive
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700'
                       }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${m.isActive ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
-                        {m.status}
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          m.status === 'Expired' ? 'bg-amber-500' : (m.isActive ? 'bg-emerald-500' : 'bg-zinc-400')
+                        }`} />
+                        {m.status || (m.isActive ? 'Active' : 'Inactive')}
                       </span>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => { setSelectedMember(m); setActiveTab('overview'); }}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition"
-                          title="View Profile"
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition"
+                          title="Resend Set Password Notification Email"
+                          onClick={(e) => handleResendPasswordNotification(m, e)}
                         >
-                          <Eye className="w-4 h-4" />
+                          <Mail className="w-4 h-4 text-indigo-500" />
                         </button>
                         <button
-                          onClick={(e) => openEditModal(m, e)}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition"
-                          title="Edit Member"
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition"
+                          title="Contact via WhatsApp"
+                          onClick={() => alert(`Contacting ${m.phone}...`)}
                         >
-                          <Edit className="w-4 h-4" />
+                          <PhoneIcon className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={(e) => openDeleteModal(m, e)}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition"
-                          title="Delete Member"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEdit('users') && (
+                          <button
+                            onClick={(e) => openEditModal(m, e)}
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition"
+                            title="Edit Member"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canDelete('users') && (
+                          <button
+                            onClick={(e) => openDeleteModal(m, e)}
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition"
+                            title="Delete Member"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -452,14 +766,46 @@ export const Members: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Backend Pagination Footer Controls */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 text-xs">
+          <span className="text-zinc-500 font-medium">
+            Showing Page <span className="font-bold text-zinc-900 dark:text-zinc-100">{paginationInfo.page + 1}</span> of{' '}
+            <span className="font-bold text-zinc-900 dark:text-zinc-100">{paginationInfo.totalPages || 1}</span> ({paginationInfo.totalElements} total records)
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!paginationInfo.hasPrev}
+              onClick={() => setPage(prev => Math.max(0, prev - 1))}
+              className="px-3 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition shadow-sm active:scale-[0.98]"
+            >
+              Previous
+            </button>
+            
+            <span className="px-3.5 py-1.5 font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 rounded-xl border border-blue-200 dark:border-blue-800/80">
+              Page {paginationInfo.page + 1}
+            </span>
+
+            <button
+              type="button"
+              disabled={!paginationInfo.hasNext}
+              onClick={() => setPage(prev => prev + 1)}
+              className="px-3 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition shadow-sm active:scale-[0.98]"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* Slide-over Profile Details Panel */}
       {selectedMember && (
-        <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="member-profile-title">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setSelectedMember(null)} />
+        <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="member-profile-title" onClick={() => setSelectedMember(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
           <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-xl bg-white dark:bg-zinc-950 shadow-2xl flex flex-col justify-between border-l border-zinc-200 dark:border-zinc-800">
+            <div className="w-screen max-w-xl bg-white dark:bg-zinc-950 shadow-2xl flex flex-col justify-between border-l border-zinc-200 dark:border-zinc-800" onClick={(e) => e.stopPropagation()}>
 
               {/* Header */}
               <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/60 backdrop-blur">
@@ -491,21 +837,33 @@ export const Members: React.FC = () => {
                   {/* Header Action Buttons */}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => openEditModal(selectedMember)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-xl border border-blue-200 dark:border-blue-800 transition"
-                      title="Edit Member Details"
+                      onClick={(e) => handleResendPasswordNotification(selectedMember, e)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-xl border border-indigo-200 dark:border-indigo-800 transition"
+                      title="Resend Set Password Email & Notification"
                     >
-                      <Edit className="w-3.5 h-3.5" />
-                      <span>Edit</span>
+                      <Mail className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Resend Invite</span>
                     </button>
-                    <button
-                      onClick={() => openDeleteModal(selectedMember)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-xl border border-red-200 dark:border-red-800 transition"
-                      title="Delete Member Profile"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete</span>
-                    </button>
+                    {canEdit('users') && (
+                      <button
+                        onClick={() => openEditModal(selectedMember)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-xl border border-blue-200 dark:border-blue-800 transition"
+                        title="Edit Member Details"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                    )}
+                    {canDelete('users') && (
+                      <button
+                        onClick={() => openDeleteModal(selectedMember)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-xl border border-red-200 dark:border-red-800 transition"
+                        title="Delete Member Profile"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => setSelectedMember(null)}
                       className="p-2 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition"
@@ -525,7 +883,7 @@ export const Members: React.FC = () => {
                     </span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-center">
-                    <span className="block text-[10px] text-zinc-400 font-medium">Check-ins</span>
+                    <span className="block text-[10px] text-zinc-400 font-medium">Attendance</span>
                     <span className="text-xs font-black text-blue-600 dark:text-blue-400">
                       {selectedMember.attendanceCount || 0}
                     </span>
@@ -546,10 +904,11 @@ export const Members: React.FC = () => {
               </div>
 
               {/* Slider Tabs */}
-              <div className="px-6 border-b border-zinc-200 dark:border-zinc-800 flex gap-6 text-xs font-bold bg-white dark:bg-zinc-950">
+              <div className="px-6 border-b border-zinc-200 dark:border-zinc-800 flex gap-6 text-xs font-bold bg-white dark:bg-zinc-950 overflow-x-auto">
                 {[
                   { key: 'overview', label: 'Overview', icon: User },
                   { key: 'payments', label: 'Ledger & Payments', icon: CreditCard },
+                  { key: 'attendance', label: 'Attendance', icon: CalendarCheck },
                   { key: 'card', label: 'Desk Pass Card', icon: Printer },
                 ].map((tab) => (
                   <button
@@ -738,6 +1097,157 @@ export const Members: React.FC = () => {
                   </div>
                 )}
 
+                {activeTab === 'attendance' && (
+                  <div className="space-y-5">
+                    {/* Attendance KPI Cards */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40">
+                        <span className="text-[10px] text-zinc-400 font-medium block">Total Attendance Recorded</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <CalendarCheck className="w-5 h-5 text-blue-500" />
+                          <span className="text-xl font-black text-zinc-900 dark:text-zinc-100 font-mono">
+                            {totalAttendanceCount || selectedMember.attendanceCount || userAttendanceLogs.length || 0}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40">
+                        <span className="text-[10px] text-zinc-400 font-medium block">Current Attendance Status</span>
+                        {(() => {
+                          const activeLog = userAttendanceLogs.find(l => l.status === 'ACTIVE');
+                          return activeLog ? (
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                Present (Active)
+                              </span>
+                              <button
+                                onClick={handleCheckOutMember}
+                                disabled={isSubmitting}
+                                className="px-2.5 py-1 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition"
+                              >
+                                Mark Departure
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-xs font-semibold text-zinc-500">Not Marked Today</span>
+                              <button
+                                onClick={handleCheckInMember}
+                                disabled={isSubmitting}
+                                className="px-2.5 py-1 text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-sm shadow-blue-500/20 transition flex items-center gap-1"
+                              >
+                                <Check className="w-3 h-3" /> Mark Attendance
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Quick Manual Attendance Bar */}
+                    <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-blue-50/30 dark:bg-blue-950/20 flex items-center justify-between gap-3">
+                      <div>
+                        <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">Record Daily Attendance</h4>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Log member presence at front-desk or gate</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleCheckInMember}
+                          disabled={isSubmitting}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm shadow-blue-500/20"
+                        >
+                          {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarCheck className="w-3.5 h-3.5" />}
+                          Mark Present
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Attendance Logs List */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between pb-1 border-b border-zinc-200 dark:border-zinc-800">
+                        <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-purple-500" /> Attendance Log History
+                        </h4>
+                        <span className="text-[10px] text-zinc-400 font-mono">Real-time Records</span>
+                      </div>
+
+                      {isLoadingAttendance ? (
+                        <div className="py-8 text-center text-zinc-400 text-xs flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                          <span>Loading attendance records...</span>
+                        </div>
+                      ) : userAttendanceLogs.length === 0 ? (
+                        <div className="p-8 text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl space-y-2">
+                          <CalendarCheck className="w-8 h-8 text-zinc-400 mx-auto opacity-50" />
+                          <p className="font-semibold text-zinc-700 dark:text-zinc-300 text-xs">No attendance records found</p>
+                          <p className="text-[11px] text-zinc-400">Click below to mark member's attendance for today.</p>
+                          <button
+                            onClick={handleCheckInMember}
+                            className="mt-2 px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 rounded-xl border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1.5"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Mark First Attendance
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {userAttendanceLogs.map((log) => {
+                            const entryTimeFormatted = log.checkInTime ? new Date(log.checkInTime).toLocaleString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true
+                            }) : '—';
+
+                            const exitTimeFormatted = log.checkOutTime ? new Date(log.checkOutTime).toLocaleTimeString('en-IN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true
+                            }) : null;
+
+                            return (
+                              <div
+                                key={log.id || log.checkInTime}
+                                className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 flex items-center justify-between gap-3 text-xs"
+                              >
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-zinc-900 dark:text-zinc-100 font-mono">
+                                      {entryTimeFormatted}
+                                    </span>
+                                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
+                                      log.status === 'ACTIVE'
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400'
+                                        : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                    }`}>
+                                      {log.status === 'ACTIVE' ? 'PRESENT' : 'COMPLETED'}
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-zinc-400 flex items-center gap-2 font-mono">
+                                    <span>Method: {log.method || 'MANUAL'}</span>
+                                    {exitTimeFormatted && <span>• Departure: {exitTimeFormatted}</span>}
+                                  </div>
+                                </div>
+
+                                {log.status === 'ACTIVE' && (
+                                  <button
+                                    onClick={handleCheckOutMember}
+                                    className="px-2.5 py-1 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition"
+                                  >
+                                    Mark Departure
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {activeTab === 'card' && (
                   <div className="space-y-4">
                     <div className="p-6 rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-gradient-to-br from-zinc-900 to-black text-white shadow-xl max-w-md mx-auto space-y-4">
@@ -816,10 +1326,10 @@ export const Members: React.FC = () => {
 
       {/* Edit Member Dialog Modal */}
       {isEditFormOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="edit-form-heading">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsEditFormOpen(false)} />
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="edit-form-heading" onClick={closeEditModal}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div className="relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden" onClick={(e) => e.stopPropagation()}>
               
               {/* Header */}
               <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-between items-center">
@@ -829,31 +1339,32 @@ export const Members: React.FC = () => {
                     Edit Member Profile
                   </h3>
                 </div>
-                <button onClick={() => setIsEditFormOpen(false)} className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 rounded-lg">
+                <button onClick={closeEditModal} className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Form Body */}
               <form onSubmit={handleUpdateMember} className="p-6 space-y-4 text-xs text-zinc-700 dark:text-zinc-300 max-h-[75vh] overflow-y-auto">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">User Role *</label>
-                    <select
-                      value={editMemberData.role}
-                      onChange={(e) => setEditMemberData({ ...editMemberData, role: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold"
-                    >
-                      {availableRoles.map((r) => (
-                        <option key={r.id || r.name} value={r.name}>
-                          {r.name.replace(/_/g, ' ')}
-                        </option>
-                      ))}
-                      {availableRoles.length === 0 && (
-                        <option value="EMPLOYEE">EMPLOYEE</option>
-                      )}
-                    </select>
+                
+                {/* Member Identity Badge */}
+                {memberToEdit && (
+                  <div className="p-3 bg-zinc-100 dark:bg-zinc-900/80 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Member Code</p>
+                      <p className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">{memberToEdit.userCode || memberToEdit.id}</p>
+                    </div>
+                    {memberToEdit.username && (
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Username</p>
+                        <p className="font-mono text-xs text-zinc-700 dark:text-zinc-300">{memberToEdit.username}</p>
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {/* Name & Phone Number */}
+                <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Full Name *</label>
                     <input
@@ -864,9 +1375,6 @@ export const Members: React.FC = () => {
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Phone Number (10 Digits) *</label>
                     <input
@@ -878,6 +1386,10 @@ export const Members: React.FC = () => {
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono"
                     />
                   </div>
+                </div>
+
+                {/* Email Address & Account Status */}
+                <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Email Address</label>
                     <input
@@ -887,9 +1399,101 @@ export const Members: React.FC = () => {
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
                     />
                   </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Account Status</label>
+                    <select
+                      value={editMemberData.status}
+                      onChange={(e) => setEditMemberData({ ...editMemberData, status: e.target.value })}
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                      <option value="Expired">Expired</option>
+                      <option value="Suspended">Suspended</option>
+                    </select>
+                  </div>
                 </div>
 
+                {/* Membership Plan & User Role */}
                 <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Membership Plan</label>
+                    {availablePlans.length > 0 ? (
+                      <select
+                        value={editMemberData.plan}
+                        onChange={(e) => setEditMemberData({ ...editMemberData, plan: e.target.value })}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold"
+                      >
+                        <option value="">-- No Plan --</option>
+                        {availablePlans.map((p) => (
+                          <option key={p.id} value={p.name}>
+                            {p.name} ({p.durationDays} days)
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="e.g. Monthly Premium"
+                        value={editMemberData.plan}
+                        onChange={(e) => setEditMemberData({ ...editMemberData, plan: e.target.value })}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">User Role *</label>
+                    <select
+                      value={editMemberData.role}
+                      onChange={(e) => setEditMemberData({ ...editMemberData, role: e.target.value })}
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold"
+                    >
+                      {availableRoles.map((r) => (
+                        <option key={r.id || r.name} value={r.name}>
+                          {r.name.replace(/_/g, ' ')}
+                        </option>
+                      ))}
+                      {!availableRoles.some(r => r.name.toUpperCase() === 'USER') && (
+                        <option value="USER">USER</option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Assigned Branch & Personal Coach */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Assigned Branch</label>
+                    <select
+                      value={editMemberData.branchId}
+                      onChange={(e) => setEditMemberData({ ...editMemberData, branchId: e.target.value })}
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                    >
+                      <option value="">-- No Branch (HQ) --</option>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} ({b.branchCode})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Personal Coach / Trainer</label>
+                    <select
+                      value={editMemberData.trainerCode}
+                      onChange={(e) => setEditMemberData({ ...editMemberData, trainerCode: e.target.value })}
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                    >
+                      <option value="">Unassigned (Floor Supervisor)</option>
+                      {staff.filter(s => s.role === 'TRAINER' && s.code).map((t) => (
+                        <option key={t.id} value={t.code}>{t.name} ({t.code})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Dates: DOB, Start Date, End Date */}
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Date of Birth</label>
                     <input
@@ -908,8 +1512,18 @@ export const Members: React.FC = () => {
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
                     />
                   </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">End Date</label>
+                    <input
+                      type="date"
+                      value={editMemberData.endDate}
+                      onChange={(e) => setEditMemberData({ ...editMemberData, endDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                    />
+                  </div>
                 </div>
 
+                {/* Financials & Attendance */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Total Amount Paid (INR)</label>
@@ -917,7 +1531,7 @@ export const Members: React.FC = () => {
                       type="number"
                       value={editMemberData.amountPaid}
                       onChange={(e) => setEditMemberData({ ...editMemberData, amountPaid: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono"
                     />
                   </div>
                   <div>
@@ -926,30 +1540,16 @@ export const Members: React.FC = () => {
                       type="number"
                       value={editMemberData.attendanceCount}
                       onChange={(e) => setEditMemberData({ ...editMemberData, attendanceCount: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Assign Coach / Personal Trainer</label>
-                  <select
-                    value={editMemberData.trainerCode}
-                    onChange={(e) => setEditMemberData({ ...editMemberData, trainerCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
-                  >
-                    <option value="">Unassigned (Floor Supervisor)</option>
-                    {staff.filter(s => s.role === 'TRAINER' && s.code).map((t) => (
-                      <option key={t.id} value={t.code}>{t.name} ({t.code})</option>
-                    ))}
-                  </select>
                 </div>
 
                 {/* Submit Actions */}
                 <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => setIsEditFormOpen(false)}
+                    onClick={closeEditModal}
                     className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
                   >
                     Cancel
@@ -971,10 +1571,10 @@ export const Members: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {isDeleteConfirmOpen && memberToDelete && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-heading">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsDeleteConfirmOpen(false)} />
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-heading" onClick={() => setIsDeleteConfirmOpen(false)}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4">
+            <div className="relative w-full max-w-sm bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 text-center space-y-6" onClick={(e) => e.stopPropagation()}>
               
               <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
                 <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/60 flex items-center justify-center shrink-0">
@@ -1017,290 +1617,352 @@ export const Members: React.FC = () => {
 
       {/* Registration Dialog */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="form-heading">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsFormOpen(false)} />
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-md bg-white dark:bg-zinc-950 shadow-2xl flex flex-col justify-between border-l border-zinc-200 dark:border-zinc-800">
+        <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="form-heading" onClick={() => setIsFormOpen(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity animate-in fade-in duration-200" />
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
+            <div className="w-screen max-w-2xl bg-white dark:bg-zinc-950 shadow-2xl flex flex-col justify-between border-l border-zinc-200 dark:border-zinc-800 animate-in slide-in-from-right duration-300" onClick={(e) => e.stopPropagation()}>
 
-              <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-between items-center">
-                <div>
-                  <h3 id="form-heading" className="font-bold text-zinc-900 dark:text-zinc-50 text-sm">Register New Account</h3>
-                  <p className="text-[10px] text-zinc-500 mt-0.5">Select user role first, then fill profile details</p>
+              {/* Header */}
+              <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-transparent dark:from-blue-950/30 dark:via-indigo-950/20 dark:to-transparent flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+                    <UserPlus className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 id="form-heading" className="font-extrabold text-zinc-900 dark:text-zinc-50 text-base flex items-center gap-2">
+                      Register User Account
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        New Member / Staff
+                      </span>
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Fill in profile details, assign roles, membership plans, and branch locations.</p>
+                  </div>
                 </div>
-                <button onClick={() => setIsFormOpen(false)} className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 rounded-lg">
+                <button 
+                  onClick={() => setIsFormOpen(false)} 
+                  className="p-2 hover:bg-zinc-200/80 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl transition"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleRegisterMember} className="flex-1 p-6 overflow-y-auto space-y-4 text-xs text-zinc-700 dark:text-zinc-300">
-                {/* Form-level Error Banner if submit attempted with errors or HTTP error */}
+              {/* Form Body */}
+              <form onSubmit={handleRegisterMember} className="flex-1 p-6 overflow-y-auto space-y-6 text-xs text-zinc-700 dark:text-zinc-300">
+                {/* Error Banner */}
                 {formErrorMessage && (
-                  <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800/80 text-red-700 dark:text-red-300 text-xs flex items-start gap-3 shadow-sm">
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
                     <div>
-                      <p className="font-bold">Registration Alert</p>
-                      <p className="text-[11px] mt-0.5">{formErrorMessage}</p>
+                      <p className="font-bold text-sm">Registration Alert</p>
+                      <p className="text-xs mt-0.5 leading-relaxed">{formErrorMessage}</p>
                     </div>
                   </div>
                 )}
 
-                {/* 1. MANDATORY ROLE SELECTION FIELD (FIRST) */}
-                <div>
-                  <label className="block font-bold mb-1 text-zinc-900 dark:text-zinc-100 flex items-center justify-between">
-                    <span>1. User Role *</span>
-                    <span className="text-[10px] font-normal text-blue-600 dark:text-blue-400">Select Role First</span>
-                  </label>
-                  <select
-                    required
-                    value={newMember.role}
-                    onChange={(e) => {
-                      setNewMember({ ...newMember, role: e.target.value });
-                      setFormErrors(prev => ({ ...prev, role: undefined }));
-                    }}
-                    onBlur={() => setTouchedFields(prev => ({ ...prev, role: true }))}
-                    className={`w-full px-3 py-2 border ${
-                      formErrors.role && (touchedFields.role || isSubmitAttempted)
-                        ? 'border-red-500 ring-2 ring-red-500/20'
-                        : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500'
-                    } bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold text-xs transition`}
-                  >
-                    <option value="">-- Select Role from System --</option>
-                    {availableRoles.map((r) => (
-                      <option key={r.id || r.name} value={r.name}>
-                        {r.name.replace(/_/g, ' ')}
-                      </option>
-                    ))}
-                    {availableRoles.length === 0 && (
-                      <option value="EMPLOYEE">EMPLOYEE</option>
-                    )}
-                  </select>
-                  <p className="mt-1 text-[10px] text-zinc-400">
-                    Members added here receive Gym Member access. Staff, Trainers, & Branch Admins are managed under Staff & Payroll.
-                  </p>
-                  {formErrors.role && (touchedFields.role || isSubmitAttempted) && (
-                    <p className="text-[11px] text-red-500 mt-1 font-semibold flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> {formErrors.role}
-                    </p>
-                  )}
-                </div>
+                {/* Section 1: Account & Access Scope */}
+                <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
+                    <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs uppercase tracking-wider">1. Account Role & Branch Scoping</h4>
+                  </div>
 
-                {/* 2. BRANCH ASSIGNMENT FIELD */}
-                <div>
-                  <label className="block font-bold mb-1 text-zinc-900 dark:text-zinc-100 flex items-center justify-between">
-                    <span>2. Assign Primary Branch *</span>
-                    <span className="text-[10px] text-zinc-500 font-normal">Target Location</span>
-                  </label>
-                  <select
-                    value={newMember.branchId || (selectedBranchId !== 'ALL' ? selectedBranchId : '')}
-                    onChange={(e) => setNewMember({ ...newMember, branchId: e.target.value })}
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold text-xs transition focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">-- Select Target Branch --</option>
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} ({b.branchCode})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-[10px] text-zinc-400">
-                    Select the main branch this user account belongs to.
-                  </p>
-                </div>
-
-                {/* ADDITIONAL ACCESSIBLE BRANCHES (MULTI-SELECT) */}
-                {branches.length > 1 && (
-                  <div>
-                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">
-                      Additional Accessible Branches (Optional)
-                    </label>
-                    <div className="space-y-1.5 max-h-32 overflow-y-auto p-2 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
-                      {branches
-                        .filter(b => b.id !== (newMember.branchId || (selectedBranchId !== 'ALL' ? selectedBranchId : '')))
-                        .map(b => {
-                          const isChecked = newMember.accessibleBranchIds.includes(b.id);
-                          return (
-                            <label key={b.id} className="flex items-center gap-2 text-xs text-zinc-800 dark:text-zinc-200 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/60 p-1.5 rounded-lg transition">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setNewMember(prev => ({ ...prev, accessibleBranchIds: [...prev.accessibleBranchIds, b.id] }));
-                                  } else {
-                                    setNewMember(prev => ({ ...prev, accessibleBranchIds: prev.accessibleBranchIds.filter(id => id !== b.id) }));
-                                  }
-                                }}
-                                className="rounded text-blue-600 focus:ring-blue-500"
-                              />
-                              <span>{b.name} <span className="text-[10px] text-zinc-400">({b.branchCode})</span></span>
-                            </label>
-                          );
-                        })}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* User Role */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        System Role
+                      </label>
+                      <SearchableSelect
+                        placeholder="Search & Select Role..."
+                        options={[
+                          { value: '', label: '-- Standard User / Member --' },
+                          ...availableRoles.map(r => ({ value: r.name, label: r.name.replace(/_/g, ' ') })),
+                          ...(!availableRoles.some(r => r.name.toUpperCase() === 'EMPLOYEE') ? [{ value: 'EMPLOYEE', label: 'EMPLOYEE' }] : []),
+                        ]}
+                        value={newMember.role}
+                        onChange={(val) => setNewMember({ ...newMember, role: val })}
+                      />
+                      <p className="mt-1 text-[10px] text-zinc-400">Determines RBAC permissions & layout density.</p>
                     </div>
-                    <p className="mt-1 text-[10px] text-zinc-400">
-                      Grant this user permission to access & switch into additional branches.
-                    </p>
-                  </div>
-                )}
 
-                {/* STAFF & PAYROLL TOGGLE */}
-                <div className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 flex items-center justify-between gap-3">
-                  <div>
-                    <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs block">
-                      Assign as Staff / Operational Personnel
-                    </span>
-                    <span className="text-[10px] text-zinc-500 mt-0.5 block leading-tight">
-                      Enable this toggle to automatically register this user in Staff & Payroll directory and make them eligible as Branch Admin or Trainer.
-                    </span>
+                    {/* Membership Plan */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200 flex items-center justify-between">
+                        <span>Membership Plan</span>
+                        <Award className="w-3.5 h-3.5 text-blue-500" />
+                      </label>
+                      <SearchableSelect
+                        placeholder="Search & Select Membership Plan..."
+                        options={[
+                          { value: '', label: '-- Select Membership Package --' },
+                          ...availablePlans.map(p => ({
+                            value: p.name,
+                            label: p.name,
+                            sublabel: `₹${p.price?.toLocaleString()} • ${p.durationDays} days`,
+                          })),
+                        ]}
+                        value={newMember.plan}
+                        onChange={(val) => setNewMember({ ...newMember, plan: val })}
+                      />
+                      <p className="mt-1 text-[10px] text-zinc-400">Assigned tier package for the user.</p>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={newMember.isStaff}
-                    onClick={() => setNewMember({ ...newMember, isStaff: !newMember.isStaff })}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                      newMember.isStaff ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        newMember.isStaff ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
 
-                {/* 2. FULL NAME */}
-                <div>
-                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newMember.name}
-                    onChange={(e) => {
-                      setNewMember({ ...newMember, name: e.target.value });
-                      setFormErrors(prev => ({ ...prev, name: undefined }));
-                    }}
-                    onBlur={() => setTouchedFields(prev => ({ ...prev, name: true }))}
-                    className={`w-full px-3 py-2 border ${
-                      formErrors.name && (touchedFields.name || isSubmitAttempted)
-                        ? 'border-red-500 ring-2 ring-red-500/20'
-                        : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500'
-                    } bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 text-xs transition`}
-                    placeholder="e.g. John Doe"
-                  />
-                  {formErrors.name && (touchedFields.name || isSubmitAttempted) && (
-                    <p className="text-[11px] text-red-500 mt-1 font-semibold flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> {formErrors.name}
-                    </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    {/* Primary Branch */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Primary Home Branch *
+                      </label>
+                      <SearchableSelect
+                        placeholder="Search & Select Home Branch..."
+                        options={[
+                          { value: '', label: '-- Select Home Location --' },
+                          ...branches.map(b => ({
+                            value: b.id,
+                            label: b.name,
+                            sublabel: b.branchCode,
+                          })),
+                        ]}
+                        value={newMember.branchId || (selectedBranchId !== 'ALL' ? selectedBranchId : '')}
+                        onChange={(val) => setNewMember({ ...newMember, branchId: val })}
+                      />
+                    </div>
+
+                    {/* Staff Toggle */}
+                    <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between gap-3">
+                      <div>
+                        <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs block">
+                          Staff / Operational Personnel
+                        </span>
+                        <span className="text-[10px] text-zinc-500 block leading-tight">
+                          Registers user under Staff & Payroll directory.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={newMember.isStaff}
+                        onClick={() => setNewMember({ ...newMember, isStaff: !newMember.isStaff })}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                          newMember.isStaff ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            newMember.isStaff ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Multi-Branch Selector */}
+                  {branches.length > 1 && (
+                    <div className="pt-2">
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Additional Accessible Branches (Optional)
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-2.5 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900/60">
+                        {branches
+                          .filter(b => b.id !== (newMember.branchId || (selectedBranchId !== 'ALL' ? selectedBranchId : '')))
+                          .map(b => {
+                            const isChecked = newMember.accessibleBranchIds.includes(b.id);
+                            return (
+                              <label key={b.id} className="flex items-center gap-2.5 text-xs text-zinc-800 dark:text-zinc-200 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/80 p-2 rounded-lg transition border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setNewMember(prev => ({ ...prev, accessibleBranchIds: [...prev.accessibleBranchIds, b.id] }));
+                                    } else {
+                                      setNewMember(prev => ({ ...prev, accessibleBranchIds: prev.accessibleBranchIds.filter(id => id !== b.id) }));
+                                    }
+                                  }}
+                                  className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                />
+                                <span className="truncate">{b.name} <span className="text-[10px] text-zinc-400">({b.branchCode})</span></span>
+                              </label>
+                            );
+                          })}
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                {/* 3. PHONE NUMBER (10 DIGITS) */}
-                <div>
-                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Phone Number (10 Digits) *</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={10}
-                    value={newMember.phone}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setNewMember({ ...newMember, phone: val });
-                      setFormErrors(prev => ({ ...prev, phone: undefined }));
-                    }}
-                    onBlur={() => setTouchedFields(prev => ({ ...prev, phone: true }))}
-                    className={`w-full px-3 py-2 border ${
-                      formErrors.phone && (touchedFields.phone || isSubmitAttempted)
-                        ? 'border-red-500 ring-2 ring-red-500/20'
-                        : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500'
-                    } bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono text-xs transition`}
-                    placeholder="e.g. 9876543210"
-                  />
-                  {formErrors.phone && (touchedFields.phone || isSubmitAttempted) && (
-                    <p className="text-[11px] text-red-500 mt-1 font-semibold flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> {formErrors.phone}
-                    </p>
-                  )}
-                </div>
-
-                {/* 4. EMAIL ADDRESS */}
-                <div>
-                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Email Address</label>
-                  <input
-                    type="email"
-                    value={newMember.email}
-                    onChange={(e) => {
-                      setNewMember({ ...newMember, email: e.target.value });
-                      setFormErrors(prev => ({ ...prev, email: undefined }));
-                    }}
-                    onBlur={() => setTouchedFields(prev => ({ ...prev, email: true }))}
-                    className={`w-full px-3 py-2 border ${
-                      formErrors.email && (touchedFields.email || isSubmitAttempted)
-                        ? 'border-red-500 ring-2 ring-red-500/20'
-                        : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500'
-                    } bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 text-xs transition`}
-                    placeholder="e.g. john@mail.com"
-                  />
-                  {formErrors.email && (touchedFields.email || isSubmitAttempted) && (
-                    <p className="text-[11px] text-red-500 mt-1 font-semibold flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> {formErrors.email}
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Date of Birth</label>
-                    <input
-                      type="date"
-                      value={newMember.dob}
-                      onChange={(e) => setNewMember({ ...newMember, dob: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
-                    />
+                {/* Section 2: Personal Profile & Details */}
+                <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
+                    <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs uppercase tracking-wider">2. Personal Profile & Credentials</h4>
                   </div>
-                  <div>
-                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Start Date</label>
-                    <input
-                      type="date"
-                      value={newMember.startDate}
-                      onChange={(e) => setNewMember({ ...newMember, startDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
-                    />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Full Name */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newMember.name}
+                        onChange={(e) => {
+                          setNewMember({ ...newMember, name: e.target.value });
+                          setFormErrors(prev => ({ ...prev, name: undefined }));
+                        }}
+                        onBlur={() => setTouchedFields(prev => ({ ...prev, name: true }))}
+                        className={`w-full px-3 py-2.5 border ${
+                          formErrors.name && (touchedFields.name || isSubmitAttempted)
+                            ? 'border-red-500 ring-2 ring-red-500/20'
+                            : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500/40'
+                        } bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 text-xs transition`}
+                        placeholder="e.g. John Doe"
+                      />
+                      {formErrors.name && (touchedFields.name || isSubmitAttempted) && (
+                        <p className="text-[11px] text-red-500 mt-1 font-semibold flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" /> {formErrors.name}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Phone Number */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Phone Number (10 Digits) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={10}
+                        value={newMember.phone}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setNewMember({ ...newMember, phone: val });
+                          setFormErrors(prev => ({ ...prev, phone: undefined }));
+                        }}
+                        onBlur={() => setTouchedFields(prev => ({ ...prev, phone: true }))}
+                        className={`w-full px-3 py-2.5 border ${
+                          formErrors.phone && (touchedFields.phone || isSubmitAttempted)
+                            ? 'border-red-500 ring-2 ring-red-500/20'
+                            : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500/40'
+                        } bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono text-xs transition`}
+                        placeholder="e.g. 9876543210"
+                      />
+                      {formErrors.phone && (touchedFields.phone || isSubmitAttempted) && (
+                        <p className="text-[11px] text-red-500 mt-1 font-semibold flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" /> {formErrors.phone}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={newMember.email}
+                        onChange={(e) => {
+                          setNewMember({ ...newMember, email: e.target.value });
+                          setFormErrors(prev => ({ ...prev, email: undefined }));
+                        }}
+                        onBlur={() => setTouchedFields(prev => ({ ...prev, email: true }))}
+                        className={`w-full px-3 py-2.5 border ${
+                          formErrors.email && (touchedFields.email || isSubmitAttempted)
+                            ? 'border-red-500 ring-2 ring-red-500/20'
+                            : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500/40'
+                        } bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 text-xs transition`}
+                        placeholder="e.g. john@example.com"
+                      />
+                      {formErrors.email && (touchedFields.email || isSubmitAttempted) && (
+                        <p className="text-[11px] text-red-500 mt-1 font-semibold flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" /> {formErrors.email}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Date of Birth */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Date of Birth
+                      </label>
+                      <input
+                        type="date"
+                        value={newMember.dob}
+                        onChange={(e) => setNewMember({ ...newMember, dob: e.target.value })}
+                        className="w-full px-3 py-2.5 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 text-xs transition"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Initial Amount Paid (INR)</label>
-                  <input
-                    type="number"
-                    value={newMember.amountPaid}
-                    onChange={(e) => setNewMember({ ...newMember, amountPaid: e.target.value })}
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
-                    placeholder="e.g. 6500"
-                  />
-                </div>
+                {/* Section 3: Billing & Assignment */}
+                <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
+                    <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs uppercase tracking-wider">3. Membership Dates, Billing & Personal Coach</h4>
+                  </div>
 
-                <div>
-                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Assign Coach / Trainer</label>
-                  <select
-                    value={newMember.trainerCode}
-                    onChange={(e) => setNewMember({ ...newMember, trainerCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
-                  >
-                    <option value="">Floor Supervisor (Self Managed)</option>
-                    {staff.filter(s => s.role === 'TRAINER' && s.code).map((t) => (
-                      <option key={t.id} value={t.code}>{t.name} ({t.code})</option>
-                    ))}
-                  </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Start Date */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={newMember.startDate}
+                        onChange={(e) => setNewMember({ ...newMember, startDate: e.target.value })}
+                        className="w-full px-3 py-2.5 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 text-xs transition"
+                      />
+                    </div>
+
+                    {/* Initial Amount Paid */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Initial Amount Paid (INR)
+                      </label>
+                      <input
+                        type="number"
+                        value={newMember.amountPaid}
+                        onChange={(e) => setNewMember({ ...newMember, amountPaid: e.target.value })}
+                        className="w-full px-3 py-2.5 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 text-xs transition font-mono"
+                        placeholder="e.g. 5000"
+                      />
+                    </div>
+
+                    {/* Trainer Assignment */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Assigned Personal Trainer
+                      </label>
+                      <SearchableSelect
+                        placeholder="Search & Select Personal Trainer..."
+                        options={[
+                          { value: '', label: 'Floor Supervisor (Unassigned)' },
+                          ...staff.filter(s => s.role === 'TRAINER' && s.code).map(t => ({
+                            value: t.code,
+                            label: t.name,
+                            sublabel: t.code,
+                          })),
+                        ]}
+                        value={newMember.trainerCode}
+                        onChange={(val) => setNewMember({ ...newMember, trainerCode: val })}
+                      />
+                    </div>
+                  </div>
                 </div>
               </form>
 
-              <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-between">
+              {/* Footer */}
+              <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur flex items-center justify-between shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                  className="px-5 py-2.5 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition text-xs shadow-sm"
                 >
                   Cancel
                 </button>
@@ -1308,9 +1970,18 @@ export const Members: React.FC = () => {
                   type="button"
                   onClick={handleRegisterMember}
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition shadow-sm shadow-blue-500/20 disabled:opacity-50"
+                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold transition shadow-md shadow-blue-500/25 disabled:opacity-50 text-xs flex items-center gap-2 active:scale-[0.98]"
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Account Card'}
+                  {isSubmitting ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating Account...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" /> Save User Account
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -1319,5 +1990,31 @@ export const Members: React.FC = () => {
         </div>
       )}
     </div>
+  );
+};
+
+export class MembersErrorBoundary extends React.Component<any, { hasError: boolean; error: Error | null }> {
+  constructor(props: any) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) { console.error("MembersErrorBoundary caught error:", error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 bg-red-50 border border-red-200 rounded-2xl">
+          <h1 className="text-xl font-bold text-red-700 flex items-center gap-2">Members Page Crashed</h1>
+          <pre className="mt-4 p-4 text-xs bg-red-100 text-red-900 rounded overflow-auto">{this.state.error?.message}</pre>
+          <pre className="mt-2 p-4 text-[10px] bg-red-100 text-red-900 rounded overflow-auto">{this.state.error?.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export const Members: React.FC = () => {
+  return (
+    <MembersErrorBoundary>
+      <MembersInternal />
+    </MembersErrorBoundary>
   );
 };

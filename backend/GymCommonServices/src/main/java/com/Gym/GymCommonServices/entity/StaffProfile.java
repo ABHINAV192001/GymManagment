@@ -41,6 +41,9 @@ public class StaffProfile {
 
     private BigDecimal salary;
 
+    @Column(name = "pt_trainer_percentage", precision = 5, scale = 2)
+    private BigDecimal ptTrainerPercentage;
+
     @Column(name = "experience_years")
     private Integer experienceYears;
 
@@ -53,4 +56,9 @@ public class StaffProfile {
 
     @Column(name = "start_date")
     private LocalDate startDate;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

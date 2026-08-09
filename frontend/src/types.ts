@@ -6,13 +6,16 @@
 export interface Organization {
   id: string;
   name: string;
-  slug: string;
-  logoUrl?: string;
+  orgCode?: string;
+  username?: string;
+  ownerEmail: string;
   phone: string;
-  email: string;
-  gstin: string;
-  subscriptionTier: 'BASIC' | 'PRO' | 'ENTERPRISE';
-  is_active: boolean;
+  gst?: string;
+  subscriptionTier?: 'BASIC' | 'PRO' | 'ENTERPRISE';
+  isActive: boolean;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
+  logoUrl?: string;
 }
 
 // Mirrors com.gymbross.usermanagement.dto.BranchDtos.BranchResponse — the backend
@@ -27,6 +30,7 @@ export interface Branch {
   adminEmail: string;
   isActive: boolean;
   adminUserId?: string;
+  defaultPtTrainerPercentage?: number;
 }
 
 // Mirrors com.gymbross.usermanagement.dto.AdminDashboardDtos.UserDetailDto — the actual
@@ -75,11 +79,14 @@ export interface Staff {
   address: string;
   joiningDate: string;
   salaryType: 'FIXED' | 'COMMISSION' | 'HYBRID';
-  baseSalary: number;
+  baseSalary?: number;
+  salary?: number;
   commissionRate?: number;
-  certifications: string[];
-  specializations: string[];
+  certifications?: string[];
+  specializations?: string[];
   status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED';
+  isPersonalTrainer?: boolean;
+  ptTrainerPercentage?: number;
 }
 
 export interface Plan {
@@ -198,6 +205,14 @@ export interface Exercise {
   muscleGroup: string;
   equipment: string;
   description?: string;
+  secondaryMuscles?: string;
+  mechanics?: string;
+  difficultyLevel?: string;
+  recommendedSets?: number;
+  recommendedReps?: string;
+  restInterval?: string;
+  executionSteps?: string;
+  safetyTips?: string;
 }
 
 export interface WorkoutDay {
@@ -228,20 +243,21 @@ export interface ChatMessage {
 export interface NotificationTemplate {
   id: string;
   name: string;
+  content: string;
   channel: 'WHATSAPP' | 'EMAIL' | 'BOTH';
-  category: 'PAYMENT' | 'EXPIRY' | 'PROMOTIONAL' | 'CLASS';
-  subject?: string;
-  body: string;
+  isActive: boolean;
+  createdAt?: string;
 }
 
 export interface NotificationLog {
   id: string;
-  templateName: string;
-  recipientName: string;
-  channel: 'WHATSAPP' | 'EMAIL';
-  body: string;
-  status: 'SENT' | 'FAILED';
-  sentAt: string;
+  templateId?: string;
+  recipient: string;
+  targetRole?: string;
+  channel: 'WHATSAPP' | 'EMAIL' | string;
+  content: string;
+  status: 'SENT' | 'FAILED' | string;
+  createdAt: string;
 }
 
 export interface RolePermissions {

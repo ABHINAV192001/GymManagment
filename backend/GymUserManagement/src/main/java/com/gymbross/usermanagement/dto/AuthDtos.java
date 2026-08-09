@@ -35,7 +35,8 @@ public class AuthDtos {
         private String adminEmail;
 
         @NotBlank(message = "Password is required")
-        @Size(min = 8, message = "Password must be at least 8 characters")
+        @Size(min = 8, max = 16, message = "Password must be between 8 and 16 characters")
+        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,16}$", message = "Password must be 8 to 16 characters long and contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character")
         private String password;
     }
 
@@ -54,7 +55,8 @@ public class AuthDtos {
         private String ownerEmail; // Owner email
 
         @NotBlank(message = "Password is required")
-        @Size(min = 8, message = "Password must be at least 8 characters")
+        @Size(min = 8, max = 16, message = "Password must be between 8 and 16 characters")
+        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,16}$", message = "Password must be 8 to 16 characters long and contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character")
         private String password; // Org password
 
         @NotBlank(message = "Address line 1 is required")
@@ -163,6 +165,8 @@ public class AuthDtos {
         private String role;
 
         @NotBlank(message = "Password is required")
+        @Size(min = 8, max = 16, message = "Password must be between 8 and 16 characters")
+        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,16}$", message = "Password must be 8 to 16 characters long and contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character")
         private String password;
 
         @NotBlank(message = "OTP is required")
@@ -188,6 +192,7 @@ public class AuthDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ForgotPasswordRequest {
+        @Email(message = "Invalid email format")
         @NotBlank(message = "Email is required")
         private String email;
     }
@@ -196,11 +201,14 @@ public class AuthDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ResetPasswordRequest {
+        @Email(message = "Invalid email format")
         @NotBlank(message = "Email is required")
         private String email;
         @NotBlank(message = "OTP is required")
         private String otp;
         @NotBlank(message = "New password is required")
+        @Size(min = 8, max = 16, message = "Password must be between 8 and 16 characters")
+        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,16}$", message = "Password must be 8 to 16 characters long and contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character")
         private String newPassword;
     }
 }

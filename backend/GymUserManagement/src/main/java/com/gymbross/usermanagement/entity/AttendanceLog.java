@@ -20,11 +20,17 @@ public class AttendanceLog {
     @GeneratedValue
     private UUID id;
 
+    @Column(name = "org_id", nullable = false)
+    private UUID orgId;
+
     @Column(name = "entity_type", nullable = false)
     private String entityType; // "USER", "STAFF"
 
     @Column(name = "entity_id", nullable = false)
     private UUID entityId;
+
+    @Column(name = "user_id")
+    private UUID userId;
 
     @Column(name = "branch_id")
     private UUID branchId;
@@ -39,4 +45,9 @@ public class AttendanceLog {
 
     @Column(nullable = false)
     private String status; // "ACTIVE", "COMPLETED"
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

@@ -15,4 +15,5 @@ public class InventoryDto {
     private String category;
     private String condition;
     private LocalDateTime purchaseDate;
+    private java.math.BigDecimal price;
 }

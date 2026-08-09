@@ -16,4 +16,7 @@ public interface PlanRepository extends JpaRepository<Plan, UUID> {
 
     @Query("SELECT p FROM UserManagementPlan p WHERE p.id = :id AND p.isDeleted = false AND p.organizationId = :orgId")
     Optional<Plan> findByIdAndOrganizationIdAndIsDeletedFalse(@Param("id") UUID id, @Param("orgId") UUID orgId);
+
+    @Query("SELECT p FROM UserManagementPlan p WHERE LOWER(p.name) = LOWER(:name) AND p.isDeleted = false AND p.organizationId = :orgId")
+    List<Plan> findByNameAndOrganizationIdAndIsDeletedFalse(@Param("name") String name, @Param("orgId") UUID orgId);
 }

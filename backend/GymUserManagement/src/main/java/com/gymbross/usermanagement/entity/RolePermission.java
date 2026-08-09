@@ -26,4 +26,9 @@ public class RolePermission {
 
     @Column(name = "permission_id", nullable = false)
     private UUID permissionId;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

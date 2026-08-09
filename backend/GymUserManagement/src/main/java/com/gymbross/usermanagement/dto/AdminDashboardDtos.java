@@ -58,17 +58,22 @@ public class AdminDashboardDtos {
     public static class UserDetailDto {
         private java.util.UUID id;
         private java.util.UUID branchId;
+        private String branchName;
         private List<java.util.UUID> accessibleBranchIds;
         private String userCode;
         private String username;
         private String name;
         private String firstName;
         private String lastName;
+        @jakarta.validation.constraints.Email(message = "Invalid email format")
         private String email;
+
+        @jakarta.validation.constraints.Pattern(regexp = "^$|^\\d{10}$", message = "Phone number must be exactly 10 digits")
         private String phone;
         private LocalDate dob;
         private String plan;
         private BigDecimal amountPaid;
+        private BigDecimal salary;
         private String trainerName;
         private String trainerCode;
         private LocalDate startDate;
@@ -79,6 +84,7 @@ public class AdminDashboardDtos {
         private String status;
         private String role;
         private Boolean isStaff;
+        private List<AttendanceDtos.AttendanceLogResponseDto> attendanceLogs;
     }
 
     @Data
@@ -101,6 +107,7 @@ public class AdminDashboardDtos {
         private String shiftTimings;
         private Boolean isPersonalTrainer;
         private Integer experience;
+        private BigDecimal ptTrainerPercentage;
     }
 
     @Data
@@ -109,6 +116,7 @@ public class AdminDashboardDtos {
     @AllArgsConstructor
     public static class StaffDetailDto {
         private java.util.UUID id;
+        private java.util.UUID userId;
         private java.util.UUID branchId;
         private List<java.util.UUID> accessibleBranchIds;
         private String staffCode;
@@ -123,6 +131,8 @@ public class AdminDashboardDtos {
         private String shiftTimings;
         private Integer experience;
         private String role;
+        private Boolean isPersonalTrainer;
+        private BigDecimal ptTrainerPercentage;
     }
 
     @Data

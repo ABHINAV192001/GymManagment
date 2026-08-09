@@ -32,6 +32,12 @@ public class NotificationLog {
     @Column(nullable = false)
     private String status; // "SENT", "FAILED"
 
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
+
+    @Column(name = "target_role")
+    private String targetRole;
+
     @Column(name = "error_message")
     private String errorMessage;
 

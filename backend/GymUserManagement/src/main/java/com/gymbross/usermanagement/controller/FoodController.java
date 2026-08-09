@@ -26,9 +26,11 @@ public class FoodController {
 
     @GetMapping("/low-calorie")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<FoodDto>>> getLowCalorieRecipes() {
+    public ResponseEntity<ApiResponse<List<FoodDto>>> getLowCalorieRecipes(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         log.info("Fetching low-calorie recipes");
-        return ResponseEntity.ok(ApiResponse.success(foodService.getLowCalorieRecipes()));
+        return ResponseEntity.ok(ApiResponse.paginated(foodService.getLowCalorieRecipes(), page, size));
     }
 
     @GetMapping("/{id:[0-9-]+}")
@@ -43,7 +45,7 @@ public class FoodController {
     public ResponseEntity<ApiResponse<List<FoodDto>>> getAllFoods(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(foodService.getAllFoods(page, size)));
+        return ResponseEntity.ok(ApiResponse.paginated(foodService.getAllFoods(page, size), page, size));
     }
 
     @PostMapping("/search")
@@ -58,15 +60,18 @@ public class FoodController {
 
     @PostMapping("/log")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> logFood(Principal principal, @RequestBody FoodLogRequestDto dto) {
+    public ResponseEntity<ApiResponse<Void>> logFood(Principal principal, @jakarta.validation.Valid @RequestBody FoodLogRequestDto dto) {
         foodService.logFood(principal.getName(), dto);
         return ResponseEntity.ok(ApiResponse.success(null, "Food logged successfully"));
     }
 
     @GetMapping("/preference")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<FoodDto>>> getFoodsByPreference(@RequestParam String preference) {
-        return ResponseEntity.ok(ApiResponse.success(foodService.getFoodsByPreference(preference)));
+    public ResponseEntity<ApiResponse<List<FoodDto>>> getFoodsByPreference(
+            @RequestParam String preference,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(foodService.getFoodsByPreference(preference), page, size));
     }
 
     @PostMapping("/import")

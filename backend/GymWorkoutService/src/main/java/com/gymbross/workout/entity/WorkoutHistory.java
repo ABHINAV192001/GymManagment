@@ -31,4 +31,9 @@ public class WorkoutHistory {
     private Integer caloriesBurned;
 
     private LocalDateTime completedAt;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

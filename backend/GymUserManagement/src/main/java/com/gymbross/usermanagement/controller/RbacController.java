@@ -25,8 +25,10 @@ public class RbacController {
     @GetMapping("/roles")
     @PreAuthorize("hasAuthority('RBAC:VIEW')")
     public ResponseEntity<ApiResponse<List<RbacRoleResponse>>> getRoles(
-            @RequestAttribute("organizationId") UUID orgId) {
-        return ResponseEntity.ok(ApiResponse.success(mapToResponseList(rbacService.getRoles(orgId))));
+            @RequestAttribute("organizationId") UUID orgId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(mapToResponseList(rbacService.getRoles(orgId)), page, size));
     }
 
     @PostMapping("/roles")

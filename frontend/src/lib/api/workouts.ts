@@ -30,7 +30,8 @@ export async function deleteWorkout(id: string): Promise<void> {
   await fetchWithAuth(`${BASE_URL}/${id}`, { method: 'DELETE' });
 }
 
-export async function getExercises(): Promise<Exercise[]> {
-  const response = await fetchWithAuth(EXERCISES_URL);
+export async function getExercises(muscleGroup?: string): Promise<Exercise[]> {
+  const url = muscleGroup ? `${EXERCISES_URL}?muscleGroup=${encodeURIComponent(muscleGroup)}` : EXERCISES_URL;
+  const response = await fetchWithAuth(url);
   return response.data || [];
 }

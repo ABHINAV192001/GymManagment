@@ -6,7 +6,7 @@ const BASE_URL = `${API_CONFIG.USER_MANAGEMENT_URL}/api/v1/organizations`;
 
 export async function getMyOrg(): Promise<Organization> {
   const response = await fetchWithAuth(`${BASE_URL}/me`);
-  return response.data;
+  return response.data || response;
 }
 
 export async function updateMyOrg(org: Partial<Organization>): Promise<Organization> {
@@ -14,5 +14,5 @@ export async function updateMyOrg(org: Partial<Organization>): Promise<Organizat
     method: 'PUT',
     body: JSON.stringify(org),
   });
-  return response.data;
+  return response.data || response;
 }

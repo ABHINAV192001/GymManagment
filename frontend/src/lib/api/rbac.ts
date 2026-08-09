@@ -50,3 +50,11 @@ export async function deleteRole(roleId: string) {
   });
   return response.data;
 }
+
+export async function assignRoleToStaff(staffId: string, roleId: string) {
+  const url = `${API_CONFIG.USER_MANAGEMENT_URL}/api/v1/rbac/staff/${staffId}/roles?roleId=${roleId}`;
+  const response = await fetchWithAuth(url, {
+    method: 'POST',
+  });
+  return response.data;
+}

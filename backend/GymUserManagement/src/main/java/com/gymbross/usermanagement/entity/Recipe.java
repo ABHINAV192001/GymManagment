@@ -84,4 +84,9 @@ public class Recipe {
 
     @Column(name = "high_fiber")
     private Boolean highFiber;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

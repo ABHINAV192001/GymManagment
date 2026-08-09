@@ -1,23 +1,89 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { UserCheck, CheckCircle, Search, AlertCircle } from 'lucide-react';
-import { Member } from '../../types';
-import { checkIn } from '../../lib/api/attendance';
+import { UserCheck, CheckCircle, Search, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Member, Branch } from '../../types';
+import { checkIn, generateBranchQr, searchAttendance } from '../../lib/api/attendance';
 import { getUsers } from '../../lib/api/admin';
+import { getBranches } from '../../lib/api/branches';
+import { QRCodeSVG } from 'qrcode.react';
+import { usePermissions } from '../../lib/usePermissions';
 
 export const Attendance: React.FC = () => {
-  const { triggerAnnouncement } = useOutletContext<{ selectedBranchId: string; triggerAnnouncement: (msg: string) => void }>();
+  const { selectedBranchId, triggerAnnouncement } = useOutletContext<{ selectedBranchId: string; triggerAnnouncement: (msg: string) => void }>();
+  const { canCreate, canView } = usePermissions();
+  
   const [members, setMembers] = useState<Member[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  
+  // Search and Filter States
+  const [logs, setLogs] = useState<any[]>([]);
+  const [filterBranchId, setFilterBranchId] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [tableSearchQuery, setTableSearchQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  
+  // QR Data
+  const [qrCodeData, setQrCodeData] = useState<string>('');
 
-  useEffect(() => {
-    getUsers()
-      .then(setMembers)
-      .catch(err => triggerAnnouncement(`Failed to load members: ${err.message}`));
-  }, [triggerAnnouncement]);
+  // Check-in Simulation States
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCheckin, setActiveCheckin] = useState<Member | null>(null);
   const [checkinTime, setCheckinTime] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Load initial data
+  useEffect(() => {
+    getBranches().then(setBranches).catch(console.error);
+    getUsers({ size: 1000 })
+      .then(res => setMembers(res.members))
+      .catch(err => triggerAnnouncement(`Failed to load members: ${err.message}`));
+  }, [triggerAnnouncement]);
+
+  // Load attendance based on filters
+  const loadAttendance = async () => {
+    if (!canView('attendance')) return;
+    try {
+      const effectiveBranchId = (filterBranchId && filterBranchId !== 'ALL') ? filterBranchId : ((selectedBranchId && selectedBranchId !== 'ALL') ? selectedBranchId : null);
+      const res = await searchAttendance({
+        branchId: effectiveBranchId,
+        startDate: startDate ? new Date(startDate).toISOString() : null,
+        endDate: endDate ? new Date(endDate).toISOString() : null,
+        search: tableSearchQuery || null,
+        page,
+        size: 10
+      });
+      setLogs(res.logs);
+      setTotalElements(res.totalElements);
+      setTotalPages(Math.ceil(res.totalElements / 10));
+    } catch (err: any) {
+      console.error('Failed to load logs', err);
+    }
+  };
+
+  useEffect(() => {
+    loadAttendance();
+    // Polling removed to stop redundant API calls
+  }, [filterBranchId, selectedBranchId, startDate, endDate, tableSearchQuery, page]);
+
+  // Generate QR
+  const handleGenerateQr = async () => {
+    const branchToQr = (filterBranchId && filterBranchId !== 'ALL') ? filterBranchId : ((selectedBranchId && selectedBranchId !== 'ALL') ? selectedBranchId : null);
+    if (branchToQr) {
+      try {
+        const qrData = await generateBranchQr(branchToQr);
+        setQrCodeData(qrData);
+        triggerAnnouncement('Branch QR Code generated successfully.');
+      } catch (err) {
+        console.error(err);
+        setErrorMsg('Failed to generate branch QR code.');
+      }
+    } else {
+      setErrorMsg('Please select a branch to generate the QR code.');
+    }
+  };
 
   const handleManualCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +117,7 @@ export const Attendance: React.FC = () => {
       setCheckinTime(log?.checkInTime || new Date().toISOString());
       setSearchQuery('');
       triggerAnnouncement(`Access Granted. ${member.name} checked in successfully.`);
+      loadAttendance(); // refresh feed on manual check-in
     } catch (err: any) {
       setErrorMsg(`Check-in failed: ${err.message}`);
       triggerAnnouncement('API error during check-in.');
@@ -65,28 +132,19 @@ export const Attendance: React.FC = () => {
           <h3 className="font-bold text-zinc-900 dark:text-zinc-50 text-sm mb-2 flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-blue-500" /> Member Entrance Desk
           </h3>
-          <p className="text-xs text-zinc-500 mb-6">Enter a client's name, barcode, or mobile number to record check-in logs instantly.</p>
+          <p className="text-xs text-zinc-500 mb-6">Generate a unique Branch Entry QR Code. Members can scan this QR in their app to securely check-in and mark attendance for the day.</p>
 
-          <form onSubmit={handleManualCheckIn} className="space-y-4">
-            <div className="relative text-xs">
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
-              <input
-                type="text"
-                required
-                placeholder="Enter client phone number or full name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-zinc-900 dark:text-zinc-100 font-bold"
-                aria-label="Scan search input"
-              />
+          {canCreate('attendance') && (
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={handleGenerateQr}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs"
+              >
+                Generate Branch QR
+              </button>
             </div>
-            <button
-              type="submit"
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs"
-            >
-              Simulate Desk Scan (Trigger Check-in)
-            </button>
-          </form>
+          )}
 
           {errorMsg && (
             <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-xs text-red-600 dark:text-red-400 mt-4 flex gap-2">
@@ -96,12 +154,17 @@ export const Attendance: React.FC = () => {
           )}
         </div>
 
-        {/* High contrast laser check-in barcode simulator overlay */}
-        <div className="p-6 rounded-xl border-4 border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 relative overflow-hidden h-40 flex flex-col justify-center items-center mt-6">
-          <div className="absolute top-0 bottom-0 left-0 right-0 border border-blue-400 opacity-20 pointer-events-none" />
-          <div className="w-4/5 h-0.5 bg-red-500 animate-pulse relative z-10" /> {/* Laser line simulation */}
-          <span className="text-[10px] font-mono font-extrabold text-zinc-400 tracking-wider uppercase mt-4">
-            Place Barcode / App QR Code under screen
+        {/* Branch QR Code Display */}
+        <div className="p-6 rounded-xl border-4 border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col justify-center items-center mt-6">
+          <QRCodeSVG 
+            value={qrCodeData || 'NO_DATA'} 
+            size={180} 
+            level="H" 
+            includeMargin 
+            className="bg-white p-2 rounded-xl shadow-sm" 
+          />
+          <span className="text-[10px] font-mono font-extrabold text-zinc-400 tracking-wider uppercase mt-4 text-center">
+            Branch Entry QR Code<br/>Users scan this in their app to mark attendance
           </span>
         </div>
       </div>
@@ -146,6 +209,120 @@ export const Attendance: React.FC = () => {
             <UserCheck className="w-12 h-12 text-zinc-300" />
             <p className="text-xs font-bold">Scanning terminal is idle.</p>
             <p className="text-[10px] text-zinc-400 max-w-xs">Scan or enter member credentials on the left to confirm active access status.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Attendance Feed / Search */}
+      <div className="p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm lg:col-span-2">
+        <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
+          <h3 className="font-bold text-zinc-900 dark:text-zinc-50 text-sm whitespace-nowrap">Attendance Logs</h3>
+          
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <select
+              value={filterBranchId}
+              onChange={(e) => { setFilterBranchId(e.target.value); setPage(0); }}
+              className="px-3 py-1.5 text-xs border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-zinc-900 dark:text-zinc-100 font-medium"
+            >
+              <option value="">All Branches</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => { setStartDate(e.target.value); setPage(0); }}
+              className="px-3 py-1.5 text-xs border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-zinc-900 dark:text-zinc-100 font-medium"
+            />
+            
+            <span className="text-xs text-zinc-400">to</span>
+            
+            <input 
+              type="date"
+              value={endDate}
+              onChange={(e) => { setEndDate(e.target.value); setPage(0); }}
+              className="px-3 py-1.5 text-xs border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-zinc-900 dark:text-zinc-100 font-medium"
+            />
+            
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-2" />
+              <input 
+                type="text" 
+                placeholder="Search name..."
+                value={tableSearchQuery}
+                onChange={(e) => { setTableSearchQuery(e.target.value); setPage(0); }}
+                className="pl-8 pr-3 py-1.5 text-xs border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-zinc-900 dark:text-zinc-100 font-medium"
+              />
+            </div>
+
+            <button 
+              onClick={loadAttendance}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors font-semibold"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            </button>
+          </div>
+        </div>
+
+        {logs.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-zinc-500 dark:text-zinc-400">
+              <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 uppercase">
+                <tr>
+                  <th className="px-4 py-3 font-semibold text-zinc-600 dark:text-zinc-300">Time</th>
+                  <th className="px-4 py-3 font-semibold text-zinc-600 dark:text-zinc-300">Name</th>
+                  <th className="px-4 py-3 font-semibold text-zinc-600 dark:text-zinc-300">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+                {logs.map((log: any, idx) => (
+                  <tr key={log.id || idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                    <td className="px-4 py-3 font-mono text-[10px] text-zinc-400">
+                      {new Date(log.checkInTime).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">
+                      {log.userName || log.staffName || log.entityId}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium text-[10px] border border-emerald-200 dark:border-emerald-500/20">
+                        <CheckCircle className="w-3 h-3" /> Checked In
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 px-4 py-3 border-t border-zinc-100 dark:border-zinc-800/50 text-xs">
+                <span className="text-zinc-500">
+                  Showing page {page + 1} of {totalPages} ({totalElements} total entries)
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage(Math.max(0, page - 1))}
+                    disabled={page === 0}
+                    className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 disabled:opacity-50"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                    disabled={page >= totalPages - 1}
+                    className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 disabled:opacity-50"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-12 text-center text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
+            <p className="text-xs font-semibold">No attendances found matching your filters.</p>
           </div>
         )}
       </div>

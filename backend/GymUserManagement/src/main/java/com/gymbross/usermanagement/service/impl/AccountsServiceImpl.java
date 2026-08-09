@@ -24,7 +24,7 @@ public class AccountsServiceImpl implements AccountsService {
     
     @Override
     public Map<String, Object> getSummary(UUID organizationId, UUID branchId) {
-        BigDecimal totalIncome = paymentRepository.sumAmountByOrgAndBranchAndStatus(organizationId, branchId, "PAID");
+        BigDecimal totalIncome = paymentRepository.sumIncomeByOrgAndBranch(organizationId, branchId);
         if (totalIncome == null) totalIncome = BigDecimal.ZERO;
 
         BigDecimal totalExpenses = expenseRepository.sumAmountByOrgAndBranch(organizationId, branchId);
@@ -50,11 +50,19 @@ public class AccountsServiceImpl implements AccountsService {
         if (payment.getPaymentDate() == null) {
             payment.setPaymentDate(LocalDate.now());
         }
-        if (payment.getStatus() == null) {
-            payment.setStatus("PAID");
+        if (payment.getStatus() == null || payment.getStatus().trim().isEmpty()) {
+            payment.setStatus("COMPLETED");
+        }
+        if (payment.getReferenceNo() == null || payment.getReferenceNo().trim().isEmpty()) {
+            payment.setReferenceNo("TXN" + System.currentTimeMillis());
+        }
+        if (payment.getPaymentType() == null || payment.getPaymentType().trim().isEmpty()) {
+            payment.setPaymentType("MEMBERSHIP");
         }
         payment.setOrganizationId(organizationId);
-        payment.setBranchId(branchId);
+        if (payment.getBranchId() == null) {
+            payment.setBranchId(branchId);
+        }
         return paymentRepository.save(payment);
     }
 
@@ -73,6 +81,9 @@ public class AccountsServiceImpl implements AccountsService {
         payment.setPaymentDate(paymentDetails.getPaymentDate());
         payment.setStatus(paymentDetails.getStatus());
         payment.setPaymentMethod(paymentDetails.getPaymentMethod());
+        if (paymentDetails.getPaymentType() != null) payment.setPaymentType(paymentDetails.getPaymentType());
+        if (paymentDetails.getReferenceNo() != null) payment.setReferenceNo(paymentDetails.getReferenceNo());
+        if (paymentDetails.getNotes() != null) payment.setNotes(paymentDetails.getNotes());
         return paymentRepository.save(payment);
     }
 
@@ -85,7 +96,7 @@ public class AccountsServiceImpl implements AccountsService {
 
     @Override
     public List<Payment> getIncome(UUID organizationId, UUID branchId) {
-        return paymentRepository.findByOrgAndBranchAndStatus(organizationId, branchId, "PAID");
+        return paymentRepository.findIncomeByOrgAndBranch(organizationId, branchId);
     }
 
     @Override
@@ -122,8 +133,62 @@ public class AccountsServiceImpl implements AccountsService {
     }
 
     @Override
+    public Map<String, Object> getStaffSalaryComponents(UUID staffId, String period, UUID organizationId, UUID branchId) {
+        User staff = userRepository.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+
+        if (staff.getOrganization() != null && !staff.getOrganization().getId().equals(organizationId)) {
+            throw new RuntimeException("Staff does not belong to this organization");
+        }
+        if (branchId != null && !branchId.equals(staff.getBranch().getId())) {
+            throw new RuntimeException("Staff does not belong to this branch");
+        }
+
+        BigDecimal baseSalary = staff.getSalary() != null ? staff.getSalary() : BigDecimal.ZERO;
+        
+        List<Payment> ptPayments = paymentRepository.findPtPaymentsForStaff(staffId);
+        
+        // Filter by period if provided (e.g. "2026-08")
+        if (period != null && !period.isEmpty()) {
+            ptPayments = ptPayments.stream()
+                .filter(p -> {
+                    LocalDate d = p.getPaymentDate();
+                    String pStr = d.getYear() + "-" + String.format("%02d", d.getMonthValue());
+                    return pStr.equals(period);
+                })
+                .collect(Collectors.toList());
+        }
+
+        BigDecimal ptCommissionTotal = BigDecimal.ZERO;
+        BigDecimal ptTrainerPercentage = staff.getPtTrainerPercentage();
+        if (ptTrainerPercentage == null) {
+            ptTrainerPercentage = staff.getBranch() != null ? staff.getBranch().getDefaultPtTrainerPercentage() : null;
+        }
+
+        if (Boolean.TRUE.equals(staff.getIsPersonalTrainer()) && ptTrainerPercentage != null) {
+            BigDecimal ptRevenueTotal = ptPayments.stream()
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            ptCommissionTotal = ptRevenueTotal.multiply(ptTrainerPercentage).divide(new BigDecimal("100"));
+        }
+
+        BigDecimal netSalary = baseSalary.add(ptCommissionTotal);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("staffId", staff.getId());
+        result.put("name", staff.getName());
+        result.put("period", period);
+        result.put("baseSalary", baseSalary);
+        result.put("ptCommissionTotal", ptCommissionTotal);
+        result.put("ptTrainerPercentage", ptTrainerPercentage);
+        result.put("netSalary", netSalary);
+        
+        return result;
+    }
+
+    @Override
     public Map<String, Object> getProfitLossReport(UUID organizationId, UUID branchId) {
-        BigDecimal income = paymentRepository.sumAmountByOrgAndBranchAndStatus(organizationId, branchId, "PAID");
+        BigDecimal income = paymentRepository.sumIncomeByOrgAndBranch(organizationId, branchId);
         if (income == null) income = BigDecimal.ZERO;
 
         BigDecimal operationalExpenses = expenseRepository.sumAmountByOrgAndBranch(organizationId, branchId);
@@ -147,7 +212,7 @@ public class AccountsServiceImpl implements AccountsService {
 
     @Override
     public Map<String, Object> getCashflow(UUID organizationId, UUID branchId) {
-        BigDecimal cashIn = paymentRepository.sumAmountByOrgAndBranchAndStatus(organizationId, branchId, "PAID");
+        BigDecimal cashIn = paymentRepository.sumIncomeByOrgAndBranch(organizationId, branchId);
         if (cashIn == null) cashIn = BigDecimal.ZERO;
 
         BigDecimal cashOut = expenseRepository.sumAmountByOrgAndBranch(organizationId, branchId);

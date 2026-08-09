@@ -1,7 +1,10 @@
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  // Try to retrieve token from cookies
-  const tokenMatch = document.cookie.match(/(?:^|; )gymos_token=([^;]*)/);
-  const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+  // Retrieve token from localStorage or cookies (accessToken, gymos_token, token)
+  let token = localStorage.getItem('accessToken') || localStorage.getItem('gymos_token') || localStorage.getItem('token');
+  if (!token) {
+    const tokenMatch = document.cookie.match(/(?:^|; )(?:accessToken|gymos_token|token)=([^;]*)/);
+    token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+  }
   
   const headers = new Headers(options.headers || {});
   
@@ -16,7 +19,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const response = await fetch(url, {
     ...options,
     headers,
-    credentials: 'omit',
+    credentials: 'include',
   });
 
   if (!response.ok) {

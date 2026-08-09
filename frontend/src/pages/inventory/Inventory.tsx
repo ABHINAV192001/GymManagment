@@ -3,9 +3,11 @@ import { useOutletContext } from 'react-router-dom';
 import { AlertTriangle, Wrench, Shield, Calendar, Plus, X, Check, Barcode, HelpCircle } from 'lucide-react';
 import { InventoryItem } from '../../types';
 import { getInventory, createInventoryItem, updateInventoryItem } from '../../lib/api/inventory';
+import { usePermissions } from '../../lib/usePermissions';
 
 export const Inventory: React.FC = () => {
   const { triggerAnnouncement } = useOutletContext<{ selectedBranchId: string; triggerAnnouncement: (msg: string) => void }>();
+  const { canCreate, canEdit } = usePermissions();
   const [items, setItems] = useState<InventoryItem[]>([]);
 
   useEffect(() => {
@@ -90,12 +92,14 @@ export const Inventory: React.FC = () => {
           <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">Gym Asset & Machinery Registry</h3>
           <p className="text-xs text-zinc-500 mt-0.5">Track commercial treadmills, power racks, and log technician repairs.</p>
         </div>
-        <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow"
-        >
-          <Plus className="w-4 h-4" /> Register New Asset
-        </button>
+        {canCreate('inventory') && (
+          <button
+            onClick={() => setIsOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow"
+          >
+            <Plus className="w-4 h-4" /> Register New Asset
+          </button>
+        )}
       </div>
 
       {/* Main Grid display */}
@@ -140,30 +144,32 @@ export const Inventory: React.FC = () => {
                 <span>QR Asset Tag</span>
               </button>
 
-              {item.status !== 'WORKING' ? (
-                <button
-                  onClick={() => setMaintenanceItem(item)}
-                  className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold flex items-center justify-center gap-1 focus:outline-2 focus:outline-blue-500"
-                >
-                  <Wrench className="w-3.5 h-3.5" />
-                  <span>Resolve Service</span>
-                </button>
-              ) : (
-                <button
-                  onClick={async () => {
-                    try {
-                      const updated = await updateInventoryItem(item.id, { status: 'MAINTENANCE' });
-                      setItems(items.map(i => (i.id === updated.id ? updated : i)));
-                      triggerAnnouncement(`${item.name} status updated to MAINTENANCE.`);
-                    } catch (err: any) {
-                      triggerAnnouncement(`Failed to flag malfunction: ${err.message}`);
-                    }
-                  }}
-                  className="flex-1 py-1.5 border border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded text-[10px] font-bold flex items-center justify-center gap-1 focus:outline-2 focus:outline-blue-500"
-                >
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Flag Malfunction</span>
-                </button>
+              {canEdit('inventory') && (
+                item.status !== 'WORKING' ? (
+                  <button
+                    onClick={() => setMaintenanceItem(item)}
+                    className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold flex items-center justify-center gap-1 focus:outline-2 focus:outline-blue-500"
+                  >
+                    <Wrench className="w-3.5 h-3.5" />
+                    <span>Resolve Service</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const updated = await updateInventoryItem(item.id, { status: 'MAINTENANCE' });
+                        setItems(items.map(i => (i.id === updated.id ? updated : i)));
+                        triggerAnnouncement(`${item.name} status updated to MAINTENANCE.`);
+                      } catch (err: any) {
+                        triggerAnnouncement(`Failed to flag malfunction: ${err.message}`);
+                      }
+                    }}
+                    className="flex-1 py-1.5 border border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded text-[10px] font-bold flex items-center justify-center gap-1 focus:outline-2 focus:outline-blue-500"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>Flag Malfunction</span>
+                  </button>
+                )
               )}
             </div>
 
@@ -173,8 +179,8 @@ export const Inventory: React.FC = () => {
 
       {/* QR Code Viewer Modal */}
       {selectedQRItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="qr-heading">
-          <div className="w-full max-w-xs bg-white text-zinc-900 rounded-xl overflow-hidden border border-zinc-200 shadow-2xl p-6 text-center space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="qr-heading" onClick={() => setSelectedQRItem(null)}>
+          <div className="w-full max-w-xs bg-white text-zinc-900 rounded-xl overflow-hidden border border-zinc-200 shadow-2xl p-6 text-center space-y-4" onClick={(e) => e.stopPropagation()}>
             <h4 id="qr-heading" className="font-bold text-sm tracking-tight">{selectedQRItem.name}</h4>
             <span className="text-[10px] font-mono text-zinc-400 block uppercase">Serial: {selectedQRItem.serialNo}</span>
             
@@ -208,8 +214,8 @@ export const Inventory: React.FC = () => {
 
       {/* Technician service check-in drawer */}
       {maintenanceItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="maint-heading">
-          <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden text-xs text-zinc-700 dark:text-zinc-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="maint-heading" onClick={() => setMaintenanceItem(null)}>
+          <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden text-xs text-zinc-700 dark:text-zinc-300" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-between items-center">
               <h4 id="maint-heading" className="font-bold text-zinc-900 dark:text-zinc-50 text-sm">Schedule Machinery Work Order</h4>
               <button onClick={() => setMaintenanceItem(null)} className="text-zinc-400 hover:text-zinc-600">
@@ -263,8 +269,8 @@ export const Inventory: React.FC = () => {
 
       {/* Asset register modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="asset-heading">
-          <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden text-xs text-zinc-700 dark:text-zinc-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="asset-heading" onClick={() => setIsOpen(false)}>
+          <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden text-xs text-zinc-700 dark:text-zinc-300" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-between items-center">
               <h4 id="asset-heading" className="font-bold text-zinc-900 dark:text-zinc-50 text-sm">Register Physical Asset</h4>
               <button onClick={() => setIsOpen(false)} className="text-zinc-400 hover:text-zinc-600">

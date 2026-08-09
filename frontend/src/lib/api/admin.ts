@@ -16,16 +16,60 @@ export interface UserUpsertRequest {
   dob?: string;
   amountPaid?: number;
   startDate?: string;
+  endDate?: string;
+  status?: string;
   trainerCode?: string;
   trainerName?: string;
   role?: string;
+  plan?: string;
   branchId?: string;
   attendanceCount?: number;
+  isStaff?: boolean;
 }
 
-export async function getUsers(): Promise<Member[]> {
-  const response = await fetchWithAuth(`${BASE_URL}/users`);
-  return response.data || [];
+export interface UserFilterParams {
+  search?: string;
+  role?: string;
+  status?: string;
+  isStaff?: boolean;
+  filterBranchId?: string;
+  startDateFrom?: string;
+  startDateTo?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface PaginatedMembersResult {
+  members: Member[];
+  pagination?: {
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export async function getUsers(params?: UserFilterParams): Promise<PaginatedMembersResult> {
+  const query = new URLSearchParams();
+  if (params?.search) query.append('search', params.search);
+  if (params?.role && params.role !== 'ALL') query.append('role', params.role);
+  if (params?.status && params.status !== 'ALL') query.append('status', params.status);
+  if (params?.isStaff !== undefined) query.append('isStaff', String(params.isStaff));
+  if (params?.filterBranchId && params.filterBranchId !== 'ALL') query.append('filterBranchId', params.filterBranchId);
+  if (params?.startDateFrom) query.append('startDateFrom', params.startDateFrom);
+  if (params?.startDateTo) query.append('startDateTo', params.startDateTo);
+  if (params?.page !== undefined) query.append('page', String(params.page));
+  if (params?.size !== undefined) query.append('size', String(params.size));
+
+  const queryString = query.toString();
+  const url = queryString ? `${BASE_URL}/users?${queryString}` : `${BASE_URL}/users`;
+  const response = await fetchWithAuth(url);
+  return {
+    members: response.data || [],
+    pagination: response.pagination,
+  };
 }
 
 export async function getUserById(id: string): Promise<Member> {
@@ -54,6 +98,13 @@ export async function deleteUser(id: string): Promise<void> {
   await fetchWithAuth(`${BASE_URL}/users/${id}`, { method: 'DELETE' });
 }
 
+export async function resendPasswordNotification(userId: string): Promise<{ inviteLink?: string; message?: string }> {
+  const response = await fetchWithAuth(`${BASE_URL}/users/${userId}/resend-invite`, {
+    method: 'POST',
+  });
+  return response.data || {};
+}
+
 export async function createTrainer(trainer: Partial<Staff>): Promise<Staff> {
   const response = await fetchWithAuth(`${BASE_URL}/trainers`, {
     method: 'POST',
@@ -67,8 +118,9 @@ export async function getAdminStats(): Promise<any> {
   return response.data;
 }
 
-export async function getStaff(): Promise<Staff[]> {
-  const response = await fetchWithAuth(`${BASE_URL}/staff`);
+export async function getStaff(branchId?: string): Promise<Staff[]> {
+  const url = branchId ? `${BASE_URL}/staff?branchId=${branchId}` : `${BASE_URL}/staff`;
+  const response = await fetchWithAuth(url);
   return response.data || [];
 }
 

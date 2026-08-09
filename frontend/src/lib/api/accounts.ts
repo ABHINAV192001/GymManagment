@@ -57,6 +57,15 @@ export async function getSalary(): Promise<any> {
   return response.data;
 }
 
+export async function getStaffSalaryComponents(staffId: string, period?: string): Promise<any> {
+  let url = `${BASE_URL}/salary/components/${staffId}`;
+  if (period) {
+    url += `?period=${encodeURIComponent(period)}`;
+  }
+  const response = await fetchWithAuth(url);
+  return response.data;
+}
+
 export async function getPlReport(): Promise<any> {
   const response = await fetchWithAuth(`${BASE_URL}/pl-report`);
   return response.data;

@@ -23,8 +23,10 @@ public class NotificationController {
 
     @GetMapping("/templates")
     @PreAuthorize("hasAuthority('NOTIFICATIONS:VIEW')")
-    public ResponseEntity<ApiResponse<List<NotificationTemplate>>> getTemplates() {
-        return ResponseEntity.ok(ApiResponse.success(templateRepository.findAll()));
+    public ResponseEntity<ApiResponse<List<NotificationTemplate>>> getTemplates(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(templateRepository.findAll(), page, size));
     }
 
     @PostMapping("/templates")
@@ -68,52 +70,104 @@ public class NotificationController {
 
     @PostMapping("/send")
     @PreAuthorize("hasAuthority('NOTIFICATIONS:SEND')")
-    public ResponseEntity<ApiResponse<NotificationLog>> sendNotification(@RequestBody Map<String, Object> request) {
-        String recipient = (String) request.getOrDefault("recipient", "member@example.com");
-        String channel = (String) request.getOrDefault("channel", "EMAIL");
+    public ResponseEntity<ApiResponse<Object>> sendNotification(@RequestBody Map<String, Object> request) {
+        String channel = (String) request.getOrDefault("channel", "WHATSAPP");
+        String content = (String) request.get("content");
+        String targetRole = (String) request.get("targetRole");
+        
         UUID templateId = null;
-        if (request.containsKey("templateId")) {
-            templateId = UUID.fromString((String) request.get("templateId"));
+        if (request.containsKey("templateId") && request.get("templateId") != null) {
+            try {
+                templateId = UUID.fromString((String) request.get("templateId"));
+            } catch (Exception e) {}
         }
 
-        NotificationLog logEntry = NotificationLog.builder()
-                .templateId(templateId)
-                .recipient(recipient)
-                .channel(channel)
-                .status("SENT")
-                .createdAt(Instant.now())
-                .build();
+        List<String> recipients = new ArrayList<>();
+        if (request.containsKey("recipients") && request.get("recipients") != null) {
+            recipients = (List<String>) request.get("recipients");
+        }
+        if (request.containsKey("individualNumber") && request.get("individualNumber") != null) {
+            String num = (String) request.get("individualNumber");
+            if (!num.isEmpty() && !recipients.contains(num)) {
+                recipients.add(num);
+            }
+        }
 
-        logEntry = logRepository.save(logEntry);
-        return ResponseEntity.ok(ApiResponse.success(logEntry, "Notification sent successfully"));
+        if (recipients.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("No recipients provided", 400));
+        }
+
+        List<NotificationLog> logs = new ArrayList<>();
+        for (String recipient : recipients) {
+            NotificationLog logEntry = NotificationLog.builder()
+                    .templateId(templateId)
+                    .recipient(recipient)
+                    .channel(channel)
+                    .content(content)
+                    .targetRole(targetRole)
+                    .status("SENT")
+                    .createdAt(Instant.now())
+                    .build();
+            logs.add(logEntry);
+        }
+
+        logs = logRepository.saveAll(logs);
+        return ResponseEntity.ok(ApiResponse.success(logs, "Notifications sent successfully"));
     }
 
     @PostMapping("/schedule")
     @PreAuthorize("hasAuthority('NOTIFICATIONS:SEND')")
-    public ResponseEntity<ApiResponse<NotificationLog>> scheduleNotification(@RequestBody Map<String, Object> request) {
-        String recipient = (String) request.getOrDefault("recipient", "member@example.com");
-        String channel = (String) request.getOrDefault("channel", "EMAIL");
+    public ResponseEntity<ApiResponse<Object>> scheduleNotification(@RequestBody Map<String, Object> request) {
+        String channel = (String) request.getOrDefault("channel", "WHATSAPP");
+        String content = (String) request.get("content");
+        String targetRole = (String) request.get("targetRole");
+        
         UUID templateId = null;
-        if (request.containsKey("templateId")) {
-            templateId = UUID.fromString((String) request.get("templateId"));
+        if (request.containsKey("templateId") && request.get("templateId") != null) {
+            try {
+                templateId = UUID.fromString((String) request.get("templateId"));
+            } catch (Exception e) {}
         }
 
-        NotificationLog logEntry = NotificationLog.builder()
-                .templateId(templateId)
-                .recipient(recipient)
-                .channel(channel)
-                .status("PENDING")
-                .createdAt(Instant.now())
-                .build();
+        List<String> recipients = new ArrayList<>();
+        if (request.containsKey("recipients") && request.get("recipients") != null) {
+            recipients = (List<String>) request.get("recipients");
+        }
+        if (request.containsKey("individualNumber") && request.get("individualNumber") != null) {
+            String num = (String) request.get("individualNumber");
+            if (!num.isEmpty() && !recipients.contains(num)) {
+                recipients.add(num);
+            }
+        }
 
-        logEntry = logRepository.save(logEntry);
-        return ResponseEntity.ok(ApiResponse.success(logEntry, "Notification scheduled successfully"));
+        if (recipients.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("No recipients provided", 400));
+        }
+
+        List<NotificationLog> logs = new ArrayList<>();
+        for (String recipient : recipients) {
+            NotificationLog logEntry = NotificationLog.builder()
+                    .templateId(templateId)
+                    .recipient(recipient)
+                    .channel(channel)
+                    .content(content)
+                    .targetRole(targetRole)
+                    .status("PENDING")
+                    .createdAt(Instant.now())
+                    .build();
+            logs.add(logEntry);
+        }
+
+        logs = logRepository.saveAll(logs);
+        return ResponseEntity.ok(ApiResponse.success(logs, "Notifications scheduled successfully"));
     }
 
     @GetMapping("/logs")
     @PreAuthorize("hasAuthority('NOTIFICATIONS:VIEW')")
-    public ResponseEntity<ApiResponse<List<NotificationLog>>> getLogs() {
-        return ResponseEntity.ok(ApiResponse.success(logRepository.findAll()));
+    public ResponseEntity<ApiResponse<List<NotificationLog>>> getLogs(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(logRepository.findAll(), page, size));
     }
 
     @GetMapping("/logs/{id}")

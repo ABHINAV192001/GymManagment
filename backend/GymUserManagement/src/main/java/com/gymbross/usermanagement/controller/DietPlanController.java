@@ -33,8 +33,10 @@ public class DietPlanController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<UserDietPlan>>> getUserDietPlans(@PathVariable java.util.UUID userId,
             @RequestAttribute("organizationId") java.util.UUID orgId,
-            @RequestAttribute(required = false) java.util.UUID branchId) {
-        return ResponseEntity.ok(ApiResponse.success(dietPlanService.getUserDietPlans(userId, orgId, branchId)));
+            @RequestAttribute(required = false) java.util.UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(dietPlanService.getUserDietPlans(userId, orgId, branchId), page, size));
     }
 
     @DeleteMapping("/{id}")

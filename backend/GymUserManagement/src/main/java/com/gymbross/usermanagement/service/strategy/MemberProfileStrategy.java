@@ -60,6 +60,7 @@ public class MemberProfileStrategy implements UserProfileStrategy {
                 .gender(user.getGender())
                 .activityLevel(user.getActivityLevel())
                 .goal(user.getGoal())
+                .isOnboardingCompleted(user.getIsOnboardingCompleted())
                 .dailyCalorieTarget(targetCalories)
                 .workoutPlanName(user.getPlan() != null ? user.getPlan() + " Workout" : "Standard Routine")
                 .build();

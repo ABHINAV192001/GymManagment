@@ -16,9 +16,18 @@ import {
   Key,
   Settings as SettingsIcon,
   ChevronRight,
+  ChevronLeft,
   Menu,
   LogOut,
+  Bell,
+  CheckCircle2,
   Building2,
+  Sun,
+  Moon,
+  User,
+  ShoppingCart,
+  UserPlus,
+  ClipboardList
 } from 'lucide-react';
 
 import {
@@ -27,12 +36,16 @@ import {
   AccessibilitySettings,
 } from '../../types';
 import { getAdminBranches } from '../../lib/api/admin';
+import { getMyOrg } from '../../lib/api/organizations';
 
 import { A11yControls } from '../A11yControls';
 import { logout } from '../../lib/api/auth';
 import { getMyPermissions } from '../../lib/api/rbac';
+import { getGroupSessions, voteGroupSession, GroupSessionResponse } from '../../lib/api/groupSessions';
+import { FloatingChatWidget } from '../chat/FloatingChatWidget';
+import { ProfileModal } from '../profile/ProfileModal';
+import { getUserProfile } from '../../lib/api/user';
 
-// Simple placeholder icon components to prevent compile errors
 function XIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -55,6 +68,7 @@ function XIcon(props: React.SVGProps<SVGSVGElement>) {
 
 const navItems = [
   { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  { id: 'MEMBER_PORTAL', label: 'My Dashboard', icon: LayoutDashboard, path: '/member-portal' },
   { id: 'BRANCHES', label: 'Branches', icon: MapPin, path: '/branches' },
   { id: 'USERS', label: 'Members Directory', icon: Users, path: '/members' },
   { id: 'STAFF', label: 'Staff & Payroll', icon: ShieldAlert, path: '/staff' },
@@ -68,6 +82,10 @@ const navItems = [
   { id: 'CHAT', label: 'Client Chat Hub', icon: MessageCircle, path: '/chat' },
   { id: 'RBAC', label: 'RBAC Roles Matrix', icon: Key, path: '/rbac' },
   { id: 'SETTINGS', label: 'App Settings', icon: SettingsIcon, path: '/settings' },
+  // Enterprise Modules
+  { id: 'CRM', label: 'Lead CRM', icon: UserPlus, path: '/crm' },
+  { id: 'ROSTER', label: 'Shift Roster', icon: ClipboardList, path: '/roster' },
+  { id: 'POS', label: 'POS Billing', icon: ShoppingCart, path: '/pos' },
 ];
 
 export const Layout = () => {
@@ -75,36 +93,51 @@ export const Layout = () => {
   const navigate = useNavigate();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Core global state matrices
   const [org, setOrg] = useState<Organization>({
-    id: 'org-1',
-    name: 'FitLife Health Clubs Pvt Ltd',
-    slug: 'fitlife',
-    phone: '9999999999',
-    email: 'corporate@fitlife.com',
-    gstin: '27AAACF8912C1ZS',
-    subscriptionTier: 'PRO',
+    id: '',
+    name: 'Loading...',
+    phone: '',
+    email: '',
     is_active: true,
   });
 
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('ALL');
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
-    getAdminBranches()
-      .then(data => {
-        const branchList = data || [];
+    const fetchOrgAndUser = () => {
+      Promise.all([getMyOrg(), getUserProfile()])
+        .then(([orgData, userProfileData]) => {
+          if (orgData) setOrg(orgData);
+          if (userProfileData) setUserProfile(userProfileData);
+        })
+        .catch(err => console.error(err));
+    };
+
+    Promise.all([getAdminBranches(), getMyOrg(), getUserProfile()])
+      .then(([branchesData, orgData, userProfileData]) => {
+        const branchList = branchesData || [];
         setBranches(branchList);
         if (branchList.length === 1) {
           setSelectedBranchId(branchList[0].id);
         }
+        if (orgData) {
+          setOrg(orgData);
+        }
+        if (userProfileData) {
+          setUserProfile(userProfileData);
+        }
       })
       .catch(err => console.error(err));
+
+    window.addEventListener('gymos_org_updated', fetchOrgAndUser);
+    return () => window.removeEventListener('gymos_org_updated', fetchOrgAndUser);
   }, []);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('ALL');
-
-
 
   const [userPermissions, setUserPermissions] = useState<Record<string, string[]>>({});
   const [userRole, setUserRole] = useState<string>('');
@@ -118,8 +151,6 @@ export const Layout = () => {
         if (data && data.permissions) {
           setUserPermissions(data.permissions);
         }
-        // Role name is free-form (org admins can create roles like "abc"), so take it
-        // from the API and fall back to the role cookie set at login.
         const cookieRole = document.cookie.match(/gymos_role=([^;]+)/)?.[1];
         const apiRole = data?.role && data.role !== 'UNKNOWN' ? data.role : null;
         setUserRole(apiRole || cookieRole || 'USER');
@@ -132,11 +163,35 @@ export const Layout = () => {
     fetchPermissions();
   }, []);
 
-  // Accessibility State Tracker
-  const [a11y, setA11y] = useState<AccessibilitySettings>({
-    theme: 'dark',
-    fontSize: 'base',
-    dyslexicFont: false,
+  // Dynamic Activity Notifications
+  const [activityNotifications, setActivityNotifications] = useState<GroupSessionResponse[]>([]);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const sessions = await getGroupSessions(selectedBranchId);
+      const active = (Array.isArray(sessions) ? sessions : []).filter(
+        s => s.status !== 'DELETED'
+      );
+      setActivityNotifications(active);
+    } catch (err) {
+      console.error('Failed to fetch activity notifications:', err);
+    }
+  }, [selectedBranchId]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  // Accessibility State Tracker — restore from localStorage or default to light
+  const [a11y, setA11y] = useState<AccessibilitySettings>(() => {
+    const saved = localStorage.getItem('gymos_theme');
+    const validThemes = ['light', 'dark', 'high-contrast-light', 'high-contrast-dark'];
+    return {
+      theme: (saved && validThemes.includes(saved) ? saved : 'light') as AccessibilitySettings['theme'],
+      fontSize: 'base',
+      dyslexicFont: false,
+      gymAccess: true,
+    };
   });
 
   const [announcements, setAnnouncements] = useState<string[]>([
@@ -156,7 +211,6 @@ export const Layout = () => {
     }
   };
 
-  // Keyboard accessibility listeners (Alt + keys)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey) {
@@ -189,20 +243,61 @@ export const Layout = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate]);
+  }, [navigate, triggerAnnouncement]);
 
-  // Access is purely permission-driven: a module is visible iff the caller holds
-  // its MODULE:VIEW permission. Role names are never checked - they are user data.
   const isViewAllowed = (viewId: string) => {
-    // Staff & Payroll has no permission module of its own; it manages users.
+    if (userRole === 'ORG_ADMIN' || userRole === 'ROLE_ORG_ADMIN' || userRole === 'ADMIN') return true;
+    if (userRole === 'MEMBER' && viewId === 'MEMBER_PORTAL') return true;
+    if (userRole === 'MEMBER') return false; // Members only see member portal
+
+    // Enterprise modules — tied to inventory or users permission
+    if (viewId === 'CRM' || viewId === 'ROSTER') {
+      const usersAllowed = userPermissions['users'] || [];
+      return usersAllowed.some(a => a.toLowerCase() === 'view');
+    }
+    if (viewId === 'POS') {
+      const invAllowed = userPermissions['inventory'] || [];
+      return invAllowed.some(a => a.toLowerCase() === 'view');
+    }
+    
     const moduleName = (viewId === 'STAFF' ? 'USERS' : viewId).toLowerCase();
     const allowed = userPermissions[moduleName] || [];
     return allowed.some(action => action.toLowerCase() === 'view');
   };
 
-  // Find active nav item to get title
   const activeItem = navItems.find(item => location.pathname.startsWith(item.path)) || navItems[0];
   const isAllowed = isViewAllowed(activeItem.id);
+
+  useEffect(() => {
+    if (!isLoadingPermissions) {
+      if (location.pathname === '/dashboard' && !isViewAllowed('DASHBOARD') && isViewAllowed('MEMBER_PORTAL')) {
+        navigate('/member-portal', { replace: true });
+      } else if (location.pathname === '/member-portal' && !isViewAllowed('MEMBER_PORTAL') && isViewAllowed('DASHBOARD')) {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [isLoadingPermissions, location.pathname, userRole, userPermissions, navigate]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('dark', 'light', 'high-contrast-dark', 'high-contrast-light');
+    if (a11y.theme === 'dark') {
+      root.classList.add('dark');
+    } else if (a11y.theme === 'high-contrast-dark') {
+      root.classList.add('dark', 'high-contrast-dark');
+    } else if (a11y.theme === 'high-contrast-light') {
+      root.classList.add('light', 'high-contrast-light');
+    } else {
+      root.classList.add('light');
+    }
+    localStorage.setItem('gymos_theme', a11y.theme);
+  }, [a11y.theme]);
+
+  const toggleQuickTheme = () => {
+    const nextTheme = a11y.theme === 'dark' || a11y.theme === 'high-contrast-dark' ? 'light' : 'dark';
+    setA11y(prev => ({ ...prev, theme: nextTheme }));
+    triggerAnnouncement(`Theme switched to ${nextTheme}`);
+  };
 
   if (isLoadingPermissions) {
     return (
@@ -215,143 +310,320 @@ export const Layout = () => {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-[#fafafa] font-sans selection:bg-blue-500/30 transition-colors duration-200">
       
-      {/* Top Accessibility Voice Announcer banner */}
       <div className="sr-only" aria-live="assertive" role="status">
         {announcements[announcements.length - 1]}
       </div>
 
-      {/* Main Grid container */}
       <div className="flex h-screen overflow-hidden">
         
-        {/* Sidebar Nav section */}
+        {/* Sidebar Navigation Panel with Mini-Sidebar Collapse Support */}
         <aside
           className={`${
-            isSidebarOpen ? 'w-64' : 'w-0'
-          } shrink-0 bg-zinc-900 border-r dark:border-zinc-800 border-zinc-200 flex flex-col justify-between transition-all duration-200 overflow-hidden relative z-40`}
+            isSidebarOpen ? 'w-64' : 'w-16'
+          } shrink-0 bg-white dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 border-r border-slate-200 dark:border-zinc-800 flex flex-col justify-between transition-all duration-300 overflow-hidden relative z-40`}
           aria-label="Primary Workspace Navigation"
         >
           <div>
-            {/* Branding Logo */}
-            <div className="p-5 border-b dark:border-zinc-800 border-zinc-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-black text-xs shadow-inner">
-                  G
+            {/* Top Sidebar Header with Organization Name and Collapse Button */}
+            <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between min-h-[64px]">
+              {isSidebarOpen ? (
+                <>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {org.logoUrl ? (
+                      <img src={org.logoUrl} alt="Logo" className="w-8 h-8 rounded-xl object-cover shadow-md shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs shadow-md shrink-0">
+                        {org.name && org.name !== 'Loading...' ? org.name.substring(0, 2).toUpperCase() : 'GY'}
+                      </div>
+                    )}
+                    <h1 className="text-slate-900 dark:text-zinc-50 font-extrabold text-sm tracking-tight truncate" title={org.name}>
+                      {org.name}
+                    </h1>
+                  </div>
+
+                  <button
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="p-1.5 rounded-lg text-slate-400 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition focus:outline-none"
+                    aria-label="Collapse Navigation Sidebar"
+                    title="Collapse Sidebar"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                </>
+              ) : (
+                <div className="w-full flex items-center justify-center">
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="p-1.5 rounded-lg text-slate-400 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition focus:outline-none"
+                    aria-label="Expand Navigation Sidebar"
+                    title="Expand Sidebar"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
                 </div>
-                <h1 className="text-zinc-50 font-extrabold text-sm tracking-tight">GymOS Pro</h1>
+              )}
+            </div>
+
+            {/* Scope Badge & User Info */}
+            {isSidebarOpen && (
+              <div className="p-3 bg-slate-100 dark:bg-zinc-900/90 border-b border-slate-200 dark:border-zinc-800 text-[10px] text-slate-500 dark:text-zinc-400 font-mono tracking-wider">
+                <div className="flex justify-between items-center mb-2">
+                  <span>SCOPE:</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded uppercase">
+                    {userRole.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                {userProfile && (
+                  <div className="mt-2 p-2 bg-white dark:bg-zinc-950 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm flex flex-col gap-1.5">
+                    {userProfile.name && (
+                      <div className="flex flex-col">
+                        <span className="text-[8px] text-slate-400 dark:text-zinc-500 font-semibold uppercase leading-tight">Name</span>
+                        <span className="text-slate-800 dark:text-zinc-200 font-bold truncate leading-snug">{userProfile.name}</span>
+                      </div>
+                    )}
+                    {userProfile.email && (
+                      <div className="flex flex-col">
+                        <span className="text-[8px] text-slate-400 dark:text-zinc-500 font-semibold uppercase leading-tight">Email</span>
+                        <span className="text-slate-800 dark:text-zinc-200 truncate leading-snug">{userProfile.email}</span>
+                      </div>
+                    )}
+                    {userProfile.phone && (
+                      <div className="flex flex-col">
+                        <span className="text-[8px] text-slate-400 dark:text-zinc-500 font-semibold uppercase leading-tight">Phone</span>
+                        <span className="text-slate-800 dark:text-zinc-200 leading-snug">{userProfile.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="text-zinc-500 hover:text-zinc-300 xl:hidden focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Close Navigation Sidebar"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
-            </div>
+            )}
 
-            {/* Role scope indicator */}
-            <div className="p-3 bg-zinc-950 border-b dark:border-zinc-800 border-zinc-200 text-[10px] text-zinc-400 font-mono tracking-wider flex justify-between items-center">
-              <span>SCOPE:</span>
-              <span className="font-bold text-blue-400 bg-blue-950/20 px-1.5 py-0.5 rounded uppercase">
-                {userRole.replace(/_/g, ' ')}
-              </span>
-            </div>
-
-            {/* Nav items list */}
-            <nav className="p-3 space-y-1 overflow-y-auto max-h-[calc(100vh-180px)] text-xs font-semibold">
+            {/* Navigation items list */}
+            <nav className="p-2.5 space-y-1 overflow-y-auto max-h-[calc(100vh-190px)] text-xs font-semibold">
               {navItems.map((item) => {
                 const IconComp = item.icon;
                 const isSelected = location.pathname.startsWith(item.path);
                 const permitted = isViewAllowed(item.id);
 
+                if (!permitted) return null;
+
                 return (
                   <button
                     key={item.id}
                     onClick={() => {
-                      if (permitted) {
-                        navigate(item.path);
-                        triggerAnnouncement(`Switched screen to ${item.label}`);
-                      } else {
-                        triggerAnnouncement(`Access Denied: You do not have permission to view ${item.label}.`);
-                      }
+                      navigate(item.path);
+                      triggerAnnouncement(`Switched screen to ${item.label}`);
                     }}
-                    disabled={!permitted}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-lg transition text-left ${
+                    title={!isSidebarOpen ? item.label : undefined}
+                    className={`w-full flex items-center ${
+                      isSidebarOpen ? 'justify-between p-2.5' : 'justify-center p-3'
+                    } rounded-xl transition text-left ${
                       isSelected
-                        ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-900/20'
-                        : permitted
-                        ? 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
-                        : 'opacity-30 cursor-not-allowed text-zinc-600'
+                        ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20'
+                        : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800/80 hover:text-slate-900 dark:hover:text-zinc-100'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <IconComp className="w-4 h-4" />
-                      <span>{item.label}</span>
+                      <IconComp className="w-4 h-4 shrink-0" />
+                      {isSidebarOpen && <span>{item.label}</span>}
                     </div>
-                    {isSelected && <ChevronRight className="w-3.5 h-3.5 text-blue-200" />}
+                    {isSidebarOpen && isSelected && <ChevronRight className="w-3.5 h-3.5 text-blue-200" />}
                   </button>
                 );
               })}
             </nav>
           </div>
 
-          <div className="p-4 border-t dark:border-zinc-800 border-zinc-200 text-center text-[9px] text-zinc-500 font-mono">
-            V1.0.4-LATEST
-          </div>
-        </aside>
-
-        {/* Primary Content panel wrapper */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          
-          {/* Header toolbar banner */}
-          <header className="h-16 border-b border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-900/50 backdrop-blur-sm flex items-center justify-between px-6 shrink-0 relative z-30">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Toggle Navigation Panel"
-              >
-                <Menu className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-              </button>
-
-              <div className="hidden sm:flex items-center gap-2 text-xs">
-                {/* Org details selector */}
-                <span className="font-bold text-zinc-800 dark:text-zinc-100">{org.name}</span>
-                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
-                {branches.length > 1 ? (
-                  <select
-                    value={selectedBranchId}
-                    onChange={(e) => {
-                      setSelectedBranchId(e.target.value);
-                      const bName = e.target.value === 'ALL' ? 'All Branches' : branches.find(b => b.id === e.target.value)?.name || 'Branch';
-                      triggerAnnouncement(`Switched view to ${bName}`);
-                    }}
-                    className="bg-transparent text-zinc-600 dark:text-zinc-400 font-semibold border-none focus:outline-none focus:ring-0 p-0 pr-6 text-xs cursor-pointer"
-                    aria-label="Filter application views by branch"
-                  >
-                    <option value="ALL">All Branches</option>
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
+          {/* Bottom Sidebar Quick Light/Dark Theme Switcher */}
+          <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-center">
+            <button
+              onClick={toggleQuickTheme}
+              className={`w-full flex items-center ${
+                isSidebarOpen ? 'justify-between px-3 py-2' : 'justify-center p-2'
+              } rounded-xl bg-slate-100 dark:bg-zinc-800/80 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition text-xs font-bold border border-slate-200 dark:border-zinc-700/50`}
+              title={`Switch to ${a11y.theme === 'dark' || a11y.theme === 'high-contrast-dark' ? 'Light' : 'Dark'} Theme`}
+            >
+              <div className="flex items-center gap-2">
+                {a11y.theme === 'dark' || a11y.theme === 'high-contrast-dark' ? (
+                  <Sun className="w-4 h-4 text-amber-500 shrink-0" />
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 font-semibold text-xs opacity-90 cursor-not-allowed select-none">
-                    <Building2 className="w-3 h-3 text-blue-500" />
-                    {branches.length === 1 ? branches[0].name : 'Primary Branch'}
+                  <Moon className="w-4 h-4 text-blue-600 shrink-0" />
+                )}
+                {isSidebarOpen && (
+                  <span>
+                    {a11y.theme === 'dark' || a11y.theme === 'high-contrast-dark' ? 'Light Mode' : 'Dark Mode'}
                   </span>
                 )}
               </div>
+              {isSidebarOpen && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 font-mono">
+                  {a11y.theme.toUpperCase()}
+                </span>
+              )}
+            </button>
+          </div>
+        </aside>
+
+        {/* Main Stage Viewport */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          
+          {/* Header Navbar */}
+          <header className="h-16 border-b border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-900/50 backdrop-blur-sm flex items-center justify-between px-6 shrink-0 relative z-30">
+            {/* Left Header Info */}
+            <div className="flex items-center gap-3">
+              {branches.length > 1 ? (
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => {
+                    setSelectedBranchId(e.target.value);
+                    const bName = e.target.value === 'ALL' ? 'All Branches' : branches.find(b => b.id === e.target.value)?.name || 'Branch';
+                    triggerAnnouncement(`Switched view to ${bName}`);
+                  }}
+                  className="bg-zinc-100 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 font-bold border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Filter application views by branch"
+                >
+                  <option value="ALL">All Branches</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-bold text-xs">
+                  <Building2 className="w-3.5 h-3.5 text-blue-500" />
+                  {branches.length === 1 ? branches[0].name : 'Primary Branch'}
+                </span>
+              )}
             </div>
 
-            {/* Multi-Tenant Perspective Switcher & Accessibility panel */}
-            <div className="flex items-center gap-3">
+            {/* Right Header Actions */}
+            <div className="flex items-center gap-3 relative">
               
+              {/* Activity Notifications Bell */}
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setIsNotificationsOpen(!isNotificationsOpen);
+                    if (!isNotificationsOpen) fetchNotifications();
+                  }}
+                  className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 relative transition"
+                  title="Activity & System Notifications"
+                >
+                  <Bell className="w-4 h-4" />
+                  {activityNotifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-950 animate-pulse" />
+                  )}
+                </button>
 
+                {isNotificationsOpen && (
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs">
+                    <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Bell className="w-4 h-4 text-blue-500" />
+                        <span className="font-bold text-zinc-900 dark:text-zinc-100">Activity Notifications</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+                        {activityNotifications.length} Active
+                      </span>
+                    </div>
 
-              {/* Accessibility Settings block widget */}
+                    <div className="p-2 space-y-2 max-h-80 overflow-y-auto">
+                      {activityNotifications.length === 0 ? (
+                        <div className="p-6 text-center text-zinc-500">
+                          <Bell className="w-8 h-8 text-zinc-400 dark:text-zinc-600 mx-auto mb-2 opacity-50" />
+                          <p className="font-semibold text-zinc-800 dark:text-zinc-200">No activity notifications</p>
+                          <p className="text-[11px] text-zinc-400 mt-1">All deleted activities have been removed.</p>
+                        </div>
+                      ) : (
+                        activityNotifications.map((s) => (
+                          <div
+                            key={s.id}
+                            onClick={() => {
+                              setIsNotificationsOpen(false);
+                              navigate('/activities');
+                            }}
+                            className="p-3 rounded-xl border border-zinc-150 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/50 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 cursor-pointer transition space-y-2"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="font-bold text-zinc-900 dark:text-zinc-100 block">{s.title}</span>
+                                <p className="text-[11px] text-zinc-500 mt-0.5">
+                                  Scheduled for {s.sessionTime || s.sessionDate} • Target: {s.notifyRoles && s.notifyRoles.length > 0 ? s.notifyRoles.join(', ') : 'ALL ROLES'}
+                                </p>
+                              </div>
+                              <span className="text-[9px] text-blue-500 font-mono">LIVE</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await voteGroupSession(s.id, 'IN');
+                                    triggerAnnouncement(`Responded IN for ${s.title}`);
+                                  } catch (err: any) {
+                                    triggerAnnouncement(`Vote note: ${err.message || 'Already voted'}`);
+                                  }
+                                  setIsNotificationsOpen(false);
+                                  navigate('/activities');
+                                }}
+                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 text-white shadow-sm flex items-center gap-1 hover:bg-emerald-700 transition"
+                              >
+                                <CheckCircle2 className="w-3 h-3" /> Mark IN
+                              </button>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await voteGroupSession(s.id, 'OUT');
+                                    triggerAnnouncement(`Responded OUT for ${s.title}`);
+                                  } catch (err: any) {
+                                    triggerAnnouncement(`Vote note: ${err.message || 'Already voted'}`);
+                                  }
+                                  setIsNotificationsOpen(false);
+                                  navigate('/activities');
+                                }}
+                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-red-50 dark:hover:bg-red-950 text-red-600 transition"
+                              >
+                                Mark OUT
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="p-2.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-center">
+                      <button
+                        onClick={() => {
+                          setIsNotificationsOpen(false);
+                          navigate('/activities');
+                        }}
+                        className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        View All Activity Timetables →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Accessibility Controls Panel */}
               <A11yControls
                 settings={a11y}
                 onChange={setA11y}
               />
+
+              {/* Profile Management Button */}
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/80 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 font-bold text-xs transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+                title="Edit User Profile"
+              >
+                <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
+                  AA
+                </div>
+                <span className="hidden sm:inline">Profile</span>
+              </button>
 
               {/* Logout Button */}
               <button
@@ -380,7 +652,7 @@ export const Layout = () => {
                 </div>
 
                 {/* Outlet for routes */}
-                <Outlet context={{ selectedBranchId, triggerAnnouncement }} />
+                <Outlet context={{ selectedBranchId, branches, triggerAnnouncement, permissions: userPermissions }} />
 
               </div>
             ) : (
@@ -397,6 +669,16 @@ export const Layout = () => {
           </main>
         </div>
 
+        {/* Global Floating Chatbot Widget (Bottom Right) */}
+        <FloatingChatWidget currentUserRole={userRole} onAnnounce={triggerAnnouncement} />
+
+        {/* Profile Editing Modal */}
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          userRole={userRole}
+          onAnnounce={triggerAnnouncement}
+        />
       </div>
     </div>
   );

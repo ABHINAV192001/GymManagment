@@ -50,6 +50,7 @@ public class InventoryServiceImpl implements InventoryService {
                 .name(dto.getName())
                 .description(dto.getDescription())
                 .quantity(dto.getQuantity())
+                .price(dto.getPrice())
                 .category(dto.getCategory())
                 .condition(dto.getCondition())
                 .purchaseDate(dto.getPurchaseDate())
@@ -89,6 +90,7 @@ public class InventoryServiceImpl implements InventoryService {
         inventory.setName(dto.getName());
         inventory.setDescription(dto.getDescription());
         inventory.setQuantity(dto.getQuantity());
+        inventory.setPrice(dto.getPrice());
         inventory.setCategory(dto.getCategory());
         inventory.setCondition(dto.getCondition());
         if (dto.getPurchaseDate() != null) {
@@ -104,10 +106,25 @@ public class InventoryServiceImpl implements InventoryService {
                 .name(inventory.getName())
                 .description(inventory.getDescription())
                 .quantity(inventory.getQuantity())
+                .price(inventory.getPrice())
                 .category(inventory.getCategory())
                 .condition(inventory.getCondition())
                 .purchaseDate(inventory.getPurchaseDate())
                 .build();
+    }
+
+    @Override
+    public InventoryDto sellInventory(java.util.UUID inventoryId, int quantity, java.util.UUID orgId, java.util.UUID branchId) {
+        Inventory inventory = inventoryRepository.findById(inventoryId)
+                .orElseThrow(() -> new RuntimeException("Inventory item not found"));
+        if (!inventory.getBranch().getOrganization().getId().equals(orgId)) {
+            throw new RuntimeException("Unauthorized");
+        }
+        if (inventory.getQuantity() < quantity) {
+            throw new RuntimeException("Insufficient stock: only " + inventory.getQuantity() + " units available");
+        }
+        inventory.setQuantity(inventory.getQuantity() - quantity);
+        return mapToDto(inventoryRepository.save(inventory));
     }
 
     @Override

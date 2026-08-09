@@ -26,4 +26,9 @@ public class StaffRoleAssignment {
 
     @Column(name = "role_id", nullable = false)
     private UUID roleId;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

@@ -6,31 +6,34 @@ import { Branch } from '../../types';
 export interface BranchRequest {
   branchCode?: string;
   name: string;
-  adminUserId: string;
+  adminUserId?: string;
+  defaultPtTrainerPercentage?: number;
 }
 
 export async function getBranches(): Promise<Branch[]> {
   const url = `${API_CONFIG.USER_MANAGEMENT_URL}/api/v1/branches`;
   const response = await fetchWithAuth(url);
-  return response.data || [];
+  return response.data || response;
 }
 
 export async function createBranch(branch: BranchRequest): Promise<Branch> {
   const url = `${API_CONFIG.USER_MANAGEMENT_URL}/api/v1/branches`;
   // POST /branches returns the BranchResponse directly, not wrapped in { data }.
-  return fetchWithAuth(url, {
+  const response = await fetchWithAuth(url, {
     method: 'POST',
     body: JSON.stringify(branch),
   });
+  return response.data || response;
 }
 
 export async function updateBranch(id: string, branch: BranchRequest): Promise<Branch> {
   const url = `${API_CONFIG.USER_MANAGEMENT_URL}/api/v1/branches/${id}`;
   // PUT /branches/{id} returns the BranchResponse directly, not wrapped in { data }.
-  return fetchWithAuth(url, {
+  const response = await fetchWithAuth(url, {
     method: 'PUT',
     body: JSON.stringify(branch),
   });
+  return response.data || response;
 }
 
 export async function deleteBranch(id: string): Promise<void> {

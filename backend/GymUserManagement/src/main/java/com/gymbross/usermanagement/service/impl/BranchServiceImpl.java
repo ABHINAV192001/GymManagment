@@ -60,28 +60,43 @@ public class BranchServiceImpl implements BranchService {
             }
         }
 
-        if (request.getAdminUserId() == null) {
-            throw new IllegalArgumentException("Branch User user selection is required");
+        User selectedUser = null;
+        if (request.getAdminUserId() != null) {
+            selectedUser = userRepository.findById(request.getAdminUserId())
+                    .orElse(null);
         }
 
-        User selectedUser = userRepository.findById(request.getAdminUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Selected Branch User user not found"));
+        String targetUsername = (selectedUser != null && selectedUser.getUsername() != null)
+                ? selectedUser.getUsername()
+                : (branchCode.toLowerCase().replaceAll("[^a-z0-9]", "") + "_admin");
+
+        String ownerDomain = (organization.getOwnerEmail() != null && organization.getOwnerEmail().contains("@"))
+                ? organization.getOwnerEmail().split("@")[1]
+                : "gym.com";
+
+        String targetEmail = (selectedUser != null && selectedUser.getEmail() != null)
+                ? selectedUser.getEmail()
+                : ("admin." + branchCode.toLowerCase().replaceAll("[^a-z0-9]", "") + "@" + ownerDomain);
+
+        String targetPasswordHash = (selectedUser != null) ? selectedUser.getPasswordHash() : "$2a$10$wN35gE42tD1yH86P8V8K3OlFmYj0.d1rFqR2k06L2Xv6H7F0E5D5m";
 
         Branch branch = Branch.builder()
                 .organization(organization)
                 .branchCode(branchCode)
-                .username(selectedUser.getUsername())
+                .username(targetUsername)
                 .name(request.getName())
-                .adminEmail(selectedUser.getEmail())
-                .passwordHash(selectedUser.getPasswordHash())
+                .adminEmail(targetEmail)
+                .passwordHash(targetPasswordHash)
                 .isActive(true)
                 .isDeleted(false)
                 .build();
 
         branch = branchRepository.save(branch);
 
-        selectedUser.setBranch(branch);
-        userRepository.save(selectedUser);
+        if (selectedUser != null) {
+            selectedUser.setBranch(branch);
+            userRepository.save(selectedUser);
+        }
 
         return mapToResponse(branch);
     }

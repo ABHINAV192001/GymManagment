@@ -39,10 +39,20 @@ public class RbacServiceImpl implements RbacService {
                     .build();
             rbacRoleRepository.save(employeeRole);
         }
-        return rbacRoleRepository.findByOrgIdOrOrgIdIsNull(orgId).stream()
+        List<RbacRole> rawRoles = rbacRoleRepository.findByOrgIdOrOrgIdIsNull(orgId).stream()
                 .filter(role -> !role.isDeleted())
                 .filter(role -> !"ORG_ADMIN".equalsIgnoreCase(role.getName()))
                 .collect(Collectors.toList());
+
+        java.util.Map<String, RbacRole> uniqueRoles = new java.util.LinkedHashMap<>();
+        for (RbacRole r : rawRoles) {
+            if (r.getName() == null || r.getName().trim().isEmpty()) continue;
+            String key = r.getName().trim().toUpperCase();
+            if (!uniqueRoles.containsKey(key) || (r.getOrgId() != null && uniqueRoles.get(key).getOrgId() == null)) {
+                uniqueRoles.put(key, r);
+            }
+        }
+        return new java.util.ArrayList<>(uniqueRoles.values());
     }
 
     @Override
@@ -150,10 +160,33 @@ public class RbacServiceImpl implements RbacService {
 
     @Override
     public Set<String> getAllAvailablePermissions() {
-        return permissionRepository.findAll().stream()
+        Set<String> perms = permissionRepository.findAll().stream()
                 .filter(Permission::isActive)
                 .map(Permission::getSubModule)
                 .collect(Collectors.toSet());
+        
+        List<String> defaultMemberPortalPerms = List.of(
+            "MEMBER_PORTAL:VIEW",
+            "MEMBER_PORTAL:CREATE",
+            "MEMBER_PORTAL:EDIT",
+            "MEMBER_PORTAL:DELETE"
+        );
+        for (String subMod : defaultMemberPortalPerms) {
+            if (!perms.contains(subMod)) {
+                perms.add(subMod);
+                if (permissionRepository.findBySubModuleIgnoreCase(subMod).isEmpty()) {
+                    String[] parts = subMod.split(":");
+                    permissionRepository.save(Permission.builder()
+                            .module(parts[0])
+                            .subModule(subMod)
+                            .description(parts[1].substring(0, 1) + parts[1].substring(1).toLowerCase())
+                            .isActive(true)
+                            .createDate(java.time.LocalDateTime.now())
+                            .build());
+                }
+            }
+        }
+        return perms;
     }
 
     @Override

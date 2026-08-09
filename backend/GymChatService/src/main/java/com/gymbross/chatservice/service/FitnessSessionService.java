@@ -37,12 +37,12 @@ public class FitnessSessionService {
 			List<java.util.UUID> branchIds = Arrays.stream(session.getBranchIds().split(",")).map(String::trim)
 					.map(java.util.UUID::fromString).collect(Collectors.toList());
 
-			List<Role> roles = Arrays.stream(session.getRecipientRoles().split(",")).map(String::trim)
-					.map(Role::valueOf).collect(Collectors.toList());
+			List<String> roles = Arrays.stream(session.getRecipientRoles().split(",")).map(String::trim)
+					.map(Role::valueOf).map(Enum::name).collect(Collectors.toList());
 
 			System.out.println("DEBUG: Sending notifications to Branches: " + branchIds + ", Roles: " + roles);
 
-			List<User> recipients = userRepository.findByBranchIdInAndRoleIn(branchIds, roles);
+			List<User> recipients = userRepository.findByBranchIdInAndRoleNamesIn(branchIds, roles);
 			System.out.println("DEBUG: Found " + recipients.size() + " potential recipients in DB.");
 
 			if (recipients.isEmpty()) {

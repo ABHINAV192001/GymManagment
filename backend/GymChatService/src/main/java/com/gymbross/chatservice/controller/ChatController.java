@@ -1,6 +1,7 @@
 package com.gymbross.chatservice.controller;
 
 import com.Gym.GymCommonServices.dto.ApiResponse;
+import com.gymbross.chatservice.dto.ConversationSummary;
 import com.gymbross.chatservice.dto.MessageRequest;
 import com.gymbross.chatservice.dto.MessageResponse;
 import com.gymbross.chatservice.service.ChatService;
@@ -10,8 +11,10 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -21,37 +24,48 @@ public class ChatController {
     private final SimpMessagingTemplate messagingTemplate;
     private final ChatService chatService;
 
-    // WebSocket: Send message (Client sends to /app/send)
-    @MessageMapping("/send")
-    public void sendMessage(@Payload MessageRequest request) {
+    // ─── WebSocket ────────────────────────────────────────────────────────────
+
+    /** Client sends to /app/chat.send */
+    @MessageMapping("/chat.send")
+    public void sendMessageWs(@Payload MessageRequest request, Principal principal) {
+        // Use authenticated username as sender
+        if (principal != null && request.getSenderUsername() == null) {
+            request.setSenderUsername(principal.getName());
+        }
         MessageResponse saved = chatService.sendMessage(request);
-
-        // Send to receiver's private topic
+        // Push to receiver
         messagingTemplate.convertAndSend("/topic/messages/" + saved.getReceiverUsername(), saved);
-
-        // Also send back to sender for their UI
+        // Push back to sender
         messagingTemplate.convertAndSend("/topic/messages/" + saved.getSenderUsername(), saved);
     }
 
-    // REST: Send Message (Compatible with frontend apiPost)
+    /** Client sends to /app/chat.read to mark a conversation as read */
+    @MessageMapping("/chat.read")
+    public void markReadWs(@Payload MessageRequest request, Principal principal) {
+        if (principal == null) return;
+        chatService.markConversationRead(principal.getName(), request.getSenderUsername());
+    }
+
+    // ─── REST ─────────────────────────────────────────────────────────────────
+
     @PostMapping("/api/chat/send")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<MessageResponse>> sendMessageRest(@RequestBody MessageRequest request) {
+    public ResponseEntity<ApiResponse<MessageResponse>> sendMessageRest(
+            @RequestBody MessageRequest request, Principal principal) {
+        if (principal != null && request.getSenderUsername() == null) {
+            request.setSenderUsername(principal.getName());
+        }
         MessageResponse saved = chatService.sendMessage(request);
-
-        // Send to receiver's private topic (Real-time update)
         messagingTemplate.convertAndSend("/topic/messages/" + saved.getReceiverUsername(), saved);
-
-        // Also send back to sender for their UI
         messagingTemplate.convertAndSend("/topic/messages/" + saved.getSenderUsername(), saved);
-
         return ResponseEntity.ok(ApiResponse.success(saved, "Message sent"));
     }
 
-    // REST: Get History
-    @GetMapping("/api/chat/history/{user1}/{user2}") // Standardized path
+    @GetMapping("/api/chat/history/{user1}/{user2}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<MessageResponse>>> getHistory(@PathVariable String user1, @PathVariable String user2) {
+    public ResponseEntity<ApiResponse<List<MessageResponse>>> getHistory(
+            @PathVariable String user1, @PathVariable String user2) {
         return ResponseEntity.ok(ApiResponse.success(chatService.getConversation(user1, user2)));
     }
 
@@ -59,6 +73,25 @@ public class ChatController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<MessageResponse>>> getUserHistory(@RequestParam String userId) {
         return ResponseEntity.ok(ApiResponse.success(chatService.getUserHistory(userId)));
+    }
+
+    /** Returns list of all conversation partners with last message + unread count */
+    @GetMapping("/api/chat/conversations")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<ConversationSummary>>> getConversations(Principal principal) {
+        String username = principal != null ? principal.getName() : "unknown";
+        return ResponseEntity.ok(ApiResponse.success(chatService.getConversations(username)));
+    }
+
+    /** Mark all messages in a conversation as read */
+    @PostMapping("/api/chat/mark-read")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> markRead(
+            @RequestParam String senderUsername, Principal principal) {
+        if (principal != null) {
+            chatService.markConversationRead(principal.getName(), senderUsername);
+        }
+        return ResponseEntity.ok(ApiResponse.success(null, "Marked as read"));
     }
 
     @GetMapping("/api/chat/test")

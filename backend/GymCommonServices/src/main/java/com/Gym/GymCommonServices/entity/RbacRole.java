@@ -41,4 +41,9 @@ public class RbacRole {
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     private Set<RbacPermission> permissions;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

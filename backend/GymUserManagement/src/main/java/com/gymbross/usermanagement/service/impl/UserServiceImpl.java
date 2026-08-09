@@ -58,8 +58,9 @@ public class UserServiceImpl implements UserService {
         // Calculate Target Calories using domain service
         int targetCalories = calorieCalculatorService.calculateTargetCalories(user);
 
-        double weight = user.getWeight() != null ? user.getWeight() : 70.0;
-        double height = user.getHeight() != null ? user.getHeight() : 170.0;
+        double weight = user.getWeight() != null ? user.getWeight() : 0.0;
+        double height = user.getHeight() != null ? user.getHeight() : 0.0;
+        double targetWater = (height > 0 && weight > 0) ? 3.0 : 0.0;
 
         // Calculate Real Totals from FoodLog
         int currentCalories = 0;
@@ -93,9 +94,9 @@ public class UserServiceImpl implements UserService {
                 .sum();
 
         // Macronutrient Split (40/30/30 generic split)
-        int targetCarbs = (int) ((targetCalories * 0.4) / 4);
-        int targetProtein = (int) ((targetCalories * 0.3) / 4);
-        int targetFat = (int) ((targetCalories * 0.3) / 9);
+        int targetCarbs = targetCalories > 0 ? (int) ((targetCalories * 0.4) / 4) : 0;
+        int targetProtein = targetCalories > 0 ? (int) ((targetCalories * 0.3) / 4) : 0;
+        int targetFat = targetCalories > 0 ? (int) ((targetCalories * 0.3) / 9) : 0;
 
         // Date & Workout Logic
         String dateStr = selectedDate.format(java.time.format.DateTimeFormatter.ofPattern("MMMM d, yyyy"));
@@ -114,7 +115,7 @@ public class UserServiceImpl implements UserService {
                         .build())
                 .activity(com.gymbross.usermanagement.dto.DashboardDto.Activity.builder()
                         .steps(new com.gymbross.usermanagement.dto.DashboardDto.ActivityDetail(steps, 10000, "steps"))
-                        .water(new com.gymbross.usermanagement.dto.DashboardDto.ActivityDetail(water, 3.0, "liters"))
+                        .water(new com.gymbross.usermanagement.dto.DashboardDto.ActivityDetail(water, targetWater, "liters"))
                         .build())
                 .today(com.gymbross.usermanagement.dto.DashboardDto.Today.builder().date(dateStr).workoutDay(workoutDay)
                         .workoutPlan("Push Pull Legs").build())

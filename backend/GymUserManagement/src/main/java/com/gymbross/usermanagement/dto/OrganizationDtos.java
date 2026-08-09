@@ -36,6 +36,9 @@ public class OrganizationDtos {
 
         @NotBlank(message = "Password is required")
         private String password;
+        
+        private String logoUrl;
+        private String gst;
     }
 
     @Data
@@ -52,5 +55,7 @@ public class OrganizationDtos {
         private Boolean isActive;
         private Boolean isEmailVerified;
         private Boolean isPhoneVerified;
+        private String logoUrl;
+        private String gst;
     }
 }

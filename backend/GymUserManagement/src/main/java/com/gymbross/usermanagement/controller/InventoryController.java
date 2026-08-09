@@ -16,15 +16,18 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/inventory")
 @RequiredArgsConstructor
-
 public class InventoryController {
 
     private final InventoryService inventoryService;
 
-    @PreAuthorize("hasAuthority(\'INVENTORY:VIEW\')")
+    @PreAuthorize("hasAuthority('INVENTORY:VIEW')")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<InventoryDto>>> getAllInventory(@RequestAttribute("organizationId") java.util.UUID orgId, @RequestAttribute(required = false) java.util.UUID branchId) {
-        return ResponseEntity.ok(ApiResponse.success(inventoryService.getAllInventory(orgId, branchId)));
+    public ResponseEntity<ApiResponse<List<InventoryDto>>> getAllInventory(
+            @RequestAttribute("organizationId") java.util.UUID orgId,
+            @RequestAttribute(required = false) java.util.UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(inventoryService.getAllInventory(orgId, branchId), page, size));
     }
 
     @GetMapping("/dashboard")
@@ -41,7 +44,7 @@ public class InventoryController {
         return ResponseEntity.ok(ApiResponse.success(inventoryService.getFilteredInventory(orgId, branchId, period, condition, pageable)));
     }
 
-    @PreAuthorize("hasAuthority(\'INVENTORY:CREATE\')")
+    @PreAuthorize("hasAuthority('INVENTORY:CREATE')")
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> addInventory(@RequestBody InventoryDto inventoryDto, @RequestAttribute("organizationId") java.util.UUID orgId, @RequestAttribute(required = false) java.util.UUID branchId) {
         inventoryService.addInventory(inventoryDto, orgId, branchId);
@@ -61,5 +64,16 @@ public class InventoryController {
     public ResponseEntity<ApiResponse<Void>> removeInventory(@PathVariable java.util.UUID id, @RequestAttribute("organizationId") java.util.UUID orgId, @RequestAttribute(required = false) java.util.UUID branchId) {
         inventoryService.removeInventory(id, orgId, branchId);
         return ResponseEntity.ok(ApiResponse.success(null, "Inventory removed successfully"));
+    }
+
+    @PostMapping("/{id}/sell")
+    @PreAuthorize("hasAuthority('INVENTORY:EDIT')")
+    public ResponseEntity<ApiResponse<InventoryDto>> sellInventory(
+            @PathVariable java.util.UUID id,
+            @RequestParam int quantity,
+            @RequestAttribute("organizationId") java.util.UUID orgId,
+            @RequestAttribute(required = false) java.util.UUID branchId) {
+        InventoryDto updated = inventoryService.sellInventory(id, quantity, orgId, branchId);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Sale processed. Stock updated."));
     }
 }

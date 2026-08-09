@@ -18,13 +18,15 @@ public class RecipeController {
 
     private final RecipeRepository recipeRepository;
 
-    @PreAuthorize("hasAuthority(\'DIET:VIEW\')")
+    @PreAuthorize("hasAuthority('DIET:VIEW')")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Recipe>>> getAllRecipes() {
-        return ResponseEntity.ok(ApiResponse.success(recipeRepository.findAll()));
+    public ResponseEntity<ApiResponse<List<Recipe>>> getAllRecipes(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.paginated(recipeRepository.findAll(), page, size));
     }
 
-    @PreAuthorize("hasAuthority(\'DIET:CREATE\')")
+    @PreAuthorize("hasAuthority('DIET:CREATE')")
     @PostMapping
     public ResponseEntity<ApiResponse<Recipe>> createRecipe(@RequestBody Recipe recipe) {
         return ResponseEntity.ok(ApiResponse.success(recipeRepository.save(recipe), "Recipe created successfully"));

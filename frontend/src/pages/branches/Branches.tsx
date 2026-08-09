@@ -7,9 +7,11 @@ import {
 import { Branch, Member, Staff } from '../../types';
 import { getBranches, createBranch, updateBranch, deleteBranch, updateBranchStatus } from '../../lib/api/branches';
 import { getUsers, getStaff } from '../../lib/api/admin';
+import { usePermissions } from '../../lib/usePermissions';
 
 export const Branches: React.FC = () => {
   const { triggerAnnouncement } = useOutletContext<{ selectedBranchId: string; triggerAnnouncement: (msg: string) => void }>();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -24,6 +26,7 @@ export const Branches: React.FC = () => {
   const [newBranch, setNewBranch] = useState({
     name: '',
     adminUserId: '',
+    defaultPtTrainerPercentage: 0,
   });
 
   // Edit Branch State
@@ -33,6 +36,7 @@ export const Branches: React.FC = () => {
     name: '',
     branchCode: '',
     adminUserId: '',
+    defaultPtTrainerPercentage: 0,
   });
 
   // Delete Branch State
@@ -41,10 +45,8 @@ export const Branches: React.FC = () => {
 
   const refreshBranches = async () => {
     try {
-      const [b, m, s] = await Promise.all([getBranches(), getUsers(), getStaff()]);
-      setBranches(b);
-      setMembers(m);
-      setStaff(s);
+      const b = await getBranches();
+      setBranches(Array.isArray(b) ? b : []);
     } catch (err: any) {
       triggerAnnouncement('Failed to refresh branches data: ' + err.message);
     }
@@ -75,21 +77,18 @@ export const Branches: React.FC = () => {
   const handleCreateBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBranch.name) return;
-    if (!newBranch.adminUserId) {
-      triggerAnnouncement('Please assign a branch admin before submitting.');
-      return;
-    }
 
     setIsSubmitting(true);
     try {
       const brandNew = await createBranch({
         name: newBranch.name,
-        adminUserId: newBranch.adminUserId,
+        adminUserId: newBranch.adminUserId || undefined,
+        defaultPtTrainerPercentage: newBranch.defaultPtTrainerPercentage || 0,
       });
 
       await refreshBranches();
       setIsWizardOpen(false);
-      setNewBranch({ name: '', adminUserId: '' });
+      setNewBranch({ name: '', adminUserId: '', defaultPtTrainerPercentage: 0 });
       triggerAnnouncement(`Branch "${brandNew.name}" registered successfully.`);
     } catch (err: any) {
       triggerAnnouncement(`Failed to create branch: ${err.message}`);
@@ -104,6 +103,7 @@ export const Branches: React.FC = () => {
       name: branch.name || '',
       branchCode: branch.branchCode || '',
       adminUserId: branch.adminUserId || '',
+      defaultPtTrainerPercentage: branch.defaultPtTrainerPercentage || 0,
     });
     setIsEditModalOpen(true);
   };
@@ -118,6 +118,7 @@ export const Branches: React.FC = () => {
         name: editBranchData.name,
         branchCode: editBranchData.branchCode || undefined,
         adminUserId: editBranchData.adminUserId || undefined,
+        defaultPtTrainerPercentage: editBranchData.defaultPtTrainerPercentage || 0,
       });
 
       await refreshBranches();
@@ -207,13 +208,15 @@ export const Branches: React.FC = () => {
             </button>
           </div>
 
-          <button
-            onClick={() => setIsWizardOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow transition focus:outline-2 focus:outline-blue-500"
-            aria-haspopup="dialog"
-          >
-            <Plus className="w-4 h-4" /> Add Branch
-          </button>
+          {canCreate('branches') && (
+            <button
+              onClick={() => setIsWizardOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow transition focus:outline-2 focus:outline-blue-500"
+              aria-haspopup="dialog"
+            >
+              <Plus className="w-4 h-4" /> Add Branch
+            </button>
+          )}
         </div>
       </div>
 
@@ -244,27 +247,33 @@ export const Branches: React.FC = () => {
                       </span>
 
                       {/* Action Buttons */}
-                      <button
-                        onClick={() => handleToggleStatus(branch)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition"
-                        title={branch.isActive ? 'Deactivate Branch' : 'Activate Branch'}
-                      >
-                        <Power className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => openEditModal(branch)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
-                        title="Edit Branch"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => openDeleteModal(branch)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
-                        title="Delete Branch"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canEdit('branches') && (
+                        <button
+                          onClick={() => handleToggleStatus(branch)}
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition"
+                          title={branch.isActive ? 'Deactivate Branch' : 'Activate Branch'}
+                        >
+                          <Power className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canEdit('branches') && (
+                        <button
+                          onClick={() => openEditModal(branch)}
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
+                          title="Edit Branch"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canDelete('branches') && (
+                        <button
+                          onClick={() => openDeleteModal(branch)}
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                          title="Delete Branch"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -327,27 +336,33 @@ export const Branches: React.FC = () => {
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => handleToggleStatus(branch)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition"
-                        title={branch.isActive ? 'Deactivate Branch' : 'Activate Branch'}
-                      >
-                        <Power className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => openEditModal(branch)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
-                        title="Edit Branch"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => openDeleteModal(branch)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
-                        title="Delete Branch"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canEdit('branches') && (
+                        <button
+                          onClick={() => handleToggleStatus(branch)}
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition"
+                          title={branch.isActive ? 'Deactivate Branch' : 'Activate Branch'}
+                        >
+                          <Power className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canEdit('branches') && (
+                        <button
+                          onClick={() => openEditModal(branch)}
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
+                          title="Edit Branch"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canDelete('branches') && (
+                        <button
+                          onClick={() => openDeleteModal(branch)}
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                          title="Delete Branch"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -359,9 +374,9 @@ export const Branches: React.FC = () => {
 
       {/* Add Branch Modal */}
       {isWizardOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsWizardOpen(false)} />
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+        <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="wizard-title" onClick={() => setIsWizardOpen(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10" onClick={(e) => e.stopPropagation()}>
             <div className="w-screen max-w-md bg-white dark:bg-zinc-950 shadow-2xl flex flex-col justify-between border-l border-zinc-200 dark:border-zinc-800">
 
               <div className="p-6 border-b border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-between items-center">
@@ -391,20 +406,37 @@ export const Branches: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Assign Branch Admin *</label>
+                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Assign Branch Admin (Optional)</label>
                   <select
-                    required
                     value={newBranch.adminUserId}
                     onChange={(e) => setNewBranch({ ...newBranch, adminUserId: e.target.value })}
                     className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-zinc-900 dark:text-zinc-100"
                   >
-                    <option value="">Select an existing staff member (from Staff API)...</option>
+                    <option value="">-- No Admin Assigned (Optional) --</option>
                     {staff.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.username ? `${s.username} (${s.name})` : s.name} - {s.role}
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Default PT Income Share (%)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={newBranch.defaultPtTrainerPercentage}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      const num = Number(val);
+                      if (num >= 0 && num <= 100) {
+                        setNewBranch({ ...newBranch, defaultPtTrainerPercentage: num });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-zinc-900 dark:text-zinc-100"
+                    placeholder="e.g. 50"
+                  />
+                  <p className="text-[10px] text-zinc-500 mt-1">Default cut percentage for Personal Trainers in this branch.</p>
                 </div>
               </form>
 
@@ -433,10 +465,10 @@ export const Branches: React.FC = () => {
 
       {/* Edit Branch Modal */}
       {isEditModalOpen && branchToEdit && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="edit-branch-title">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsEditModalOpen(false)} />
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="edit-branch-title" onClick={() => setIsEditModalOpen(false)}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden" onClick={(e) => e.stopPropagation()}>
               
               <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-between items-center">
                 <div className="flex items-center gap-2">
@@ -487,6 +519,25 @@ export const Branches: React.FC = () => {
                     ))}
                   </select>
                 </div>
+                
+                <div>
+                  <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Default PT Income Share (%)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={editBranchData.defaultPtTrainerPercentage}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      const num = Number(val);
+                      if (num >= 0 && num <= 100) {
+                        setEditBranchData({ ...editBranchData, defaultPtTrainerPercentage: num });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-zinc-900 dark:text-zinc-100"
+                    placeholder="e.g. 50"
+                  />
+                  <p className="text-[10px] text-zinc-500 mt-1">Default cut percentage for Personal Trainers in this branch.</p>
+                </div>
 
                 <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
                   <button
@@ -513,10 +564,10 @@ export const Branches: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {isDeleteConfirmOpen && branchToDelete && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-branch-dialog">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsDeleteConfirmOpen(false)} />
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="delete-branch-dialog" onClick={() => setIsDeleteConfirmOpen(false)}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4">
+            <div className="relative w-full max-w-md bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
               
               <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
                 <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/60 flex items-center justify-center shrink-0">

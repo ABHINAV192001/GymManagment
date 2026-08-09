@@ -22,6 +22,9 @@ public class Organization extends com.Gym.GymCommonServices.common.BaseEntity {
 
     
 
+    @Column(name = "logo_url", columnDefinition = "TEXT")
+    private String logoUrl;
+
     @Column(name = "org_code", unique = true, nullable = false)
     private String orgCode;
 

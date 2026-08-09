@@ -21,8 +21,14 @@ public class Payment {
     @GeneratedValue
     private UUID id;
 
-    @Column(name = "member_id", nullable = false)
+    @Column(name = "user_id")
+    private UUID userId;
+
+    @Column(name = "member_id")
     private UUID memberId;
+
+    @Column(name = "staff_id")
+    private UUID staffId;
 
     @Column(nullable = false)
     private BigDecimal amount;
@@ -34,14 +40,28 @@ public class Payment {
     private UUID planId;
 
     @Column(nullable = false)
-    private String status; // "PAID", "VOIDED", "PENDING"
+    private String status; // "PAID", "COMPLETED", "VOIDED", "PENDING"
 
     @Column(name = "payment_method")
-    private String paymentMethod; // "CASH", "CARD", "UPI"
+    private String paymentMethod; // "CASH", "CARD", "UPI", "BANK_TRANSFER"
+
+    @Column(name = "payment_type")
+    private String paymentType; // "MEMBERSHIP", "PT_PACKAGE", "SALARY", "UTILITY", "EQUIPMENT"
+
+    @Column(name = "reference_no")
+    private String referenceNo;
+
+    @Column(name = "notes", columnDefinition = "TEXT")
+    private String notes;
 
     @Column(name = "org_id")
     private UUID organizationId;
 
     @Column(name = "branch_id")
     private UUID branchId;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

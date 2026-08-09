@@ -61,6 +61,7 @@ public class UserProfileDto {
     private Integer dailyCalorieTarget;
     private String activityLevel;
     private String goal;
+    private Boolean isOnboardingCompleted;
     private String medicalConditions;
     private Boolean injuryHistory;
     private String notes;

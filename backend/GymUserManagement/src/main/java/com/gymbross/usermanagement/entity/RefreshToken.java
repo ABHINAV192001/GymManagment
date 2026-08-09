@@ -32,4 +32,9 @@ public class RefreshToken {
     public boolean isExpired() {
         return expiryDate.isBefore(Instant.now());
     }
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

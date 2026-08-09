@@ -10,4 +10,6 @@ public class MessageResponse {
     private String receiverUsername;
     private String content;
     private LocalDateTime timestamp;
+    private boolean isRead;
+    private LocalDateTime readAt;
 }

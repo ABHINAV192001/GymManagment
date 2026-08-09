@@ -14,7 +14,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
-
 public class ChatController {
 
     private final ChatService chatService;
@@ -35,6 +34,8 @@ public class ChatController {
     @PreAuthorize("hasAuthority('CHAT:VIEW')")
     public ResponseEntity<ApiResponse<List<Message>>> getHistory(
             @RequestParam(required = false) String userId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
             org.springframework.security.core.Authentication authentication) {
         
         String targetUserId = userId;
@@ -47,10 +48,10 @@ public class ChatController {
         }
 
         if (targetUserId == null || targetUserId.isBlank()) {
-            return ResponseEntity.ok(ApiResponse.success(java.util.Collections.emptyList()));
+            return ResponseEntity.ok(ApiResponse.paginated(java.util.Collections.emptyList(), page, size));
         }
 
-        return ResponseEntity.ok(ApiResponse.success(chatService.getUserHistory(targetUserId)));
+        return ResponseEntity.ok(ApiResponse.paginated(chatService.getUserHistory(targetUserId), page, size));
     }
 
     @PostMapping("/mark-read")

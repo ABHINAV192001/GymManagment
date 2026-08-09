@@ -28,4 +28,9 @@ public class WaterLog {
     private Double amount; // In Liters
 
     private LocalDate date;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

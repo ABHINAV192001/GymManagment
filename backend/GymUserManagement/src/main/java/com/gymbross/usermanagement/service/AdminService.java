@@ -6,12 +6,26 @@ import java.util.List;
 public interface AdminService {
     List<AdminDashboardDtos.UserDetailDto> getAllUsers(java.util.UUID organizationId, java.util.UUID branchId);
 
+    List<AdminDashboardDtos.UserDetailDto> getAllUsers(
+            java.util.UUID organizationId,
+            java.util.UUID branchId,
+            String search,
+            String role,
+            String status,
+            Boolean isStaff,
+            java.util.UUID filterBranchId,
+            String startDateFrom,
+            String startDateTo
+    );
+
     List<AdminDashboardDtos.StaffTrackingDto> getAllStaff(java.util.UUID organizationId, java.util.UUID branchId, java.util.UUID currentUserId);
 
     // User CRUD
     void createUser(AdminDashboardDtos.UserDetailDto userDto, java.util.UUID organizationId, java.util.UUID branchId);
 
     AdminDashboardDtos.UserDetailDto getUserById(java.util.UUID userId);
+
+    AdminDashboardDtos.UserDetailDto getUserByCode(String userCode);
 
     void updateUser(java.util.UUID userId, AdminDashboardDtos.UserDetailDto userDto);
 
@@ -27,7 +41,7 @@ public interface AdminService {
     void removeTrainer(java.util.UUID trainerId);
 
     // User CRUD
-    void createStaff(AdminDashboardDtos.StaffDetailDto staffDto, java.util.UUID organizationId, java.util.UUID branchId);
+    AdminDashboardDtos.StaffDetailDto createStaff(AdminDashboardDtos.StaffDetailDto staffDto, java.util.UUID organizationId, java.util.UUID branchId);
 
     AdminDashboardDtos.StaffDetailDto getStaffById(java.util.UUID staffId);
 
@@ -48,4 +62,6 @@ public interface AdminService {
     List<AdminDashboardDtos.BranchDto> getBranches(java.util.UUID organizationId, java.util.UUID branchId, com.Gym.GymCommonServices.entity.User currentUser);
 
     void resendAdminVerification(java.util.UUID branchId);
+
+    String resendUserInvite(java.util.UUID userId);
 }

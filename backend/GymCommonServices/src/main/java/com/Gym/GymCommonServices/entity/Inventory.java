@@ -18,8 +18,6 @@ import java.time.LocalDateTime;
 @Table(name = "inventory")
 public class Inventory extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    
-
     @Column(nullable = false)
     private String name;
 
@@ -27,10 +25,13 @@ public class Inventory extends com.Gym.GymCommonServices.common.BaseEntity {
 
     @Column(nullable = false)
     private Integer quantity;
+    
+    @Column(precision = 10, scale = 2)
+    private java.math.BigDecimal price;
 
-    private String category; // Added
+    private String category;
 
-    private String condition; // e.g., "New", "Good", "Needs Repair"
+    private String condition;
 
     private LocalDateTime purchaseDate;
 

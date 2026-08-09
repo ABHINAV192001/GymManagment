@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Accessibility, Eye, Type, Keyboard } from 'lucide-react';
 import { AccessibilitySettings } from '../types';
 
@@ -29,6 +29,21 @@ export const KeyboardShortcutsList: React.FC = () => {
 
 export const A11yControls: React.FC<A11yProps> = ({ settings, onChange, announcements }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   // Apply typography, high-contrast, and dark mode classes directly to doc element
   useEffect(() => {
@@ -68,7 +83,7 @@ export const A11yControls: React.FC<A11yProps> = ({ settings, onChange, announce
   }, [settings]);
 
   return (
-    <div className="relative" id="a11y-control-panel">
+    <div className="relative" id="a11y-control-panel" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition focus:outline-none focus:ring-2 focus:ring-blue-500"

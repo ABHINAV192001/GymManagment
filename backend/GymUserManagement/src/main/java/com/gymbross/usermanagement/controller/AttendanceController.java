@@ -1,168 +1,135 @@
 package com.gymbross.usermanagement.controller;
 
+import com.Gym.GymCommonServices.common.PageResponse;
 import com.Gym.GymCommonServices.dto.ApiResponse;
-import com.gymbross.usermanagement.entity.AttendanceLog;
-import com.gymbross.usermanagement.repository.AttendanceLogRepository;
+import com.gymbross.usermanagement.dto.AttendanceDtos;
+import com.gymbross.usermanagement.service.AttendanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/attendance")
 @RequiredArgsConstructor
 public class AttendanceController {
 
-    private final AttendanceLogRepository attendanceLogRepository;
+    private final AttendanceService attendanceService;
 
     @PostMapping("/checkin")
-    @PreAuthorize("hasAuthority('ATTENDANCE:CREATE')")
-    public ResponseEntity<ApiResponse<AttendanceLog>> checkIn(@RequestBody AttendanceLog request) {
-        request.setCheckInTime(LocalDateTime.now());
-        request.setStatus("ACTIVE");
-        
-        // Safety check to prevent double check-ins
-        Optional<AttendanceLog> activeLog = attendanceLogRepository
-                .findFirstByEntityIdAndStatusOrderByCheckInTimeDesc(request.getEntityId(), "ACTIVE");
-        if (activeLog.isPresent()) {
-            throw new IllegalArgumentException("Entity is already checked in");
-        }
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<AttendanceDtos.AttendanceLogResponseDto>> checkIn(
+            @RequestBody AttendanceDtos.CheckInRequestDto request,
+            @RequestAttribute(value = "organizationId", required = false) UUID orgId) {
+        AttendanceDtos.AttendanceLogResponseDto response = attendanceService.checkIn(request, orgId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Check-in successful"));
+    }
 
-        return ResponseEntity.ok(ApiResponse.success(attendanceLogRepository.save(request), "Check-in successful"));
+    @PostMapping("/qr-scan")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<AttendanceDtos.QRScanResponseDto>> qrScan(
+            @RequestBody AttendanceDtos.QRScanRequestDto request,
+            @RequestAttribute(value = "organizationId", required = false) UUID orgId) {
+        AttendanceDtos.QRScanResponseDto response = attendanceService.qrScan(request, orgId);
+        return ResponseEntity.ok(ApiResponse.success(response, "QR Attendance successfully marked"));
     }
 
     @PostMapping("/checkout")
-    @PreAuthorize("hasAuthority('ATTENDANCE:EDIT')")
-    public ResponseEntity<ApiResponse<AttendanceLog>> checkOut(@RequestParam UUID entityId) {
-        AttendanceLog activeLog = attendanceLogRepository
-                .findFirstByEntityIdAndStatusOrderByCheckInTimeDesc(entityId, "ACTIVE")
-                .orElseThrow(() -> new IllegalArgumentException("No active check-in found for this entity"));
-
-        activeLog.setCheckOutTime(LocalDateTime.now());
-        activeLog.setStatus("COMPLETED");
-        return ResponseEntity.ok(ApiResponse.success(attendanceLogRepository.save(activeLog), "Check-out successful"));
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<AttendanceDtos.AttendanceLogResponseDto>> checkOut(@RequestParam UUID entityId) {
+        AttendanceDtos.AttendanceLogResponseDto response = attendanceService.checkOut(entityId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Check-out successful"));
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ATTENDANCE:VIEW')")
-    public ResponseEntity<ApiResponse<List<AttendanceLog>>> getAttendanceLogs(
+    @PreAuthorize("hasAuthority('ATTENDANCE:VIEW') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ORG_ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<AttendanceDtos.AttendanceLogResponseDto>>> getAttendanceLogs(
             @RequestAttribute("organizationId") UUID orgId,
-            @RequestAttribute(required = false) UUID branchId) {
-        if (branchId != null) {
-            return ResponseEntity.ok(ApiResponse.success(attendanceLogRepository.findByBranchId(branchId)));
-        }
-        return ResponseEntity.ok(ApiResponse.success(attendanceLogRepository.findByOrganizationId(orgId)));
+            @RequestAttribute(required = false) UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        PageResponse<AttendanceDtos.AttendanceLogResponseDto> logs = attendanceService.getAttendanceLogs(orgId, branchId, page, size);
+        return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
     @GetMapping("/today")
-    @PreAuthorize("hasAuthority('ATTENDANCE:VIEW')")
-    public ResponseEntity<ApiResponse<List<AttendanceLog>>> getTodayCheckins(
+    @PreAuthorize("hasAuthority('ATTENDANCE:VIEW') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ORG_ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<AttendanceDtos.AttendanceLogResponseDto>>> getTodayCheckins(
             @RequestAttribute("organizationId") UUID orgId,
-            @RequestAttribute(required = false) UUID branchId) {
-        LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
-        LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
-        List<AttendanceLog> logs;
-        if (branchId != null) {
-            logs = attendanceLogRepository.findByCheckInTimeBetweenAndBranchId(startOfDay, endOfDay, branchId);
-        } else {
-            logs = attendanceLogRepository.findByCheckInTimeBetweenAndOrganizationId(startOfDay, endOfDay, orgId);
-        }
+            @RequestAttribute(required = false) UUID branchId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        PageResponse<AttendanceDtos.AttendanceLogResponseDto> logs = attendanceService.getTodayCheckins(orgId, branchId, page, size);
+        return ResponseEntity.ok(ApiResponse.success(logs));
+    }
+
+    @GetMapping("/branch-qr/{branchId}")
+    @PreAuthorize("hasAuthority('ATTENDANCE:VIEW') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ORG_ADMIN')")
+    public ResponseEntity<ApiResponse<String>> generateBranchQr(@PathVariable UUID branchId) {
+        String qrData = attendanceService.generateBranchQr(branchId);
+        return ResponseEntity.ok(ApiResponse.success(qrData, "QR generated successfully"));
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasAuthority('ATTENDANCE:VIEW') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ORG_ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<AttendanceDtos.AttendanceLogResponseDto>>> searchAttendance(
+            @RequestAttribute("organizationId") UUID orgId,
+            @RequestParam(required = false) UUID branchId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endDate,
+            @RequestParam(required = false) String search,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        PageResponse<AttendanceDtos.AttendanceLogResponseDto> logs = attendanceService.searchAttendance(orgId, branchId, startDate, endDate, search, page, size);
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
     @GetMapping("/user/{userId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<AttendanceLog>>> getUserAttendance(@PathVariable UUID userId) {
-        return ResponseEntity.ok(ApiResponse.success(attendanceLogRepository.findByEntityId(userId)));
+    public ResponseEntity<ApiResponse<PageResponse<AttendanceDtos.AttendanceLogResponseDto>>> getUserAttendance(
+            @PathVariable UUID userId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        PageResponse<AttendanceDtos.AttendanceLogResponseDto> logs = attendanceService.getUserAttendance(userId, page, size);
+        return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
     @GetMapping("/staff/{staffId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<AttendanceLog>>> getStaffAttendance(@PathVariable UUID staffId) {
-        return ResponseEntity.ok(ApiResponse.success(attendanceLogRepository.findByEntityId(staffId)));
+    public ResponseEntity<ApiResponse<PageResponse<AttendanceDtos.AttendanceLogResponseDto>>> getStaffAttendance(
+            @PathVariable UUID staffId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        PageResponse<AttendanceDtos.AttendanceLogResponseDto> logs = attendanceService.getStaffAttendance(staffId, page, size);
+        return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
     @GetMapping("/report")
-    @PreAuthorize("hasAuthority('ATTENDANCE:VIEW')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getAttendanceReport(
+    @PreAuthorize("hasAuthority('ATTENDANCE:VIEW') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ORG_ADMIN')")
+    public ResponseEntity<ApiResponse<AttendanceDtos.AttendanceReportDto>> getAttendanceReport(
             @RequestAttribute("organizationId") UUID orgId,
             @RequestAttribute(required = false) UUID branchId) {
-        LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
-        LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
-        List<AttendanceLog> todayLogs;
-        if (branchId != null) {
-            todayLogs = attendanceLogRepository.findByCheckInTimeBetweenAndBranchId(startOfDay, endOfDay, branchId);
-        } else {
-            todayLogs = attendanceLogRepository.findByCheckInTimeBetweenAndOrganizationId(startOfDay, endOfDay, orgId);
-        }
-
-        long totalCheckinsToday = todayLogs.size();
-        long activeCheckinsToday = todayLogs.stream()
-                .filter(l -> "ACTIVE".equalsIgnoreCase(l.getStatus()))
-                .count();
-
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalCheckinsToday", totalCheckinsToday);
-        stats.put("activeCheckinsToday", activeCheckinsToday);
-        stats.put("completedCheckinsToday", totalCheckinsToday - activeCheckinsToday);
-        stats.put("date", LocalDate.now());
-
-        return ResponseEntity.ok(ApiResponse.success(stats));
+        AttendanceDtos.AttendanceReportDto report = attendanceService.getAttendanceReport(orgId, branchId);
+        return ResponseEntity.ok(ApiResponse.success(report));
     }
 
     @PostMapping("/bulk-checkout")
-    @PreAuthorize("hasAuthority('ATTENDANCE:EDIT')")
-    public ResponseEntity<ApiResponse<Void>> bulkCheckout(
+    @PreAuthorize("hasAuthority('ATTENDANCE:EDIT') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ORG_ADMIN')")
+    public ResponseEntity<ApiResponse<String>> bulkCheckout(
             @RequestAttribute("organizationId") UUID orgId,
             @RequestAttribute(required = false) UUID branchId) {
-        List<AttendanceLog> activeLogs;
-        if (branchId != null) {
-            activeLogs = attendanceLogRepository.findByBranchId(branchId);
-        } else {
-            activeLogs = attendanceLogRepository.findByOrganizationId(orgId);
-        }
-        activeLogs = activeLogs.stream()
-                .filter(l -> "ACTIVE".equalsIgnoreCase(l.getStatus()))
-                .collect(Collectors.toList());
-
-        LocalDateTime now = LocalDateTime.now();
-        for (AttendanceLog log : activeLogs) {
-            log.setCheckOutTime(now);
-            log.setStatus("COMPLETED");
-        }
-        attendanceLogRepository.saveAll(activeLogs);
-
-        return ResponseEntity.ok(ApiResponse.success(null, "Bulk check-out completed successfully for " + activeLogs.size() + " logs"));
+        attendanceService.bulkCheckout(orgId, branchId);
+        return ResponseEntity.ok(ApiResponse.success("Bulk check-out completed successfully"));
     }
 
     @GetMapping("/export")
-    @PreAuthorize("hasAuthority('ATTENDANCE:EXPORT')")
+    @PreAuthorize("hasAuthority('ATTENDANCE:EXPORT') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ORG_ADMIN')")
     public ResponseEntity<ApiResponse<String>> exportAttendance(
             @RequestAttribute("organizationId") UUID orgId,
             @RequestAttribute(required = false) UUID branchId) {
-        StringBuilder csv = new StringBuilder("Log_ID,Entity_Type,Entity_ID,Branch_ID,Check_In,Check_Out,Status,Method\n");
-        List<AttendanceLog> logs;
-        if (branchId != null) {
-            logs = attendanceLogRepository.findByBranchId(branchId);
-        } else {
-            logs = attendanceLogRepository.findByOrganizationId(orgId);
-        }
-        for (AttendanceLog log : logs) {
-            csv.append(log.getId()).append(",")
-               .append(log.getEntityType()).append(",")
-               .append(log.getEntityId()).append(",")
-               .append(log.getBranchId()).append(",")
-               .append(log.getCheckInTime()).append(",")
-               .append(log.getCheckOutTime() != null ? log.getCheckOutTime() : "N/A").append(",")
-               .append(log.getStatus()).append(",")
-               .append(log.getMethod()).append("\n");
-        }
-        return ResponseEntity.ok(ApiResponse.success(csv.toString()));
+        String csvData = attendanceService.exportAttendanceCsv(orgId, branchId);
+        return ResponseEntity.ok(ApiResponse.success(csvData));
     }
 }

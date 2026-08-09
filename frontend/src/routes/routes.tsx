@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { JoinPage } from '../pages/auth/JoinPage';
 import { Layout } from '../components/layout/Layout';
+import { getRedirectPathForUser } from '../lib/navigation';
 
 // Components
 import { Dashboard } from '../pages/dashboard/Dashboard';
 import { Members } from '../pages/members/Members';
+import { MemberDashboard } from '../pages/member-portal/MemberDashboard';
 import { StaffManagement } from '../pages/staff/Staff';
 import { Attendance } from '../pages/attendance/Attendance';
 import { Branches } from '../pages/branches/Branches';
@@ -19,6 +21,9 @@ import { Chat } from '../pages/chat/Chat';
 import { Notifications } from '../pages/notifications/Notifications';
 import { Settings } from '../pages/settings/Settings';
 import { RBAC } from '../pages/rbac/RBAC';
+import { CRM } from '../pages/crm/CRM';
+import { Roster } from '../pages/roster/Roster';
+import { POS } from '../pages/pos/POS';
 
 // Dummy functions to satisfy props while maintaining UI
 const dummyTrigger = (msg: string) => console.log('Announcement:', msg);
@@ -41,10 +46,23 @@ const Placeholder = ({ title }: { title: string }) => (
   </div>
 );
 
-// Wrapping LoginPage to handle navigation on successful login
 const LoginRoute = () => {
   const navigate = useNavigate();
-  return <LoginPage onLogin={() => navigate('/dashboard')} />;
+
+  useEffect(() => {
+    // If user has active token, auto redirect to primary page
+    const tokenMatch = document.cookie.match(/(?:(?:^|.*;\s*)gymos_token\s*=\s*([^;]*).*$)|^.*$/);
+    if (tokenMatch && tokenMatch[1]) {
+      getRedirectPathForUser().then((path) => navigate(path, { replace: true }));
+    }
+  }, [navigate]);
+
+  const handleLogin = async () => {
+    const targetPath = await getRedirectPathForUser();
+    navigate(targetPath, { replace: true });
+  };
+
+  return <LoginPage onLogin={handleLogin} />;
 };
 
 export function AppRoutes() {
@@ -71,7 +89,7 @@ export function AppRoutes() {
           
           {/* Members */}
           <Route path="/members" element={<Members />} />
-          <Route path="/member-portal" element={<Placeholder title="Member Portal" />} />
+          <Route path="/member-portal" element={<MemberDashboard />} />
           
           {/* Staff & HR */}
           <Route path="/staff" element={<StaffManagement />} />
@@ -97,6 +115,11 @@ export function AppRoutes() {
           {/* Settings & Admin */}
           <Route path="/settings" element={<Settings />} />
           <Route path="/rbac" element={<RBAC />} />
+          
+          {/* Enterprise Modules */}
+          <Route path="/crm" element={<CRM />} />
+          <Route path="/roster" element={<Roster />} />
+          <Route path="/pos" element={<POS />} />
           
         </Route>
         

@@ -6,6 +6,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -75,6 +77,7 @@ public class User extends com.Gym.GymCommonServices.common.AuthenticatablePrinci
     @Column(name = "created_by")
     private java.util.UUID createdBy;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "accessible_branch_ids", columnDefinition = "jsonb")
     private String accessibleBranchIds;
 
@@ -134,52 +137,64 @@ public class User extends com.Gym.GymCommonServices.common.AuthenticatablePrinci
     // DEPRECATED BRIDGE METHODS FOR BACKWARD COMPATIBILITY
     // =========================================================================
 
-    @Deprecated
+    private MemberProfile ensureMemberProfile() {
+        if (memberProfile == null) {
+            memberProfile = MemberProfile.builder().user(this).build();
+        }
+        return memberProfile;
+    }
+
+    private StaffProfile ensureStaffProfile() {
+        if (staffProfile == null) {
+            staffProfile = StaffProfile.builder().user(this).build();
+        }
+        return staffProfile;
+    }
+
     public Plan getPlan() {
         return memberProfile != null ? memberProfile.getPlan() : null;
     }
 
-    @Deprecated
     public void setPlan(Plan plan) {
-        if (memberProfile != null) memberProfile.setPlan(plan);
+        ensureMemberProfile().setPlan(plan);
     }
 
-    @Deprecated
     public java.math.BigDecimal getAmountPaid() {
         return java.math.BigDecimal.ZERO;
     }
 
-    @Deprecated
     public void setAmountPaid(java.math.BigDecimal amount) {
     }
 
-    @Deprecated
     public java.time.LocalDate getStartDate() {
-        return null;
+        return memberProfile != null ? memberProfile.getMembershipStartDate() : null;
     }
 
-    @Deprecated
     public void setStartDate(java.time.LocalDate date) {
+        ensureMemberProfile().setMembershipStartDate(date);
     }
 
-    @Deprecated
+    public java.time.LocalDate getEndDate() {
+        return memberProfile != null ? memberProfile.getMembershipEndDate() : null;
+    }
+
+    public void setEndDate(java.time.LocalDate date) {
+        ensureMemberProfile().setMembershipEndDate(date);
+    }
+
     public Integer getAttendanceCount() {
-        return 0; // Deprecated, to be moved to memberProfile or a separate attendance service
+        return 0;
     }
 
-    @Deprecated
     public void setAttendanceCount(Integer count) {
-        // No-op for now
     }
 
-    @Deprecated
     public User getTrainer() {
         return memberProfile != null ? memberProfile.getTrainer() : null;
     }
 
-    @Deprecated
     public void setTrainer(User trainer) {
-        if (memberProfile != null) memberProfile.setTrainer(trainer);
+        ensureMemberProfile().setTrainer(trainer);
     }
 
     @Deprecated
@@ -237,7 +252,15 @@ public class User extends com.Gym.GymCommonServices.common.AuthenticatablePrinci
 
     @Deprecated
     public void setSalary(java.math.BigDecimal salary) {
-        if (staffProfile != null) staffProfile.setSalary(salary);
+        ensureStaffProfile().setSalary(salary);
+    }
+
+    public java.math.BigDecimal getPtTrainerPercentage() {
+        return staffProfile != null ? staffProfile.getPtTrainerPercentage() : null;
+    }
+
+    public void setPtTrainerPercentage(java.math.BigDecimal ptTrainerPercentage) {
+        ensureStaffProfile().setPtTrainerPercentage(ptTrainerPercentage);
     }
 
     @Deprecated
@@ -334,7 +357,10 @@ public class User extends com.Gym.GymCommonServices.common.AuthenticatablePrinci
         if (memberProfile != null) memberProfile.setFitnessGoal(goal);
     }
 
-    @Deprecated
+    public Boolean getIsOnboardingCompleted() {
+        return memberProfile != null && memberProfile.getHeightCm() != null && memberProfile.getWeightKg() != null;
+    }
+
     public void setIsOnboardingCompleted(boolean completed) {
     }
 

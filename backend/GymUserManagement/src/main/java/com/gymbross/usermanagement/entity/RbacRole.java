@@ -34,4 +34,9 @@ public class RbacRole {
 
     @Column(name = "created_by")
     private UUID createdBy;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

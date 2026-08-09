@@ -20,7 +20,27 @@ public class Exercise extends com.Gym.GymCommonServices.common.BaseEntity {
 
     private String videoUrl;
 
-    private String muscleGroup; // e.g., "Chest", "Back", "Legs"
+    private String muscleGroup; // e.g., "CHEST", "BACK", "SHOULDERS", "BICEPS", "TRICEPS", "FOREARMS", "ABS", "QUADS", "HAMSTRINGS", "GLUTES", "CALVES"
+
+    private String secondaryMuscles;
+
+    private String equipment; // e.g., "Barbell", "Dumbbell", "Cable", "Machine", "Bodyweight"
+
+    private String mechanics; // e.g., "COMPOUND", "ISOLATION"
+
+    private String difficultyLevel; // e.g., "BEGINNER", "INTERMEDIATE", "PRO"
+
+    private Integer recommendedSets;
+
+    private String recommendedReps;
+
+    private String restInterval;
+
+    @Column(columnDefinition = "TEXT")
+    private String executionSteps;
+
+    @Column(columnDefinition = "TEXT")
+    private String safetyTips;
 
     // Step-by-step instructions
     private String stepOneImage;

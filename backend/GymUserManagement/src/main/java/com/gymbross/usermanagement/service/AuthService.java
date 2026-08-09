@@ -50,6 +50,7 @@ public class AuthService {
     private final RbacService rbacService;
     private final TokenRevocationService tokenRevocationService;
     private final jakarta.persistence.EntityManager entityManager;
+    private final AuditLogService auditLogService;
 
     @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
@@ -148,6 +149,11 @@ public class AuthService {
 
             recordLoginOutcome(userDetails, true);
 
+            if (userDetails instanceof User user) {
+                auditLogService.logAction(user.getId(), user.getOrganization() != null ? user.getOrganization().getId() : null, 
+                        "USER_LOGIN", "User logged in successfully");
+            }
+
             Map<String, Object> claims = generateClaims(userDetails);
             String accessToken = jwtUtil.generateToken(claims, userDetails);
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getUsername());
@@ -221,6 +227,7 @@ public class AuthService {
 
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
+        validatePasswordStrength(request.getNewPassword());
         otpService.verifyOtp(request.getEmail(), request.getOtp(), "FORGOT_PASSWORD");
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("No account found with this email"));
@@ -333,12 +340,36 @@ public class AuthService {
 
     @Transactional
     public String completeRegistration(CompleteRegistrationRequest request) {
+        validatePasswordStrength(request.getPassword());
         String encodedPassword = passwordEncoder.encode(request.getPassword());
         User user = userRepository.findByUserCode(request.getUserCode()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         otpService.verifyOtp(user.getEmail(), request.getOtp(), "REGISTER");
-        user.setPasswordHash(encodedPassword); user.setIsActive(true);
+        user.setPasswordHash(encodedPassword);
+        user.setIsActive(true);
+        user.setIsEmailVerified(true);
         userRepository.save(user);
         return "Registration completed successfully";
+    }
+
+    public static void validatePasswordStrength(String password) {
+        if (password == null || password.length() < 8) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long.");
+        }
+        boolean hasUpper = false;
+        boolean hasLower = false;
+        boolean hasDigit = false;
+        boolean hasSpecial = false;
+
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) hasUpper = true;
+            else if (Character.isLowerCase(c)) hasLower = true;
+            else if (Character.isDigit(c)) hasDigit = true;
+            else if (!Character.isWhitespace(c)) hasSpecial = true;
+        }
+
+        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long and contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.");
+        }
     }
 
     @Transactional

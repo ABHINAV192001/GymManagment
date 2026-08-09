@@ -7,13 +7,17 @@ import org.springframework.stereotype.Service;
 public class CalorieCalculatorService {
 
     public int calculateTargetCalories(User user) {
+        if (user == null || user.getHeight() == null || user.getWeight() == null || user.getHeight() <= 0 || user.getWeight() <= 0) {
+            return 0;
+        }
+
         Integer age = user.getAge();
         if (age == null && user.getDob() != null) {
             age = java.time.Period.between(user.getDob(), java.time.LocalDate.now()).getYears();
         }
 
-        double weight = user.getWeight() != null ? user.getWeight() : 70.0;
-        double height = user.getHeight() != null ? user.getHeight() : 170.0;
+        double weight = user.getWeight();
+        double height = user.getHeight();
         int userAge = age != null ? age : 25;
         String gender = user.getGender() != null ? user.getGender() : "Male";
 
@@ -48,6 +52,6 @@ public class CalorieCalculatorService {
         } else if (goal.contains("gain") || goal.contains("bulk")) {
             targetCalories += 500;
         }
-        return targetCalories;
+        return Math.max(0, targetCalories);
     }
 }
