@@ -112,36 +112,54 @@ public class WorkoutService {
     }
 
     private WorkoutDto mapToDto(Workout workout) {
-        List<WorkoutExerciseDto> exerciseDtos = workout.getWorkoutExercises().stream()
+        List<WorkoutExerciseDto> exerciseDtos = workout.getWorkoutExercises() != null ?
+                workout.getWorkoutExercises().stream()
                 .map(we -> WorkoutExerciseDto.builder()
                         .id(we.getId())
-                        .exerciseId(we.getExercise().getId())
-                        .name(we.getExercise().getName())
-                        .muscleGroup(we.getExercise().getMuscleGroup())
-                        .mechanics(we.getExercise().getMechanics() != null ? we.getExercise().getMechanics() : "COMPOUND")
-                        .description(we.getExercise().getDescription())
-                        .videoUrl(we.getExercise().getVideoUrl())
+                        .exerciseId(we.getExercise() != null ? we.getExercise().getId() : null)
+                        .name(we.getExercise() != null ? we.getExercise().getName() : "Exercise")
+                        .muscleGroup(we.getExercise() != null ? we.getExercise().getMuscleGroup() : "TARGET")
+                        .mechanics(we.getExercise() != null && we.getExercise().getMechanics() != null ? we.getExercise().getMechanics() : "COMPOUND")
+                        .description(we.getExercise() != null ? we.getExercise().getDescription() : "")
+                        .videoUrl(we.getExercise() != null ? we.getExercise().getVideoUrl() : null)
                         .sets(we.getSets())
                         .reps(we.getReps())
                         .time(we.getTime())
-                        .stepOneImage(we.getExercise().getStepOneImage())
-                        .stepOneDescription(we.getExercise().getStepOneDescription())
-                        .stepTwoImage(we.getExercise().getStepTwoImage())
-                        .stepTwoDescription(we.getExercise().getStepTwoDescription())
+                        .stepOneImage(we.getExercise() != null ? we.getExercise().getStepOneImage() : null)
+                        .stepOneDescription(we.getExercise() != null ? we.getExercise().getStepOneDescription() : null)
+                        .stepTwoImage(we.getExercise() != null ? we.getExercise().getStepTwoImage() : null)
+                        .stepTwoDescription(we.getExercise() != null ? we.getExercise().getStepTwoDescription() : null)
                         .build())
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()) : java.util.Collections.emptyList();
+
+        List<com.Gym.GymCommonServices.dto.WorkoutSplitDayDto> splitDayDtos = workout.getSplitDays() != null ?
+                workout.getSplitDays().stream()
+                        .map(sd -> com.Gym.GymCommonServices.dto.WorkoutSplitDayDto.builder()
+                                .day(sd.getDayLabel())
+                                .name(sd.getName())
+                                .title(sd.getName())
+                                .description(sd.getDescription())
+                                .muscles(sd.getDescription())
+                                .build())
+                        .collect(Collectors.toList()) : java.util.Collections.emptyList();
 
         return WorkoutDto.builder()
                 .id(workout.getId())
                 .title(workout.getTitle())
+                .name(workout.getTitle())
                 .description(workout.getDescription())
                 .category(workout.getCategory())
+                .badge(workout.getCategory())
+                .difficulty(workout.getDifficulty() != null ? workout.getDifficulty() : "BEGINNER")
+                .level(workout.getDifficulty() != null ? workout.getDifficulty() : "BEGINNER")
+                .daysPerWeek(workout.getDaysPerWeek() != null ? workout.getDaysPerWeek() : 3)
                 .image(workout.getImageUrl())
                 .calories(workout.getCalories())
                 .duration(workout.getDuration())
                 .totalExercises(exerciseDtos.size())
-                .selectedExercises(exerciseDtos.size()) // Default for now
+                .selectedExercises(exerciseDtos.size())
                 .mandatoryExercises(workout.getMandatoryExercises())
+                .splitDays(splitDayDtos)
                 .exercises(exerciseDtos)
                 .build();
     }

@@ -18,7 +18,7 @@ public class WorkoutExerciseDto {
     private String description; // Exercise description
     private String videoUrl;
     private Integer sets;
-    private Integer reps;
+    private String reps;
     private Integer time;
 
     // Step-by-step instructions

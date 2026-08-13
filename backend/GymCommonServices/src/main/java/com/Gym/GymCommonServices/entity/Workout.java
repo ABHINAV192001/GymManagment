@@ -32,7 +32,14 @@ public class Workout extends com.Gym.GymCommonServices.common.BaseEntity {
 
     private String imageUrl;
     private Integer mandatoryExercises;
+    
+    @Column(name = "days_per_week")
+    private Integer daysPerWeek;
 
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WorkoutExercise> workoutExercises;
+
+    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC")
+    private List<WorkoutSplitDay> splitDays;
 }

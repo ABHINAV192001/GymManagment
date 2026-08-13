@@ -256,6 +256,7 @@ public class AdminServiceImpl implements AdminService {
                                 .name(userDto.getName())
                                 .email(userDto.getEmail())
                                 .phone(userDto.getPhone())
+                                .gender(userDto.getGender())
                                 .dob(userDto.getDob())
                                 .organization(org)
                                 .branch(branch)
@@ -459,6 +460,7 @@ public class AdminServiceImpl implements AdminService {
                 user.setName(userDto.getName());
                 user.setEmail(userDto.getEmail());
                 user.setPhone(userDto.getPhone());
+                user.setGender(userDto.getGender());
                 user.setDob(userDto.getDob());
                 user.setAmountPaid(userDto.getAmountPaid());
                 user.setStartDate(userDto.getStartDate());
@@ -1141,6 +1143,7 @@ public class AdminServiceImpl implements AdminService {
                                 .name(user.getName())
                                 .email(user.getEmail())
                                 .phone(user.getPhone())
+                                .gender(user.getGender())
                                 .dob(user.getDob())
                                 .plan(planName)
                                 .amountPaid(user.getAmountPaid())
@@ -1207,6 +1210,7 @@ public class AdminServiceImpl implements AdminService {
                                 .lastName(lastName)
                                 .email(user.getEmail())
                                 .phone(user.getPhone())
+                                .gender(user.getGender())
                                 .dob(user.getDob())
                                 .plan(planName)
                                 .amountPaid(user.getAmountPaid())

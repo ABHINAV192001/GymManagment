@@ -21,7 +21,7 @@ CREATE TABLE workout_exercises (
     workout_id UUID REFERENCES workouts(id) ON DELETE CASCADE,
     exercise_id UUID REFERENCES exercises(id) ON DELETE CASCADE,
     sets INTEGER,
-    reps INTEGER,
+    reps VARCHAR(255),
     time INTEGER
 );
 

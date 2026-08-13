@@ -23,7 +23,7 @@ public class WorkoutExercise extends com.Gym.GymCommonServices.common.BaseEntity
 
     private Integer sets;
 
-    private Integer reps;
+    private String reps;
 
     private Integer time; // in seconds
 }

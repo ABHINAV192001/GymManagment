@@ -76,8 +76,6 @@ public class AuthDtos {
 
         private String gst;
 
-        private Integer numberOfOwners;
-
         @NotBlank(message = "Owner name is required")
         private String ownerName;
 

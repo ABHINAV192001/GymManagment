@@ -364,37 +364,30 @@ export const Layout = () => {
               )}
             </div>
 
-            {/* Scope Badge & User Info */}
+            {/* Scope Badge & User Info — Ultra-compact & Space Efficient */}
             {isSidebarOpen && (
-              <div className="p-3 bg-slate-100 dark:bg-zinc-900/90 border-b border-slate-200 dark:border-zinc-800 text-[10px] text-slate-500 dark:text-zinc-400 font-mono tracking-wider">
-                <div className="flex justify-between items-center mb-2">
-                  <span>SCOPE:</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded uppercase">
-                    {userRole.replace(/_/g, ' ')}
-                  </span>
-                </div>
-                {userProfile && (
-                  <div className="mt-2 p-2 bg-white dark:bg-zinc-950 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm flex flex-col gap-1.5">
-                    {userProfile.name && (
-                      <div className="flex flex-col">
-                        <span className="text-[8px] text-slate-400 dark:text-zinc-500 font-semibold uppercase leading-tight">Name</span>
-                        <span className="text-slate-800 dark:text-zinc-200 font-bold truncate leading-snug">{userProfile.name}</span>
-                      </div>
-                    )}
-                    {userProfile.email && (
-                      <div className="flex flex-col">
-                        <span className="text-[8px] text-slate-400 dark:text-zinc-500 font-semibold uppercase leading-tight">Email</span>
-                        <span className="text-slate-800 dark:text-zinc-200 truncate leading-snug">{userProfile.email}</span>
-                      </div>
-                    )}
-                    {userProfile.phone && (
-                      <div className="flex flex-col">
-                        <span className="text-[8px] text-slate-400 dark:text-zinc-500 font-semibold uppercase leading-tight">Phone</span>
-                        <span className="text-slate-800 dark:text-zinc-200 leading-snug">{userProfile.phone}</span>
-                      </div>
+              <div className="px-3 py-2 bg-slate-50/80 dark:bg-zinc-900/60 border-b border-slate-200/80 dark:border-zinc-800/80 flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  {/* User Avatar Circle */}
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs">
+                    {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  {/* Compact Name & Email */}
+                  <div className="min-w-0 flex flex-col leading-tight">
+                    <span className="text-[11px] font-semibold text-slate-800 dark:text-zinc-200 truncate" title={userProfile?.name}>
+                      {userProfile?.name || 'User'}
+                    </span>
+                    {userProfile?.email && (
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 truncate" title={userProfile.email}>
+                        {userProfile.email}
+                      </span>
                     )}
                   </div>
-                )}
+                </div>
+                {/* Compact Role Badge */}
+                <span className="shrink-0 text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-100/70 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/50 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                  {userRole.replace(/_/g, ' ')}
+                </span>
               </div>
             )}
 

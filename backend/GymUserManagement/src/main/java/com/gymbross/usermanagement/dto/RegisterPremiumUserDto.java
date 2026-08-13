@@ -19,5 +19,6 @@ public class RegisterPremiumUserDto {
     private java.util.UUID branchId;
     private java.util.UUID trainerId;
     private LocalDate startDate;
+    private String gender;
     private String plan;
 }

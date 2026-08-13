@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
 import {
   Dumbbell,
@@ -24,11 +24,13 @@ import {
   Target,
   CheckCircle2,
   Sliders,
+  Play,
 } from 'lucide-react';
 import { Exercise, FoodItem } from '../../types';
 import { usePermissions } from '../../lib/usePermissions';
 import { HumanBodyMap, MuscleGroupKey } from '../../components/workouts/HumanBodyMap';
 import { ExerciseDetailModal } from '../../components/workouts/ExerciseDetailModal';
+import { WorkoutTimerModal } from '../../components/workouts/WorkoutTimerModal';
 import QrScannerTab from '../../components/workouts/QrScannerTab';
 import { getExercises, getWorkouts } from '../../lib/api/workouts';
 import { getFoods } from '../../lib/api/food';
@@ -107,8 +109,58 @@ export const WorkoutsAndDiets: React.FC = () => {
   const [loadingExercises, setLoadingExercises] = useState(false);
   const [inspectingExercise, setInspectingExercise] = useState<Exercise | null>(null);
 
+  const exercisesSectionRef = useRef<HTMLDivElement>(null);
+  const activeSplitSectionRef = useRef<HTMLDivElement>(null);
+  const isFirstMuscleMount = useRef(true);
+
+  const handleSelectMuscle = (muscle: MuscleGroupKey | null) => {
+    setSelectedMuscle(muscle);
+  };
+
+  const handleSelectSplit = (splitId: string) => {
+    setSelectedSplitId(splitId);
+    setTimeout(() => {
+      if (activeSplitSectionRef.current) {
+        const el = activeSplitSectionRef.current;
+        const mainContainer = el.closest('main') || document.querySelector('main');
+        if (mainContainer) {
+          const mainTop = mainContainer.getBoundingClientRect().top;
+          const elTop = el.getBoundingClientRect().top;
+          const targetScrollTop = mainContainer.scrollTop + (elTop - mainTop) - 24;
+          mainContainer.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+        } else {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    }, 100);
+  };
+
+  useEffect(() => {
+    if (isFirstMuscleMount.current) {
+      isFirstMuscleMount.current = false;
+      return;
+    }
+    if (selectedMuscle && exercisesSectionRef.current) {
+      const timer = setTimeout(() => {
+        const el = exercisesSectionRef.current;
+        if (!el) return;
+        const mainContainer = el.closest('main') || document.querySelector('main');
+        if (mainContainer) {
+          const mainTop = mainContainer.getBoundingClientRect().top;
+          const elTop = el.getBoundingClientRect().top;
+          const targetScrollTop = mainContainer.scrollTop + (elTop - mainTop) - 16;
+          mainContainer.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+        } else {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedMuscle]);
+
   // Selected Split Routine
   const [selectedSplitId, setSelectedSplitId] = useState<string>('ppl');
+  const [isTimerOpen, setIsTimerOpen] = useState(false);
 
   // Workout Builder state
   const [workoutName, setWorkoutName] = useState('My Custom Hypertrophy Routine');
@@ -163,7 +215,7 @@ export const WorkoutsAndDiets: React.FC = () => {
     loadExercises();
   }, [selectedMuscle]);
 
-  // Fetch Foods & Preset Workout Splits from Backend
+  // Fetch Foods & Preset Workout Splits from Backend Database
   const [foodsList, setFoodsList] = useState<FoodItem[]>([]);
   const [presetSplits, setPresetSplits] = useState<any[]>([]);
 
@@ -175,13 +227,26 @@ export const WorkoutsAndDiets: React.FC = () => {
           getWorkouts().catch(() => [])
         ]);
         setFoodsList(foodsData);
-        setPresetSplits(splitsData);
+        setPresetSplits(Array.isArray(splitsData) ? splitsData : []);
       } catch (err) {
-        console.error('Error fetching backend foods or splits', err);
+        console.error('Error fetching backend foods or splits from DB', err);
       }
     }
     loadBackendData();
   }, []);
+
+  // Filter preset splits dynamically by difficulty level pill (ALL, BEGINNER, INTERMEDIATE, PRO)
+  const filteredPresetSplits = useMemo(() => {
+    if (selectedDifficulty === 'ALL') return presetSplits;
+    return presetSplits.filter(s => {
+      const lvl = (s.level || s.difficulty || s.difficultyLevel || s.category || '').toUpperCase();
+      return lvl.includes(selectedDifficulty.toUpperCase());
+    });
+  }, [presetSplits, selectedDifficulty]);
+
+  const activeSplit = useMemo(() => {
+    return presetSplits.find(s => s.id === selectedSplitId) || presetSplits[0];
+  }, [presetSplits, selectedSplitId]);
 
   // Fetch Health Metrics dynamically from Spring Boot HealthCalculatorController (/api/health/calculate)
   const [healthMetrics, setHealthMetrics] = useState<HealthResponse | null>(null);
@@ -229,11 +294,6 @@ export const WorkoutsAndDiets: React.FC = () => {
       return e.difficultyLevel === selectedDifficulty;
     });
   }, [exercises, selectedDifficulty]);
-
-  // Selected Split details
-  const activeSplit = useMemo(() => {
-    return presetSplits.find(s => s.id === selectedSplitId) || (presetSplits.length > 0 ? presetSplits[0] : null);
-  }, [presetSplits, selectedSplitId]);
 
 
 
@@ -284,16 +344,16 @@ export const WorkoutsAndDiets: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* ── TOP BAR OPTION NAVIGATION ──────────────────────────────────────── */}
-      <div className="p-2 rounded-2xl bg-white dark:bg-[#090e17] border border-zinc-200 dark:border-cyan-500/20 shadow-2xl backdrop-blur-xl flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+      {/* ── TOP BAR OPTION NAVIGATION (GYM COLOR PALETTE SYSTEM) ── */}
+      <div className="p-2 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] shadow-xl flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 overflow-x-auto">
+        <div className="flex items-center gap-1.5 min-w-max">
           {[
-            { id: 'SCANNER', label: '3D Sci-Fi Target Scanner', icon: Activity, defaultBadge: true },
-            { id: 'SELECT_WORKOUT', label: 'Select Workout Routine', icon: Target },
-            { id: 'PRESET_SPLITS', label: 'Top-Rated Hypertrophy Workout Splits', icon: Zap },
-            { id: 'CUSTOM_BUILDER', label: 'Custom Hypertrophy Split Draft', icon: Dumbbell },
-            { id: 'MACRO_METER', label: 'Dynamic Nutrition Macro Meter', icon: Apple },
-            { id: 'BMI_CALCULATOR', label: 'BMI & Health Calculator', icon: Scale },
+            { id: 'SCANNER', label: 'Muscle Target Scanner', icon: Activity, defaultBadge: true },
+            { id: 'SELECT_WORKOUT', label: 'Workout Routines', icon: Target },
+            { id: 'PRESET_SPLITS', label: 'Hypertrophy Splits', icon: Zap },
+            { id: 'CUSTOM_BUILDER', label: 'Split Builder', icon: Dumbbell },
+            { id: 'MACRO_METER', label: 'Macro Meter', icon: Apple },
+            { id: 'BMI_CALCULATOR', label: 'BMI & Health', icon: Scale },
           ].map(tab => {
             const Icon = tab.icon;
             const isSelected = activeTab === tab.id;
@@ -302,17 +362,19 @@ export const WorkoutsAndDiets: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as ActiveTab)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 relative ${
                   isSelected
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 font-black scale-[1.02]'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900/60'
+                    ? 'bg-[#E63946] text-white hover:bg-[#C92F3B] dark:bg-[#FF4D5A] dark:text-[#0B0D0F] dark:hover:bg-[#FF6670] shadow-md font-black scale-[1.02]'
+                    : 'text-[#626A73] dark:text-[#A7AFB8] hover:text-[#111418] dark:hover:text-[#F5F7FA] hover:bg-[#EEF0F3] dark:hover:bg-[#1C2024]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isSelected ? 'text-zinc-900 dark:text-white' : 'text-cyan-400'}`} />
-                <span>{tab.label}</span>
+                <Icon className={`w-4 h-4 ${isSelected ? 'text-white dark:text-[#0B0D0F]' : 'text-[#2563EB] dark:text-[#4D8DFF]'}`} />
+                <span className="whitespace-nowrap">{tab.label}</span>
                 {tab.defaultBadge && (
-                  <span className="px-1.5 py-0.5 text-[9px] font-black uppercase rounded-full bg-cyan-400/20 text-cyan-200 border border-cyan-400/30">
-                    Default
+                  <span className={`px-1.5 py-0.5 text-[8px] font-black uppercase rounded-md ${
+                    isSelected ? 'bg-white/20 text-white dark:bg-black/20 dark:text-[#0B0D0F]' : 'bg-[#E63946]/10 text-[#E63946] border border-[#E63946]/30 dark:bg-[#FF4D5A]/20 dark:text-[#FF4D5A]'
+                  }`}>
+                    DEFAULT
                   </span>
                 )}
               </button>
@@ -321,8 +383,8 @@ export const WorkoutsAndDiets: React.FC = () => {
         </div>
 
         {selectedMuscle && (
-          <div className="px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300 flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" style={{ animationDuration: '4s' }} />
+          <div className="px-3.5 py-1.5 rounded-xl bg-[#E63946]/10 dark:bg-[#FF4D5A]/15 border border-[#E63946]/30 dark:border-[#FF4D5A]/30 text-xs font-black text-[#E63946] dark:text-[#FF4D5A] flex items-center gap-2 whitespace-nowrap shadow-sm shrink-0">
+            <Sparkles className="w-3.5 h-3.5 text-[#E63946] dark:text-[#FF4D5A] animate-spin" style={{ animationDuration: '4s' }} />
             <span>Target Locked: {selectedMuscle}</span>
           </div>
         )}
@@ -333,99 +395,110 @@ export const WorkoutsAndDiets: React.FC = () => {
         <div className="space-y-8">
           <HumanBodyMap
             selectedMuscle={selectedMuscle}
-            onSelectMuscle={setSelectedMuscle}
+            onSelectMuscle={handleSelectMuscle}
             exerciseCounts={exerciseCounts}
+            gender={gender}
+            onGenderChange={setGender}
           />
 
           {/* 10+ Exercises List for Selected Muscle */}
-          <div className="p-6 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800/80 pb-4">
+          <div ref={exercisesSectionRef} className="p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-6 scroll-mt-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#DDE1E6] dark:border-[#292E34] pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <Dumbbell className="w-5 h-5 text-cyan-500" />
-                  <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wide">
+                  <Dumbbell className="w-5 h-5 text-[#E63946] dark:text-[#FF4D5A]" />
+                  <h2 className="text-base font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wide">
                     Workouts for {selectedMuscle || 'All Muscle Groups'}
                   </h2>
                 </div>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5">
                   10+ exercise plans with step-by-step form execution guides, bench angles, & safety cues.
                 </p>
               </div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-                Displaying <span className="text-cyan-400 font-bold">{filteredExercises.length}</span> exercises
+              <div className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-mono">
+                Displaying <span className="text-[#E63946] dark:text-[#FF4D5A] font-black">{filteredExercises.length}</span> exercises
               </div>
             </div>
 
             {loadingExercises ? (
-              <div className="p-12 text-center text-xs text-zinc-500">Loading exercise database...</div>
+              <div className="p-12 text-center text-xs text-[#626A73] dark:text-[#A7AFB8]">Loading exercise database...</div>
             ) : filteredExercises.length === 0 ? (
-              <div className="p-12 text-center text-xs text-zinc-500">
+              <div className="p-12 text-center text-xs text-[#626A73] dark:text-[#A7AFB8]">
                 No exercises found for this filter. Select another muscle group.
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredExercises.map(ex => (
-                  <div
-                    key={ex.id}
-                    className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 hover:border-cyan-500/50 transition-all flex flex-col justify-between space-y-4 shadow-lg"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                          {ex.muscleGroup}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          {ex.equipment && (
-                            <span className="px-2 py-0.5 text-[9px] font-bold uppercase rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                              {ex.equipment}
-                            </span>
-                          )}
-                          {ex.difficultyLevel && (
-                            <span
-                              className={`px-2 py-0.5 text-[9px] font-extrabold uppercase rounded ${
-                                ex.difficultyLevel === 'PRO'
-                                  ? 'bg-red-500/20 text-red-400'
-                                  : ex.difficultyLevel === 'INTERMEDIATE'
-                                  ? 'bg-amber-500/20 text-amber-400'
-                                  : 'bg-emerald-500/20 text-emerald-400'
-                              }`}
-                            >
-                              {ex.difficultyLevel}
-                            </span>
-                          )}
+                {filteredExercises.map(ex => {
+                  return (
+                    <div
+                      key={ex.id}
+                      onClick={() => setInspectingExercise(ex)}
+                      className="group cursor-pointer rounded-2xl bg-white dark:bg-[#14171A] border border-slate-200 dark:border-[#292E34] hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-200 p-4 flex flex-col justify-between shadow-sm hover:shadow-md relative"
+                    >
+                      {/* Top Row: Tags & Info Icon */}
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                          <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
+                            {ex.muscleGroup}
+                          </span>
+                          <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700/50">
+                            {ex.equipment || 'Bodyweight'}
+                          </span>
+                          <span
+                            className={`px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full border ${
+                              (ex.difficultyLevel || 'INTERMEDIATE') === 'PRO'
+                                ? 'bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/60'
+                                : (ex.difficultyLevel || 'INTERMEDIATE') === 'INTERMEDIATE'
+                                ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800/60'
+                                : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60'
+                            }`}
+                          >
+                            {ex.difficultyLevel || 'INTERMEDIATE'}
+                          </span>
                         </div>
-                      </div>
-                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{ex.name}</h3>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">{ex.description}</p>
-                    </div>
 
-                    <div className="space-y-3 pt-3 border-t border-zinc-200 dark:border-zinc-800/80">
-                      <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-mono">
-                        <div className="p-1.5 rounded bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
-                          <span className="block text-cyan-400 font-bold">{ex.recommendedSets || 4}</span>
-                          <span className="text-zinc-500">Sets</span>
-                        </div>
-                        <div className="p-1.5 rounded bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
-                          <span className="block text-amber-400 font-bold">{ex.recommendedReps || '8-12'}</span>
-                          <span className="text-zinc-500">Reps</span>
-                        </div>
-                        <div className="p-1.5 rounded bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
-                          <span className="block text-emerald-400 font-bold">{ex.restInterval || '90s'}</span>
-                          <span className="text-zinc-500">Rest</span>
+                        {/* Hover Info Icon */}
+                        <div className="p-1 rounded-full text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/50 transition-colors shrink-0" title="Click to view technique & safety cues">
+                          <Info className="w-4 h-4" />
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setInspectingExercise(ex)}
-                        className="w-full py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                      >
-                        <Info className="w-3.5 h-3.5" /> View Form Guide & Safety Cues
-                      </button>
+                      {/* Title & Description */}
+                      <div className="space-y-1 mb-3">
+                        <h3 className="text-sm font-extrabold text-slate-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                          {ex.name}
+                        </h3>
+                        {ex.description && (
+                          <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                            {ex.description}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Metrics Bar */}
+                      <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 text-center">
+                        <div className="py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800/50">
+                          <span className="block text-xs font-black text-slate-900 dark:text-zinc-100 font-mono">
+                            {ex.recommendedSets || 4} Sets
+                          </span>
+                        </div>
+                        <div className="py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800/50">
+                          <span className="block text-xs font-black text-slate-900 dark:text-zinc-100 font-mono">
+                            {ex.recommendedReps || '8-12'} Reps
+                          </span>
+                        </div>
+                        <div className="py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800/50">
+                          <span className="block text-xs font-black text-slate-900 dark:text-zinc-100 font-mono">
+                            {ex.restInterval || '90s'} Rest
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
+
             )}
           </div>
         </div>
@@ -433,23 +506,23 @@ export const WorkoutsAndDiets: React.FC = () => {
 
       {/* ── TAB: SELECT WORKOUT PROGRAM SPLIT & CUSTOMIZE EXERCISES ─────────── */}
       {activeTab === 'SELECT_WORKOUT' && (
-        <div className="p-6 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800/80 pb-4">
+        <div className="p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-6 shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#DDE1E6] dark:border-[#292E34] pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-cyan-400" />
-                <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wide">
+                <Target className="w-5 h-5 text-[#E63946] dark:text-[#FF4D5A]" />
+                <h2 className="text-base font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wide">
                   Select Your Workout Program & Customize Exercises
                 </h2>
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5">
                 Select your overall workout program split below (PPL, Upper/Lower, Full Body). Each focus offers 10 exercises — select which ones you want to perform in your routine.
               </p>
             </div>
 
             {selectedProgramKey && PROGRAM_SPLITS_CONFIG[selectedProgramKey] && (
-              <div className="px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-400 flex items-center gap-2 shadow-lg shadow-emerald-950/20">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <div className="px-3.5 py-2 rounded-xl bg-[#16A34A]/10 border border-[#16A34A]/30 text-xs font-black text-[#16A34A] dark:bg-[#16A34A]/20 dark:border-[#16A34A]/50 flex items-center gap-2 shadow-sm">
+                <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
                 <span>Current Active Program: <strong>{PROGRAM_SPLITS_CONFIG[selectedProgramKey].title}</strong></span>
               </div>
             )}
@@ -462,46 +535,46 @@ export const WorkoutsAndDiets: React.FC = () => {
               return (
                 <div
                   key={prog.key}
-                  className={`p-6 rounded-2xl border transition-all flex flex-col justify-between space-y-5 shadow-2xl ${
+                  className={`p-6 rounded-2xl border transition-all flex flex-col justify-between space-y-5 shadow-lg ${
                     isSelected
-                      ? 'bg-gradient-to-b from-cyan-50 to-white dark:from-cyan-950/40 dark:to-zinc-950 border-cyan-500 text-zinc-900 dark:text-zinc-100 ring-1 ring-cyan-500/40'
-                      : 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                      ? 'bg-[#EEF0F3] dark:bg-[#1C2024] border-[#E63946] dark:border-[#FF4D5A] ring-2 ring-[#E63946]/50 dark:ring-[#FF4D5A]/50 text-[#111418] dark:text-[#F5F7FA]'
+                      : 'bg-[#FFFFFF] dark:bg-[#14171A] border-[#DDE1E6] dark:border-[#292E34] text-[#111418] dark:text-[#F5F7FA] hover:border-[#E63946]/50 dark:hover:border-[#FF4D5A]/50'
                   }`}
                 >
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className={`px-2.5 py-1 text-[10px] font-black uppercase rounded-lg border ${
-                        isSelected ? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400'
+                        isSelected ? 'bg-[#E63946]/15 border-[#E63946]/30 text-[#E63946] dark:bg-[#FF4D5A]/20 dark:text-[#FF4D5A] dark:border-[#FF4D5A]/40' : 'bg-[#EEF0F3] dark:bg-[#1C2024] border-[#DDE1E6] dark:border-[#292E34] text-[#626A73] dark:text-[#A7AFB8]'
                       }`}>
                         {prog.badge}
                       </span>
                       {isSelected && (
-                        <span className="px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Active Program
+                        <span className="px-2.5 py-1 text-[10px] font-black uppercase rounded-lg bg-[#16A34A]/15 text-[#16A34A] border border-[#16A34A]/30 flex items-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" /> Active Program
                         </span>
                       )}
                     </div>
 
                     <div>
-                      <h3 className="text-base font-extrabold text-zinc-900 dark:text-zinc-100">{prog.title}</h3>
-                      <p className="text-xs text-cyan-400 font-mono font-semibold mt-0.5">{prog.subtitle}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">{prog.description}</p>
+                      <h3 className="text-base font-black text-[#111418] dark:text-[#F5F7FA]">{prog.title}</h3>
+                      <p className="text-xs text-[#2563EB] dark:text-[#4D8DFF] font-black mt-0.5">{prog.subtitle}</p>
+                      <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-2 leading-relaxed">{prog.description}</p>
                     </div>
 
                     {/* Sub-Focuses & 10-Exercise Custom Selection */}
-                    <div className="space-y-4 pt-3 border-t border-zinc-200 dark:border-zinc-800/80">
+                    <div className="space-y-4 pt-3 border-t border-[#DDE1E6] dark:border-[#292E34]">
                       {prog.focusKeys.map((focusKey) => {
                         const focusCatalog = EXERCISES_CATALOG[focusKey];
                         if (!focusCatalog) return null;
                         const selectedIds = customExerciseSelections[focusKey] || focusCatalog.exercises.map(e => e.id);
 
                         return (
-                          <div key={focusKey} className="space-y-2.5 p-3 rounded-xl bg-white dark:bg-zinc-950/80 border border-zinc-200 dark:border-zinc-800/80">
+                          <div key={focusKey} className="space-y-2.5 p-3.5 rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34]">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-extrabold text-zinc-700 dark:text-zinc-200 flex items-center gap-1.5">
-                                <Dumbbell className="w-3.5 h-3.5 text-cyan-400" /> {focusCatalog.label}
+                              <span className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] flex items-center gap-1.5">
+                                <Dumbbell className="w-3.5 h-3.5 text-[#E63946] dark:text-[#FF4D5A]" /> {focusCatalog.label}
                               </span>
-                              <span className="text-[10px] font-mono text-cyan-400 font-bold">
+                              <span className="text-[10px] font-black text-[#2563EB] dark:text-[#4D8DFF]">
                                 {selectedIds.length} / {focusCatalog.exercises.length} Selected
                               </span>
                             </div>
@@ -512,10 +585,10 @@ export const WorkoutsAndDiets: React.FC = () => {
                                 return (
                                   <label
                                     key={ex.id}
-                                    className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
+                                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
                                       isChecked
-                                        ? 'bg-cyan-950/30 border-cyan-500/40 text-zinc-900 dark:text-zinc-100 font-medium'
-                                        : 'bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'
+                                        ? 'bg-[#FFFFFF] dark:bg-[#14171A] border-[#2563EB] dark:border-[#4D8DFF] text-[#111418] dark:text-[#F5F7FA] font-bold shadow-sm'
+                                        : 'bg-[#FFFFFF]/60 dark:bg-[#14171A]/60 border-[#DDE1E6] dark:border-[#292E34] text-[#626A73] dark:text-[#A7AFB8] hover:border-[#2563EB]/40'
                                     }`}
                                   >
                                     <div className="flex items-center gap-2.5 min-w-0">
@@ -523,13 +596,13 @@ export const WorkoutsAndDiets: React.FC = () => {
                                         type="checkbox"
                                         checked={isChecked}
                                         onChange={() => toggleExerciseSelection(focusKey, ex.id)}
-                                        className="w-3.5 h-3.5 rounded border-zinc-300 dark:border-zinc-700 text-cyan-500 focus:ring-cyan-500 bg-white dark:bg-zinc-950 cursor-pointer"
+                                        className="w-3.5 h-3.5 rounded border-[#DDE1E6] dark:border-[#292E34] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#14171A] cursor-pointer"
                                       />
-                                      <span className="truncate text-xs">{idx + 1}. {ex.name}</span>
+                                      <span className="truncate text-xs font-extrabold">{idx + 1}. {ex.name}</span>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0 font-mono text-[10px]">
-                                      <span className="text-zinc-500">{ex.target}</span>
-                                      <span className="text-cyan-400 font-bold">{ex.sets}×{ex.reps}</span>
+                                      <span className="text-[#626A73] dark:text-[#A7AFB8] font-bold">{ex.target}</span>
+                                      <span className="text-[#2563EB] dark:text-[#4D8DFF] font-black">{ex.sets}×{ex.reps}</span>
                                     </div>
                                   </label>
                                 );
@@ -544,10 +617,10 @@ export const WorkoutsAndDiets: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleActivateProgram(prog.key)}
-                    className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg ${
+                    className={`w-full py-3 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 shadow-md ${
                       isSelected
-                        ? 'bg-emerald-600 text-zinc-900 dark:text-white hover:bg-emerald-500 shadow-emerald-900/30 font-black'
-                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-zinc-900 dark:text-white shadow-blue-900/30 font-extrabold'
+                        ? 'bg-[#16A34A] text-white hover:bg-[#15803D] shadow-sm'
+                        : 'bg-[#E63946] hover:bg-[#C92F3B] text-white dark:bg-[#FF4D5A] dark:hover:bg-[#FF6670] dark:text-[#0B0D0F]'
                     }`}
                   >
                     {isSelected ? (
@@ -567,18 +640,19 @@ export const WorkoutsAndDiets: React.FC = () => {
         </div>
       )}
 
+
       {/* ── TAB 2: TOP-RATED HYPERTROPHY WORKOUT SPLITS ──────────────────────── */}
       {activeTab === 'PRESET_SPLITS' && (
-        <div className="p-6 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800/80 pb-4">
+        <div className="p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-6 shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#DDE1E6] dark:border-[#292E34] pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-500" />
-                <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wide">
+                <Zap className="w-5 h-5 text-[#F59E0B]" />
+                <h2 className="text-base font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wide">
                   Top-Rated Hypertrophy Workout Splits
                 </h2>
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5">
                 Curated periodized splits for Beginners, Intermediate, & Advanced athletes.
               </p>
             </div>
@@ -587,10 +661,10 @@ export const WorkoutsAndDiets: React.FC = () => {
                 <button
                   key={lvl}
                   onClick={() => setSelectedDifficulty(lvl)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
                     selectedDifficulty === lvl
-                      ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                      : 'bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                      ? 'bg-[#E63946] text-white dark:bg-[#FF4D5A] dark:text-[#0B0D0F] shadow-md'
+                      : 'bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] text-[#626A73] dark:text-[#A7AFB8] hover:text-[#111418] dark:hover:text-[#F5F7FA]'
                   }`}
                 >
                   {lvl}
@@ -600,29 +674,29 @@ export const WorkoutsAndDiets: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
-            {presetSplits.map(split => (
+            {filteredPresetSplits.map(split => (
               <button
                 key={split.id}
-                onClick={() => setSelectedSplitId(split.id)}
+                onClick={() => handleSelectSplit(split.id)}
                 className={`p-4 rounded-xl border text-left flex flex-col justify-between transition-all relative overflow-hidden ${
                   selectedSplitId === split.id
-                    ? 'bg-amber-500/10 border-amber-500 text-zinc-900 dark:text-zinc-100 shadow-xl shadow-amber-500/10'
-                    : 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                    ? 'bg-[#EEF0F3] dark:bg-[#1C2024] border-[#E63946] dark:border-[#FF4D5A] ring-2 ring-[#E63946]/50 dark:ring-[#FF4D5A]/50 text-[#111418] dark:text-[#F5F7FA] shadow-lg'
+                    : 'bg-[#FFFFFF] dark:bg-[#14171A] border-[#DDE1E6] dark:border-[#292E34] text-[#626A73] dark:text-[#A7AFB8] hover:border-[#E63946]/50 dark:hover:border-[#FF4D5A]/50'
                 }`}
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded bg-amber-500/20 text-amber-400">
+                    <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded bg-[#F59E0B]/20 text-[#F59E0B]">
                       {split.badge || split.category || 'HYPERTROPHY'}
                     </span>
-                    <span className="text-[10px] font-mono text-zinc-500 font-bold">
+                    <span className="text-[10px] font-mono text-[#626A73] dark:text-[#A7AFB8] font-black">
                       {split.duration || (split.daysPerWeek ? `${split.daysPerWeek} Days/Wk` : '6 Days/Wk')}
                     </span>
                   </div>
-                  <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 line-clamp-2">{split.title || split.name}</h3>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-3 leading-relaxed">{split.description}</p>
+                  <h3 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] line-clamp-2">{split.title || split.name}</h3>
+                  <p className="text-[11px] text-[#626A73] dark:text-[#A7AFB8] font-medium line-clamp-3 leading-relaxed">{split.description}</p>
                 </div>
-                <div className="mt-4 pt-2 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between text-[10px] font-bold text-amber-400">
+                <div className="mt-4 pt-2 border-t border-[#DDE1E6] dark:border-[#292E34] flex items-center justify-between text-[10px] font-black text-[#E63946] dark:text-[#FF4D5A]">
                   <span>View Routine</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </div>
@@ -630,37 +704,46 @@ export const WorkoutsAndDiets: React.FC = () => {
             ))}
           </div>
 
-          {activeSplit && Array.isArray(activeSplit.splitDays) && activeSplit.splitDays.length > 0 && (
-            <div className="p-5 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xl">
-              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
-                <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  {activeSplit.name || activeSplit.title} — Schedule & Muscle Targets
-                </h4>
-                <span className="text-xs text-amber-400 font-mono font-bold">Level: {activeSplit.level || 'INTERMEDIATE'}</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {activeSplit.splitDays.map((day: any, idx: number) => (
-                  <div key={idx} className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 space-y-1">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
-                      <span className="text-amber-400 font-mono font-bold">{day.day || `Day ${idx + 1}`}</span>
-                      <span className="text-zinc-700 dark:text-zinc-200">{day.title || day.name}</span>
+          <div ref={activeSplitSectionRef} className="space-y-6 pt-2">
+            {activeSplit && Array.isArray(activeSplit.splitDays) && activeSplit.splitDays.length > 0 && (
+              <div className="p-5 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 shadow-xl">
+                <div className="flex items-center justify-between border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
+                  <h4 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-[#F59E0B]" />
+                    {activeSplit.name || activeSplit.title} — Schedule & Muscle Targets
+                  </h4>
+                  <span className="text-xs text-[#F59E0B] font-mono font-black">Level: {activeSplit.level || 'INTERMEDIATE'}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {activeSplit.splitDays.map((day: any, idx: number) => (
+                    <div key={idx} className="p-3.5 rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] space-y-1">
+                      <div className="flex items-center justify-between text-[11px] font-black text-[#111418] dark:text-[#F5F7FA]">
+                        <span className="text-[#E63946] dark:text-[#FF4D5A] font-mono">{day.day || `Day ${idx + 1}`}</span>
+                        <span>{day.title || day.name}</span>
+                      </div>
+                      <p className="text-xs font-medium text-[#626A73] dark:text-[#A7AFB8] leading-snug">{day.muscles || day.description}</p>
                     </div>
-                    <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300 leading-snug">{day.muscles || day.description}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {activeSplit && Array.isArray(activeSplit.exercises) && activeSplit.exercises.length > 0 && (
-            <div className="p-5 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xl">
-              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
-                <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-2">
-                  <Dumbbell className="w-4 h-4 text-amber-400" />
+            <div className="p-5 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 shadow-xl">
+              <div className="flex items-center justify-between border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
+                <h4 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2">
+                  <Dumbbell className="w-4 h-4 text-[#E63946] dark:text-[#FF4D5A]" />
                   {activeSplit.title || activeSplit.name} — Routine Movements
                 </h4>
-                <span className="text-xs text-amber-400 font-mono font-bold">{activeSplit.category || 'Hypertrophy'}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-[#2563EB] dark:text-[#4D8DFF] font-mono font-black">{activeSplit.category || 'Hypertrophy'}</span>
+                  <button 
+                    onClick={() => setIsTimerOpen(true)}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition shadow flex items-center gap-1.5"
+                  >
+                    <Play className="w-3.5 h-3.5" fill="currentColor" /> Start Routine
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {activeSplit.exercises.map((ex: any, idx: number) => {
@@ -671,7 +754,6 @@ export const WorkoutsAndDiets: React.FC = () => {
                   const setsDisplay = ex.sets ? `${ex.sets} sets` : '4 sets';
                   const repsDisplay = ex.reps ? `× ${ex.reps} reps` : '× 8-12 reps';
 
-                  // Try to find the full exercise object for better details in modal, else fallback to workout DTO data
                   const fullExercise = exercises.find(e => e.id === ex.exerciseId) || {
                     id: ex.exerciseId || `temp-${idx}`,
                     name: exName,
@@ -689,30 +771,30 @@ export const WorkoutsAndDiets: React.FC = () => {
                       key={idx} 
                       type="button"
                       onClick={() => setInspectingExercise(fullExercise)}
-                      className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 space-y-2.5 flex flex-col justify-between hover:border-cyan-500/50 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all text-left w-full group shadow-sm hover:shadow-cyan-500/10"
+                      className="p-4 rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] space-y-2.5 flex flex-col justify-between hover:border-[#E63946] dark:hover:border-[#FF4D5A] transition-all text-left w-full group shadow-sm"
                     >
                       <div className="space-y-1.5 w-full">
-                        <div className="flex items-center justify-between text-[11px] font-bold">
-                          <span className="text-amber-400 font-mono group-hover:text-cyan-400 transition-colors">Exercise #{idx + 1}</span>
-                          <span className={`px-2 py-0.5 text-[9px] font-black rounded tracking-wide transition-colors ${
-                            mechanics === 'COMPOUND' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 group-hover:bg-cyan-500/20 group-hover:text-cyan-400 group-hover:border-cyan-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30 group-hover:bg-cyan-500/20 group-hover:text-cyan-400 group-hover:border-cyan-500/30'
+                        <div className="flex items-center justify-between text-[11px] font-black">
+                          <span className="text-[#E63946] dark:text-[#FF4D5A] font-mono">Movement #{idx + 1}</span>
+                          <span className={`px-2 py-0.5 text-[9px] font-black rounded tracking-wide ${
+                            mechanics === 'COMPOUND' ? 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/30' : 'bg-[#2563EB]/20 text-[#2563EB] dark:text-[#4D8DFF] border border-[#2563EB]/30'
                           }`}>
                             {mechanics}
                           </span>
                         </div>
-                        <h5 className="text-xs font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center justify-between">
+                        <h5 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] flex items-center justify-between">
                           <span>{exName}</span>
-                          <span className="text-[10px] text-zinc-500 font-mono uppercase group-hover:text-cyan-500/70">{muscle}</span>
+                          <span className="text-[10px] text-[#626A73] dark:text-[#A7AFB8] font-mono uppercase">{muscle}</span>
                         </h5>
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed line-clamp-2">{exDesc}</p>
+                        <p className="text-[11px] text-[#626A73] dark:text-[#A7AFB8] font-medium leading-relaxed line-clamp-2">{exDesc}</p>
                       </div>
-                      <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between w-full group-hover:border-cyan-500/30 transition-colors">
-                        <div className="text-[10px] font-mono font-bold text-amber-400 group-hover:text-cyan-400 transition-colors">
-                          <span className="bg-amber-500/10 group-hover:bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 group-hover:border-zinc-200 dark:hover:border-cyan-500/20 transition-colors">
+                      <div className="pt-2 border-t border-[#DDE1E6] dark:border-[#292E34] flex items-center justify-between w-full">
+                        <div className="text-[10px] font-mono font-black text-[#2563EB] dark:text-[#4D8DFF]">
+                          <span className="bg-[#FFFFFF] dark:bg-[#14171A] px-2.5 py-0.5 rounded-full border border-[#DDE1E6] dark:border-[#292E34]">
                             {setsDisplay} {repsDisplay}
                           </span>
                         </div>
-                        <div className="text-[10px] font-bold text-zinc-500 group-hover:text-cyan-400 flex items-center gap-1 transition-colors">
+                        <div className="text-[10px] font-black text-[#E63946] dark:text-[#FF4D5A] flex items-center gap-1">
                           <Info className="w-3.5 h-3.5" /> View Details
                         </div>
                       </div>
@@ -722,47 +804,48 @@ export const WorkoutsAndDiets: React.FC = () => {
               </div>
             </div>
           )}
+          </div>
         </div>
       )}
 
       {/* ── TAB 3: CUSTOM HYPERTROPHY SPLIT DRAFT ───────────────────────────── */}
       {activeTab === 'CUSTOM_BUILDER' && (
-        <div className="p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex flex-col justify-between">
+        <div className="p-6 rounded-2xl border border-[#DDE1E6] dark:border-[#292E34] bg-[#FFFFFF] dark:bg-[#14171A] shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <Dumbbell className="w-5 h-5 text-blue-500" />
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-50 text-sm">Custom Hypertrophy Split Draft</h3>
+              <Dumbbell className="w-5 h-5 text-[#E63946] dark:text-[#FF4D5A]" />
+              <h3 className="font-black text-[#111418] dark:text-[#F5F7FA] text-sm">Custom Hypertrophy Split Draft</h3>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase mb-1">Routine Name</label>
+                <label className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase mb-1">Routine Name</label>
                 <input
                   type="text"
                   value={workoutName}
                   onChange={e => setWorkoutName(e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-lg text-zinc-900 dark:text-zinc-100 text-xs"
+                  className="w-full px-3 py-2 border border-[#DDE1E6] dark:border-[#292E34] bg-[#EEF0F3] dark:bg-[#1C2024] rounded-lg text-[#111418] dark:text-[#F5F7FA] font-bold text-xs"
                 />
               </div>
 
               <div className="space-y-2">
-                <span className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase">Selected Exercises</span>
+                <span className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase">Selected Exercises</span>
                 <div className="space-y-2">
                   {workoutExercises.map((we, i) => {
                     const ex = exercises.find(e => e.id === we.exerciseId);
                     return (
                       <div
                         key={i}
-                        className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex justify-between items-center text-xs"
+                        className="p-3 rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] flex justify-between items-center text-xs"
                       >
                         <div>
-                          <h4 className="font-bold text-zinc-900 dark:text-zinc-100">{ex?.name || 'Exercise'}</h4>
-                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          <h4 className="font-black text-[#111418] dark:text-[#F5F7FA]">{ex?.name || 'Exercise'}</h4>
+                          <p className="text-[10px] text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5">
                             Target: {ex?.muscleGroup || 'CHEST'} | Gear: {ex?.equipment || 'Barbell'}
                           </p>
                         </div>
                         <div className="text-right">
-                          <span className="font-mono font-bold text-blue-400">
+                          <span className="font-mono font-black text-[#2563EB] dark:text-[#4D8DFF]">
                             {we.sets} sets x {we.reps} reps
                           </span>
                         </div>
@@ -773,6 +856,7 @@ export const WorkoutsAndDiets: React.FC = () => {
               </div>
             </div>
           </div>
+
 
           {canCreate('workout') && (
             <form
@@ -1207,6 +1291,13 @@ export const WorkoutsAndDiets: React.FC = () => {
 
       {/* Exercise Detail Modal */}
       <ExerciseDetailModal exercise={inspectingExercise} onClose={() => setInspectingExercise(null)} />
+
+      {/* Workout Timer Modal */}
+      <WorkoutTimerModal 
+        isOpen={isTimerOpen} 
+        onClose={() => setIsTimerOpen(false)} 
+        exercises={activeSplit?.exercises || []} 
+      />
     </div>
   );
 };

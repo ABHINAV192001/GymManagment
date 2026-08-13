@@ -58,8 +58,6 @@ public class Organization extends com.Gym.GymCommonServices.common.BaseEntity {
     @Column(name = "gst")
     private String gst;
 
-    @Column(name = "number_of_owners")
-    private Integer numberOfOwners;
 
     @Column(name = "owner_name")
     private String ownerName;

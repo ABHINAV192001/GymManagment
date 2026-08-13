@@ -73,6 +73,7 @@ export const MembersInternal: React.FC = () => {
     name: '',
     email: '',
     phone: '',
+    gender: '',
     dob: '',
     amountPaid: '',
     startDate: new Date().toISOString().split('T')[0],
@@ -93,6 +94,7 @@ export const MembersInternal: React.FC = () => {
     name: '',
     email: '',
     phone: '',
+    gender: '',
     dob: '',
     startDate: '',
     endDate: '',
@@ -163,33 +165,63 @@ export const MembersInternal: React.FC = () => {
     fetchMembers();
   }, [fetchMembers]);
 
-  // Lazy load form metadata ONLY when user opens registration form modal
+  // Pre-load all form metadata on mount so dropdowns are ready instantly when the form opens
   useEffect(() => {
-    if (isFormOpen && availablePlans.length === 0) {
-      Promise.all([getAdminBranches(), getStaff(), getPayments(), getRbacRoles(), getPlans()])
-        .then(([brs, stf, pays, rbacRoles, plns]) => {
-          setBranches(Array.isArray(brs) ? brs : []);
-          setStaff(Array.isArray(stf) ? stf : []);
-          setPayments(Array.isArray(pays) ? pays : []);
-          setAvailablePlans(Array.isArray(plns) ? plns : []);
-          if (Array.isArray(rbacRoles)) {
-            const uniqueRoles: typeof rbacRoles = [];
-            const seenNames = new Set<string>();
-            rbacRoles.forEach(r => {
-              if (r && r.name) {
-                const key = r.name.trim().toUpperCase();
-                if (!seenNames.has(key)) {
-                  seenNames.add(key);
-                  uniqueRoles.push(r);
-                }
+    const loadMetadata = () => {
+      Promise.allSettled([getAdminBranches(), getStaff(), getPayments(), getRbacRoles(), getPlans()])
+        .then((results) => {
+          // Extract array regardless of API wrapper shape
+          const extractData = (val: any): any[] => {
+            if (Array.isArray(val)) return val;
+            if (val && Array.isArray(val.data)) return val.data;
+            if (val && Array.isArray(val.content)) return val.content;
+            return [];
+          };
+
+          const brs      = extractData(results[0].status === 'fulfilled' ? results[0].value : []);
+          const rawStaff = extractData(results[1].status === 'fulfilled' ? results[1].value : []);
+          const pays     = extractData(results[2].status === 'fulfilled' ? results[2].value : []);
+          const rawRoles = extractData(results[3].status === 'fulfilled' ? results[3].value : []);
+          const plns     = extractData(results[4].status === 'fulfilled' ? results[4].value : []);
+
+          // Normalize staff: backend may return phoneNumber instead of phone, staffCode instead of code
+          const normalizedStaff = rawStaff.map((s: any) => ({
+            ...s,
+            phone: s.phone || s.phoneNumber || '',
+            code: s.code || s.staffCode || s.trainerCode || s.userCode || '',
+          }));
+
+          setBranches(brs);
+          setStaff(normalizedStaff);
+          setPayments(pays);
+          setAvailablePlans(plns);
+
+          // Deduplicate roles by name
+          const uniqueRoles: { id: string; name: string }[] = [];
+          const seenNames = new Set<string>();
+          rawRoles.forEach((r: any) => {
+            if (r && r.name) {
+              const key = r.name.trim().toUpperCase();
+              if (!seenNames.has(key)) {
+                seenNames.add(key);
+                uniqueRoles.push(r);
               }
-            });
-            setAvailableRoles(uniqueRoles);
+            }
+          });
+          setAvailableRoles(uniqueRoles);
+
+          const errors = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[];
+          if (errors.length > 0) {
+            console.error('[Members] Metadata load errors:', errors.map((e) => e.reason?.message));
           }
         })
-        .catch(err => triggerAnnouncement(`Failed to load metadata: ${err.message}`));
-    }
-  }, [isFormOpen, availablePlans.length, triggerAnnouncement]);
+        .catch(err => console.error('[Members] Failed to load metadata:', err.message));
+    };
+
+    loadMetadata();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount — data is stable for the session
+
 
   const fetchUserAttendanceLogs = React.useCallback(async (userId: string) => {
     setIsLoadingAttendance(true);
@@ -246,11 +278,15 @@ export const MembersInternal: React.FC = () => {
   };
 
   // Form Validation Logic
-  const validateMemberForm = (data: { name: string; phone: string; email?: string; role?: string }) => {
-    const errors: { name?: string; phone?: string; email?: string; role?: string } = {};
+  const validateMemberForm = (data: { name: string; phone: string; email?: string; role?: string; gender?: string }) => {
+    const errors: { name?: string; phone?: string; email?: string; role?: string; gender?: string } = {};
 
     if (!data.name || data.name.trim().length < 2) {
       errors.name = 'Full name must be at least 2 characters.';
+    }
+
+    if (!data.gender) {
+      errors.gender = 'Gender is required.';
     }
 
     const cleanPhone = data.phone ? data.phone.trim() : '';
@@ -277,6 +313,7 @@ export const MembersInternal: React.FC = () => {
       name: member.name || '',
       email: member.email || '',
       phone: member.phone || '',
+      gender: member.gender || '',
       dob: member.dob || '',
       startDate: member.startDate || new Date().toISOString().split('T')[0],
       endDate: member.endDate || '',
@@ -361,6 +398,7 @@ export const MembersInternal: React.FC = () => {
         name: newMember.name.trim(),
         email: newMember.email ? newMember.email.trim() : undefined,
         phone: newMember.phone.trim(),
+        gender: newMember.gender,
         dob: newMember.dob || undefined,
         amountPaid: newMember.amountPaid ? Number(newMember.amountPaid) : undefined,
         startDate: newMember.startDate || undefined,
@@ -432,6 +470,7 @@ export const MembersInternal: React.FC = () => {
         name: editMemberData.name.trim(),
         email: editMemberData.email ? editMemberData.email.trim() : undefined,
         phone: editMemberData.phone.trim(),
+        gender: editMemberData.gender || undefined,
         dob: editMemberData.dob || undefined,
         startDate: editMemberData.startDate || undefined,
         endDate: editMemberData.endDate || undefined,
@@ -1492,8 +1531,20 @@ export const MembersInternal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Dates: DOB, Start Date, End Date */}
-                <div className="grid grid-cols-3 gap-3">
+                {/* Dates & Gender: Gender, DOB, Start Date, End Date */}
+                <div className="grid grid-cols-4 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Gender</label>
+                    <select
+                      value={editMemberData.gender}
+                      onChange={(e) => setEditMemberData({ ...editMemberData, gender: e.target.value })}
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                    >
+                      <option value="">Select</option>
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Date of Birth</label>
                     <input
@@ -1675,7 +1726,6 @@ export const MembersInternal: React.FC = () => {
                       <SearchableSelect
                         placeholder="Search & Select Role..."
                         options={[
-                          { value: '', label: '-- Standard User / Member --' },
                           ...availableRoles.map(r => ({ value: r.name, label: r.name.replace(/_/g, ' ') })),
                           ...(!availableRoles.some(r => r.name.toUpperCase() === 'EMPLOYEE') ? [{ value: 'EMPLOYEE', label: 'EMPLOYEE' }] : []),
                         ]}
@@ -1694,7 +1744,6 @@ export const MembersInternal: React.FC = () => {
                       <SearchableSelect
                         placeholder="Search & Select Membership Plan..."
                         options={[
-                          { value: '', label: '-- Select Membership Package --' },
                           ...availablePlans.map(p => ({
                             value: p.name,
                             label: p.name,
@@ -1717,7 +1766,6 @@ export const MembersInternal: React.FC = () => {
                       <SearchableSelect
                         placeholder="Search & Select Home Branch..."
                         options={[
-                          { value: '', label: '-- Select Home Location --' },
                           ...branches.map(b => ({
                             value: b.id,
                             label: b.name,
@@ -1884,6 +1932,36 @@ export const MembersInternal: React.FC = () => {
                       )}
                     </div>
 
+                    {/* Gender */}
+                    <div>
+                      <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
+                        Gender *
+                      </label>
+                      <select
+                        required
+                        value={newMember.gender}
+                        onChange={(e) => {
+                          setNewMember({ ...newMember, gender: e.target.value });
+                          setFormErrors(prev => ({ ...prev, gender: undefined }));
+                        }}
+                        onBlur={() => setTouchedFields(prev => ({ ...prev, gender: true }))}
+                        className={`w-full px-3 py-2.5 border ${
+                          formErrors.gender && (touchedFields.gender || isSubmitAttempted)
+                            ? 'border-red-500 ring-2 ring-red-500/20'
+                            : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500/40'
+                        } bg-white dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 text-xs transition`}
+                      >
+                        <option value="">-- Select Gender --</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                      </select>
+                      {formErrors.gender && (touchedFields.gender || isSubmitAttempted) && (
+                        <p className="text-[11px] text-red-500 mt-1 font-semibold flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" /> {formErrors.gender}
+                        </p>
+                      )}
+                    </div>
+
                     {/* Date of Birth */}
                     <div>
                       <label className="block font-semibold mb-1.5 text-zinc-800 dark:text-zinc-200">
@@ -1994,6 +2072,8 @@ export const MembersInternal: React.FC = () => {
 };
 
 export class MembersErrorBoundary extends React.Component<any, { hasError: boolean; error: Error | null }> {
+  state: { hasError: boolean; error: any; };
+  props: any;
   constructor(props: any) { super(props); this.state = { hasError: false, error: null }; }
   static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) { console.error("MembersErrorBoundary caught error:", error, errorInfo); }

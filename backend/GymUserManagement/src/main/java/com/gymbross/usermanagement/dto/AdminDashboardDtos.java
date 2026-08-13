@@ -71,6 +71,7 @@ public class AdminDashboardDtos {
         @jakarta.validation.constraints.Pattern(regexp = "^$|^\\d{10}$", message = "Phone number must be exactly 10 digits")
         private String phone;
         private LocalDate dob;
+        private String gender;
         private String plan;
         private BigDecimal amountPaid;
         private BigDecimal salary;

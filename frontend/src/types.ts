@@ -16,6 +16,7 @@ export interface Organization {
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
   logoUrl?: string;
+  password?: string;
 }
 
 // Mirrors com.gymbross.usermanagement.dto.BranchDtos.BranchResponse — the backend
@@ -47,6 +48,7 @@ export interface Member {
   lastName?: string;
   email: string;
   phone: string;
+  gender?: string;
   dob?: string;
   plan?: string | null;
   amountPaid?: number | null;
@@ -91,22 +93,21 @@ export interface Staff {
 
 export interface Plan {
   id: string;
-  orgId: string;
+  orgId?: string;
+  organizationId?: string;
   branchId?: string; // null = global
   name: string;
   description: string;
   durationDays: number;
   price: number;
-  currency: string;
+  currency?: string;
   planType: 'STANDARD' | 'PRIME_PT' | 'PREMIUM' | 'BASIC';
-  features: {
-    gymAccess: boolean;
-    classAccess: boolean;
-    ptSessions: number;
-    dietPlanAccess: boolean;
-    appAccess: boolean;
-  };
-  is_active: boolean;
+  maxMembers?: number;
+  sortOrder?: number;
+  createdAt?: string;
+  active: boolean;   // backend field name
+  is_active?: boolean; // legacy alias
+  deleted?: boolean;
 }
 
 export interface Payment {
@@ -270,5 +271,5 @@ export interface AccessibilitySettings {
   theme: 'dark' | 'light' | 'high-contrast-dark' | 'high-contrast-light';
   fontSize: 'sm' | 'base' | 'lg' | 'xl';
   dyslexicFont: boolean;
-      gymAccess: true,
+  gymAccess?: boolean;
 }

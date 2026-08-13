@@ -78,7 +78,6 @@ public class AuthService {
                 .city(request.getCity())
                 .pincode(request.getPincode())
                 .gst(request.getGst())
-                .numberOfOwners(request.getNumberOfOwners())
                 .ownerName(request.getOwnerName())
                 .pan(request.getPan())
                 .ownerContactEmail(request.getOwnerContactEmail())
@@ -245,6 +244,7 @@ public class AuthService {
 
         User user = User.builder()
                 .name(request.getName()).email(request.getEmail()).phone(request.getPhone())
+                .gender(request.getGender())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .organization(org).branch(branch)
                 .userCode(UsernameGenerator.generateCode("USR"))
@@ -320,6 +320,7 @@ public class AuthService {
 
         User pu = User.builder()
                 .name(request.getName()).email(request.getEmail()).phone(request.getPhone())
+                .gender(request.getGender())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .organization(org).branch(branch)
                 .userCode(UsernameGenerator.generateCode("PRM"))

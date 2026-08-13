@@ -20,5 +20,6 @@ public class RegisterUserDto {
     private LocalDate startDate;
     private LocalDate dob;
     private java.math.BigDecimal amountPaid;
+    private String gender;
     private String plan;
 }

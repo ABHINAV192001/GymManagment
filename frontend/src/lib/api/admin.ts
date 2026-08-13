@@ -14,6 +14,7 @@ export interface UserUpsertRequest {
   email?: string;
   phone?: string;
   dob?: string;
+  gender?: string;
   amountPaid?: number;
   startDate?: string;
   endDate?: string;
@@ -23,6 +24,7 @@ export interface UserUpsertRequest {
   role?: string;
   plan?: string;
   branchId?: string;
+  accessibleBranchIds?: string[];
   attendanceCount?: number;
   isStaff?: boolean;
 }

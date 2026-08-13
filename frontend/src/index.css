@@ -3,8 +3,37 @@
 /* Enable class-based dark mode in Tailwind v4 */
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --color-gym-red: #E63946;
+  --color-gym-red-hover: #C92F3B;
+  --color-gym-dark-red: #FF4D5A;
+  --color-gym-dark-red-hover: #FF6670;
+  
+  --color-gym-secondary: #1D1F22;
+  --color-gym-dark-secondary: #2A2D31;
+  
+  --color-gym-accent: #2563EB;
+  --color-gym-dark-accent: #4D8DFF;
+  
+  --color-gym-success: #16A34A;
+  --color-gym-warning: #F59E0B;
+}
+
 :root {
   color-scheme: light;
+}
+
+/* Light mode base body canvas matching Gym Palette (#F6F7F9 & #111418) */
+html, body {
+  background-color: #F6F7F9;
+  color: #111418;
+}
+
+/* Dark mode base body canvas matching Gym Palette (#0B0D0F & #F5F7FA) */
+html.dark, html.dark body {
+  background-color: #0B0D0F;
+  color: #F5F7FA;
+  color-scheme: dark;
 }
 
 /* High Contrast Light Theme */
@@ -29,20 +58,4 @@ html.high-contrast-dark body {
 html.high-contrast-dark * {
   border-color: #ffffff !important;
   box-shadow: none !important;
-}
-
-/* Dark mode base — controls canvas/body */
-html.dark {
-  color-scheme: dark;
-}
-
-html.dark body {
-  background-color: #09090b;
-  color: #fafafa;
-}
-
-/* Light mode base */
-html.light body {
-  background-color: #f8fafc;
-  color: #0f172a;
 }
