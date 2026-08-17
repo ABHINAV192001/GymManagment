@@ -34,3 +34,22 @@ tmp/
 Upload/
 *.csv
 # *.json
+
+# Environment Secrets
+application-dev.yml
+application-prod.yml
+*.env
+
+# Eclipse build artifacts
+bin/
+.metadata/
+.settings/
+.apt_generated/
+
+# Raw Seed Data & Local DBs
+FOOD/
+*.db
+*.class
+temp.java
+old_dataseeder*.txt
+

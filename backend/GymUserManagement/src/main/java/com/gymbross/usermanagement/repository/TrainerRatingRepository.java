@@ -8,9 +8,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface TrainerRatingRepository extends JpaRepository<TrainerRating, Long> {
-    List<TrainerRating> findByTrainerId(Long trainerId);
+public interface TrainerRatingRepository extends JpaRepository<TrainerRating, java.util.UUID> {
+    List<TrainerRating> findByTrainerId(java.util.UUID trainerId);
 
     @Query("SELECT AVG(tr.rating) FROM TrainerRating tr WHERE tr.trainer.id = :trainerId")
-    Double getAverageRating(Long trainerId);
+    Double getAverageRating(java.util.UUID trainerId);
 }

@@ -9,11 +9,9 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Table(name = "workout_exercises")
-public class WorkoutExercise {
+public class WorkoutExercise extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @ManyToOne
     @JoinColumn(name = "workout_id")
@@ -25,7 +23,10 @@ public class WorkoutExercise {
 
     private Integer sets;
 
-    private Integer reps;
+    private String reps;
 
     private Integer time; // in seconds
+
+    @Column(name = "target_days")
+    private String targetDays; // e.g. "Monday,Wednesday,Friday"
 }

@@ -1,11 +1,13 @@
 package com.gymbross.workout.config;
 
+import com.Gym.GymCommonServices.security.TokenRevocationService;
 import com.Gym.GymCommonServices.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,10 +23,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final TokenRevocationService tokenRevocationService;
 
     @Override
     protected void doFilterInternal(
@@ -57,40 +61,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
+            String jti = jwtUtil.extractJti(jwt);
+            if (tokenRevocationService.isRevoked(jti)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             userEmail = jwtUtil.extractUsername(jwt);
 
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 String role = jwtUtil.extractRole(jwt);
-                Long organizationId = jwtUtil.extractOrganizationId(jwt);
-                Long branchId = jwtUtil.extractBranchId(jwt);
+                java.util.UUID organizationId = jwtUtil.extractOrganizationId(jwt);
+                java.util.UUID branchId = jwtUtil.extractBranchId(jwt);
 
-                // Create authorities from role
-                List<org.springframework.security.core.authority.SimpleGrantedAuthority> authorities = new ArrayList<>();
+                // Create authorities from role + permissions claim
+                List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                 if (role != null) {
-                    authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority(role));
+                    authorities.add(new SimpleGrantedAuthority(role));
+                }
+                for (String permission : jwtUtil.extractPermissions(jwt)) {
+                    authorities.add(new SimpleGrantedAuthority(permission));
                 }
 
-                UserDetails userDetails = new org.springframework.security.core.userdetails.User(userEmail, "", authorities);
+                UserDetails userDetails = new User(userEmail, "", authorities);
 
                 if (jwtUtil.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null,
                             userDetails.getAuthorities());
-                    
+
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    
+
                     // Set context attributes for controllers
                     if (organizationId != null) request.setAttribute("organizationId", organizationId);
                     if (branchId != null) request.setAttribute("branchId", branchId);
-                    
+
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            System.out.println("WorkoutService: JWT Expired for " + request.getRequestURI());
+            log.debug("WorkoutService: JWT expired for {}", request.getRequestURI());
         } catch (Exception e) {
-            System.out.println("WorkoutService: JWT Error: " + e.getMessage());
+            log.debug("WorkoutService: JWT error: {}", e.getMessage());
         }
         filterChain.doFilter(request, response);
     }

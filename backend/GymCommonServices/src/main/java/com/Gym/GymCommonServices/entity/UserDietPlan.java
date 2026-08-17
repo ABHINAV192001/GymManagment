@@ -6,28 +6,30 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_diet_plans")
+@SQLRestriction("deleted_at IS NULL")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserDietPlan {
+public class UserDietPlan extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
+    // Premium users are Users with the PREMIUM_USER role since the legacy
+    // PremiumUser entity/table was removed.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "premium_user_id")
-    private PremiumUser premiumUser;
+    private User premiumUser;
 
     @Builder.Default
     @Column(name = "is_deleted", columnDefinition = "boolean default false")
@@ -44,7 +46,4 @@ public class UserDietPlan {
     @Column(name = "attachment_url")
     private String attachmentUrl;
 
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-}
+    }

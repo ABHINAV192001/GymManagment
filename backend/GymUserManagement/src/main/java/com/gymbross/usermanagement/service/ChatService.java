@@ -20,7 +20,6 @@ public class ChatService {
                 .receiverId(receiverId)
                 .senderRole(senderRole)
                 .content(content)
-                .timestamp(LocalDateTime.now())
                 .isRead(false)
                 .build();
         return messageRepository.save(message);

@@ -16,8 +16,8 @@ import lombok.NoArgsConstructor;
 public class Recipe {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue
+    private java.util.UUID id;
 
     @Column(name = "recipe_name", nullable = false)
     private String recipeName;
@@ -84,4 +84,9 @@ public class Recipe {
 
     @Column(name = "high_fiber")
     private Boolean highFiber;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

@@ -24,7 +24,7 @@ public class WorkoutAssignmentController {
 
     @GetMapping("/assignment/{userId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<WeeklyWorkoutPlanDto>> getUserWeeklyPlan(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<WeeklyWorkoutPlanDto>> getUserWeeklyPlan(@PathVariable java.util.UUID userId) {
         return ResponseEntity.ok(ApiResponse.success(workoutAssignmentService.getUserWeeklyPlan(userId)));
     }
 }

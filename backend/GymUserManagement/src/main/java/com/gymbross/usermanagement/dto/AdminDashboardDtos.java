@@ -34,8 +34,9 @@ public class AdminDashboardDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class StaffTrackingDto {
-        private Long id;
+        private java.util.UUID id;
         private String code; // staffCode or trainerCode
+        private String username;
         private String role;
         private String name;
         private String email;
@@ -47,6 +48,7 @@ public class AdminDashboardDtos {
         private List<String> customerNames;
         private String paymentStatus; // Added
         private String entityType; // "STAFF" or "TRAINER"
+        private List<java.util.UUID> accessibleBranchIds;
     }
 
     @Data
@@ -54,18 +56,25 @@ public class AdminDashboardDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UserDetailDto {
-        private Long id;
-        private Long branchId;
+        private java.util.UUID id;
+        private java.util.UUID branchId;
+        private String branchName;
+        private List<java.util.UUID> accessibleBranchIds;
         private String userCode;
         private String username;
         private String name;
         private String firstName;
         private String lastName;
+        @jakarta.validation.constraints.Email(message = "Invalid email format")
         private String email;
+
+        @jakarta.validation.constraints.Pattern(regexp = "^$|^\\d{10}$", message = "Phone number must be exactly 10 digits")
         private String phone;
         private LocalDate dob;
+        private String gender;
         private String plan;
         private BigDecimal amountPaid;
+        private BigDecimal salary;
         private String trainerName;
         private String trainerCode;
         private LocalDate startDate;
@@ -75,6 +84,8 @@ public class AdminDashboardDtos {
         private Boolean isEmailVerified;
         private String status;
         private String role;
+        private Boolean isStaff;
+        private List<AttendanceDtos.AttendanceLogResponseDto> attendanceLogs;
     }
 
     @Data
@@ -82,8 +93,9 @@ public class AdminDashboardDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class TrainerDetailDto {
-        private Long id;
-        private Long branchId;
+        private java.util.UUID id;
+        private java.util.UUID branchId;
+        private List<java.util.UUID> accessibleBranchIds;
         private String trainerCode;
         private String username;
         private String name;
@@ -96,6 +108,7 @@ public class AdminDashboardDtos {
         private String shiftTimings;
         private Boolean isPersonalTrainer;
         private Integer experience;
+        private BigDecimal ptTrainerPercentage;
     }
 
     @Data
@@ -103,8 +116,10 @@ public class AdminDashboardDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class StaffDetailDto {
-        private Long id;
-        private Long branchId;
+        private java.util.UUID id;
+        private java.util.UUID userId;
+        private java.util.UUID branchId;
+        private List<java.util.UUID> accessibleBranchIds;
         private String staffCode;
         private String username;
         private String name;
@@ -117,6 +132,8 @@ public class AdminDashboardDtos {
         private String shiftTimings;
         private Integer experience;
         private String role;
+        private Boolean isPersonalTrainer;
+        private BigDecimal ptTrainerPercentage;
     }
 
     @Data
@@ -140,7 +157,7 @@ public class AdminDashboardDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ActivityLogDto {
-        private Long id;
+        private java.util.UUID id;
         private String message; // e.g. "John Doe checked in" or "New member registered"
         private String timeAgo; // e.g. "2 hours ago"
         private String type; // "CHECKIN", "REGISTRATION", "PAYMENT"
@@ -152,7 +169,7 @@ public class AdminDashboardDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class BranchDto {
-        private Long id;
+        private java.util.UUID id;
         private String name;
         private String branchCode;
         private String adminEmail;

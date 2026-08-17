@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface FoodNutrientRepository extends JpaRepository<FoodNutrient, Long> {
+public interface FoodNutrientRepository extends JpaRepository<FoodNutrient, java.util.UUID> {
 }

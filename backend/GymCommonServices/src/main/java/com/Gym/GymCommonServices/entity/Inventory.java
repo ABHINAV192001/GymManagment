@@ -16,11 +16,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "inventory")
-public class Inventory {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Inventory extends com.Gym.GymCommonServices.common.BaseEntity {
 
     @Column(nullable = false)
     private String name;
@@ -29,10 +25,13 @@ public class Inventory {
 
     @Column(nullable = false)
     private Integer quantity;
+    
+    @Column(precision = 10, scale = 2)
+    private java.math.BigDecimal price;
 
-    private String category; // Added
+    private String category;
 
-    private String condition; // e.g., "New", "Good", "Needs Repair"
+    private String condition;
 
     private LocalDateTime purchaseDate;
 
@@ -40,9 +39,4 @@ public class Inventory {
     @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
 }

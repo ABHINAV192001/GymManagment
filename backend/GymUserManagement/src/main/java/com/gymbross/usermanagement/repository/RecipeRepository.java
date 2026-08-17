@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface RecipeRepository extends JpaRepository<Recipe, Long> {
+public interface RecipeRepository extends JpaRepository<Recipe, java.util.UUID> {
     List<Recipe> findByCategory(String category);
 
     List<Recipe> findByCategoryContainingIgnoreCase(String category);

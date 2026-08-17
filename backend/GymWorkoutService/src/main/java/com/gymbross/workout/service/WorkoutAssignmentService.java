@@ -6,5 +6,5 @@ import com.Gym.GymCommonServices.dto.WeeklyWorkoutPlanDto;
 public interface WorkoutAssignmentService {
     WeeklyWorkoutPlanDto assignWorkoutToUser(AssignWorkoutRequest request);
 
-    WeeklyWorkoutPlanDto getUserWeeklyPlan(Long userId);
+    WeeklyWorkoutPlanDto getUserWeeklyPlan(java.util.UUID userId);
 }

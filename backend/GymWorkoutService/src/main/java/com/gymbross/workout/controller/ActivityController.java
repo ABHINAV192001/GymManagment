@@ -29,7 +29,7 @@ public class ActivityController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Activity>> getActivityById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Activity>> getActivityById(@PathVariable java.util.UUID id) {
         Activity activity = activityRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Activity not found with id: " + id));
         return ResponseEntity.ok(ApiResponse.success(activity));
@@ -43,7 +43,7 @@ public class ActivityController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
-    public ResponseEntity<ApiResponse<Activity>> updateActivity(@PathVariable Long id, @RequestBody Activity updatedActivity) {
+    public ResponseEntity<ApiResponse<Activity>> updateActivity(@PathVariable java.util.UUID id, @RequestBody Activity updatedActivity) {
         Activity existing = activityRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Activity not found with id: " + id));
         
@@ -66,7 +66,7 @@ public class ActivityController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deleteActivity(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteActivity(@PathVariable java.util.UUID id) {
         if (activityRepository.existsById(id)) {
             activityRepository.deleteById(id);
             return ResponseEntity.ok(ApiResponse.success(null, "Activity deleted successfully"));

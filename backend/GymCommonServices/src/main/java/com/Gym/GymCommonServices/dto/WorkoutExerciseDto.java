@@ -10,14 +10,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class WorkoutExerciseDto {
-    private Long id;
-    private Long exerciseId;
+    private java.util.UUID id;
+    private java.util.UUID exerciseId;
     private String name; // Exercise name for convenience
+    private String muscleGroup;
+    private String mechanics; // COMPOUND, ISOLATION
     private String description; // Exercise description
     private String videoUrl;
     private Integer sets;
-    private Integer reps;
+    private String reps;
     private Integer time;
+    private String targetDays;
 
     // Step-by-step instructions
     private String stepOneImage;

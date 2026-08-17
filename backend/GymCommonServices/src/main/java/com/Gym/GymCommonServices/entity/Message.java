@@ -15,11 +15,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "messages")
-public class Message {
+public class Message extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @Column(name = "sender_id", nullable = false)
     private String senderId;
@@ -32,10 +30,6 @@ public class Message {
 
     @Column(columnDefinition = "TEXT")
     private String content;
-
-    @CreationTimestamp
-    @Column(name = "timestamp")
-    private LocalDateTime timestamp;
 
     @Builder.Default
     @Column(name = "is_read", columnDefinition = "boolean default false")

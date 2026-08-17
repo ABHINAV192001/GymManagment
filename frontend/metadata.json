@@ -1,0 +1,6 @@
+{
+  "name": "GymOS Management Portal",
+  "description": "Enterprise-grade multi-tenant gym management software designed with extreme accessibility controls, adjustable text size, screen-reader optimizations, high-contrast dark modes, and complete simulation of GymOS operational modules.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

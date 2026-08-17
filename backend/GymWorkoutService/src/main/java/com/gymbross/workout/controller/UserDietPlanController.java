@@ -19,19 +19,19 @@ public class UserDietPlanController {
 
     @PostMapping("/{userId}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
-    public ResponseEntity<ApiResponse<UserDietPlan>> assignDietPlan(@PathVariable Long userId, @RequestBody UserDietPlan dietPlan) {
+    public ResponseEntity<ApiResponse<UserDietPlan>> assignDietPlan(@PathVariable java.util.UUID userId, @RequestBody UserDietPlan dietPlan) {
         return ResponseEntity.ok(ApiResponse.success(userDietPlanService.assignDietPlan(userId, dietPlan), "Diet plan assigned successfully"));
     }
 
     @GetMapping("/{userId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<UserDietPlan>>> getUserDietPlans(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<List<UserDietPlan>>> getUserDietPlans(@PathVariable java.util.UUID userId) {
         return ResponseEntity.ok(ApiResponse.success(userDietPlanService.getUserDietPlans(userId)));
     }
 
     @DeleteMapping("/{planId}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
-    public ResponseEntity<ApiResponse<Void>> deleteDietPlan(@PathVariable Long planId) {
+    public ResponseEntity<ApiResponse<Void>> deleteDietPlan(@PathVariable java.util.UUID planId) {
         userDietPlanService.deleteDietPlan(planId);
         return ResponseEntity.ok(ApiResponse.success(null, "Diet plan deleted successfully"));
     }

@@ -15,8 +15,8 @@ public class RegisterTrainerDto {
     private String email;
     private String phone;
     private String password;
-    private Long orgId;
-    private Long branchId;
+    private java.util.UUID orgId;
+    private java.util.UUID branchId;
     private java.math.BigDecimal salary;
     private String shiftTimings;
     private LocalDate startDate;

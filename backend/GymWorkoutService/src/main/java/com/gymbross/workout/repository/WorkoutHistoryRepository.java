@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface WorkoutHistoryRepository extends JpaRepository<WorkoutHistory, Long> {
-    List<WorkoutHistory> findByUserId(Long userId);
+public interface WorkoutHistoryRepository extends JpaRepository<WorkoutHistory, java.util.UUID> {
+    List<WorkoutHistory> findByUserId(java.util.UUID userId);
 }

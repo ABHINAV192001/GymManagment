@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserDietPlanDto {
-    private Long id;
+    private java.util.UUID id;
     private String foodName;
     private String description;
     private String timingFood;

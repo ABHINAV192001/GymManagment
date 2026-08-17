@@ -19,7 +19,7 @@ public class UserDietPlanService {
     private final UserRepository userRepository;
 
     @Transactional
-    public UserDietPlan assignDietPlan(Long userId, UserDietPlan dietPlan) {
+    public UserDietPlan assignDietPlan(java.util.UUID userId, UserDietPlan dietPlan) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -31,14 +31,15 @@ public class UserDietPlanService {
         return userDietPlanRepository.save(dietPlan);
     }
 
-    public List<UserDietPlan> getUserDietPlans(Long userId) {
+    public List<UserDietPlan> getUserDietPlans(java.util.UUID userId) {
         return userDietPlanRepository.findByUserIdAndIsDeletedFalse(userId);
     }
 
     @Transactional
-    public void deleteDietPlan(Long planId) {
+    public void deleteDietPlan(java.util.UUID planId) {
         UserDietPlan plan = userDietPlanRepository.findById(planId)
                 .orElseThrow(() -> new RuntimeException("Diet plan not found"));
+        plan.softDelete();
         plan.setIsDeleted(true);
         userDietPlanRepository.save(plan);
     }

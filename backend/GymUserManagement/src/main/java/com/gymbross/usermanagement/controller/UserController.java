@@ -2,8 +2,14 @@ package com.gymbross.usermanagement.controller;
 
 import com.Gym.GymCommonServices.dto.ApiResponse;
 import com.gymbross.usermanagement.dto.UserProfileDto;
+import com.gymbross.usermanagement.dto.NotificationBundleDto;
+import com.gymbross.usermanagement.service.NotificationBundleService;
+import com.gymbross.usermanagement.service.strategy.UserProfileFacade;
+import com.gymbross.usermanagement.dto.WaterLogRequestDto;
 import com.gymbross.usermanagement.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -19,21 +25,46 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final UserProfileFacade userProfileFacade;
+    private final NotificationBundleService notificationBundleService;
+
+    @GetMapping("/notification-bundle")
+    public ResponseEntity<ApiResponse<NotificationBundleDto>> getNotificationBundle(Principal principal) {
+        return ResponseEntity.ok(ApiResponse.success(notificationBundleService.getNotificationBundle(principal.getName())));
+    }
+
+    @PutMapping("/notification-bundle")
+    public ResponseEntity<ApiResponse<NotificationBundleDto>> saveNotificationBundle(
+            Principal principal,
+            @RequestBody NotificationBundleDto dto) {
+        return ResponseEntity.ok(ApiResponse.success(
+                notificationBundleService.saveNotificationBundle(principal.getName(), dto),
+                "Notification Routine Bundle saved successfully"
+        ));
+    }
+
+    @PostMapping("/notification-bundle/send-email")
+    public ResponseEntity<ApiResponse<Void>> sendNotificationBundleEmail(
+            Principal principal,
+            @RequestBody NotificationBundleDto dto) {
+        notificationBundleService.sendNotificationBundleEmail(principal.getName(), dto);
+        return ResponseEntity.ok(ApiResponse.success(null, "Daily Routine Notification Bundle sent to your email successfully!"));
+    }
 
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<UserProfileDto>> getProfile(Principal principal) {
-        return ResponseEntity.ok(ApiResponse.success(userService.getProfile(principal.getName())));
+        return ResponseEntity.ok(ApiResponse.success(userProfileFacade.getProfile(principal.getName())));
     }
 
     @PutMapping("/profile")
-    public ResponseEntity<ApiResponse<UserProfileDto>> updateProfile(Principal principal, @RequestBody UserProfileDto dto) {
-        return ResponseEntity.ok(ApiResponse.success(userService.updateProfile(principal.getName(), dto)));
+    public ResponseEntity<ApiResponse<UserProfileDto>> updateProfile(Principal principal, @Valid @RequestBody UserProfileDto dto) {
+        return ResponseEntity.ok(ApiResponse.success(userProfileFacade.updateProfile(principal.getName(), dto)));
     }
 
     @PostMapping("/onboarding")
-    public ResponseEntity<ApiResponse<Void>> submitOnboarding(Principal principal, @RequestBody com.gymbross.usermanagement.dto.OnboardingDto dto) {
+    public ResponseEntity<ApiResponse<Void>> submitOnboarding(Principal principal, @Valid @RequestBody com.gymbross.usermanagement.dto.OnboardingDto dto) {
         userService.submitOnboarding(principal.getName(), dto);
-        return ResponseEntity.ok(ApiResponse.success(null, "Onboarding submitted successfully"));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(null, "Onboarding submitted successfully"));
     }
 
     @GetMapping("/dashboard")
@@ -44,11 +75,9 @@ public class UserController {
     }
 
     @PostMapping("/water/log")
-    public ResponseEntity<ApiResponse<Void>> logWater(Principal principal, @RequestBody Map<String, Object> payload) {
-        double amount = Double.parseDouble(payload.get("amount").toString());
-        String date = (String) payload.get("date");
-        userService.logWater(principal.getName(), amount, date);
-        return ResponseEntity.ok(ApiResponse.success(null, "Water logged successfully"));
+    public ResponseEntity<ApiResponse<Void>> logWater(Principal principal, @Valid @RequestBody WaterLogRequestDto request) {
+        userService.logWater(principal.getName(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(null, "Water logged successfully"));
     }
 
     @GetMapping("/daily-log")
@@ -59,14 +88,14 @@ public class UserController {
     }
 
     @DeleteMapping("/food/log/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteFoodLog(@PathVariable Long id, Principal principal) {
+    public ResponseEntity<Void> deleteFoodLog(@PathVariable java.util.UUID id, Principal principal) {
         userService.deleteFoodLog(id, principal.getName());
-        return ResponseEntity.ok(ApiResponse.success(null, "Food log deleted"));
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/water/log/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteWaterLog(@PathVariable Long id, Principal principal) {
+    public ResponseEntity<Void> deleteWaterLog(@PathVariable java.util.UUID id, Principal principal) {
         userService.deleteWaterLog(id, principal.getName());
-        return ResponseEntity.ok(ApiResponse.success(null, "Water log deleted"));
+        return ResponseEntity.noContent().build();
     }
 }

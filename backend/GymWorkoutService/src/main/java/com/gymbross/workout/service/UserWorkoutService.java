@@ -19,7 +19,7 @@ public class UserWorkoutService {
         private final WeeklyWorkoutPlanRepository weeklyWorkoutPlanRepository;
 
         @Transactional
-        public void updateWeeklyPlan(Long userId, WeeklyWorkoutPlanDto dto) {
+        public void updateWeeklyPlan(java.util.UUID userId, WeeklyWorkoutPlanDto dto) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -42,7 +42,7 @@ public class UserWorkoutService {
         }
 
         @Transactional(readOnly = true)
-        public WeeklyWorkoutPlanDto getWeeklyPlan(Long userId) {
+        public WeeklyWorkoutPlanDto getWeeklyPlan(java.util.UUID userId) {
                 WeeklyWorkoutPlan plan = weeklyWorkoutPlanRepository.findByUserId(userId)
                                 .orElseThrow(() -> new RuntimeException("Weekly plan not found"));
 
@@ -58,7 +58,7 @@ public class UserWorkoutService {
                                 .build();
         }
 
-        public void updateWorkoutPlan(Long userId, List<String> workoutPlan) {
+        public void updateWorkoutPlan(java.util.UUID userId, List<String> workoutPlan) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -70,7 +70,7 @@ public class UserWorkoutService {
                 userRepository.save(user);
         }
 
-        public List<String> getWorkoutPlan(Long userId) {
+        public List<String> getWorkoutPlan(java.util.UUID userId) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 return user.getWorkoutPlan();

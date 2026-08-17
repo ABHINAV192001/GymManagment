@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WaterLogDto {
-    private Long id;
+    private java.util.UUID id;
     private double amount;
     private LocalDateTime loggedAt;
 }

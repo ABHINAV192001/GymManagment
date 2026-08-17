@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface NutrientRepository extends JpaRepository<Nutrient, Long> {
+public interface NutrientRepository extends JpaRepository<Nutrient, java.util.UUID> {
     Optional<Nutrient> findByNutrientNumber(String nutrientNumber);
 }

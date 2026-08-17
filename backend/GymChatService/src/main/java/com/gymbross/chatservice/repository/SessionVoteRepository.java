@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface SessionVoteRepository extends JpaRepository<SessionVote, Long> {
-    Optional<SessionVote> findBySessionIdAndUsername(Long sessionId, String username);
+public interface SessionVoteRepository extends JpaRepository<SessionVote, java.util.UUID> {
+    Optional<SessionVote> findBySessionIdAndUsername(java.util.UUID sessionId, String username);
 }

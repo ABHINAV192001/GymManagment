@@ -11,7 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class AssignWorkoutRequest {
-    private Long userId;
+    private java.util.UUID userId;
     private String day; // "Monday", "Tuesday", etc.
     private List<WorkoutExerciseDto> exercises;
 }

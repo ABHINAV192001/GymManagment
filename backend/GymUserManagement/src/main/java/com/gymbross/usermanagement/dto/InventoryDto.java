@@ -8,11 +8,12 @@ import java.time.LocalDateTime;
 @Data
 @Builder
 public class InventoryDto {
-    private Long id;
+    private java.util.UUID id;
     private String name;
     private String description;
     private Integer quantity;
     private String category;
     private String condition;
     private LocalDateTime purchaseDate;
+    private java.math.BigDecimal price;
 }

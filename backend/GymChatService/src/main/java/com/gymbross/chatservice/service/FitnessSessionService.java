@@ -34,15 +34,15 @@ public class FitnessSessionService {
 
 		try {
 			// Notify recipients
-			List<Long> branchIds = Arrays.stream(session.getBranchIds().split(",")).map(String::trim)
-					.map(Long::parseLong).collect(Collectors.toList());
+			List<java.util.UUID> branchIds = Arrays.stream(session.getBranchIds().split(",")).map(String::trim)
+					.map(java.util.UUID::fromString).collect(Collectors.toList());
 
-			List<Role> roles = Arrays.stream(session.getRecipientRoles().split(",")).map(String::trim)
-					.map(Role::valueOf).collect(Collectors.toList());
+			List<String> roles = Arrays.stream(session.getRecipientRoles().split(",")).map(String::trim)
+					.map(Role::valueOf).map(Enum::name).collect(Collectors.toList());
 
 			System.out.println("DEBUG: Sending notifications to Branches: " + branchIds + ", Roles: " + roles);
 
-			List<User> recipients = userRepository.findByBranchIdInAndRoleIn(branchIds, roles);
+			List<User> recipients = userRepository.findByBranchIdInAndRoleNamesIn(branchIds, roles);
 			System.out.println("DEBUG: Found " + recipients.size() + " potential recipients in DB.");
 
 			if (recipients.isEmpty()) {
@@ -72,11 +72,11 @@ public class FitnessSessionService {
 		return fitnessSessionRepository.findAll();
 	}
 
-	public FitnessSession getSession(Long id) {
+	public FitnessSession getSession(java.util.UUID id) {
 		return fitnessSessionRepository.findById(id).orElseThrow(() -> new RuntimeException("Session not found"));
 	}
 
-	public void vote(Long sessionId, String vote, String username) {
+	public void vote(java.util.UUID sessionId, String vote, String username) {
 		// 1. Check if user already voted for this session
 		if (sessionVoteRepository.findBySessionIdAndUsername(sessionId, username).isPresent()) {
 			System.out.println("DEBUG: User " + username + " already voted for session " + sessionId);
@@ -99,7 +99,7 @@ public class FitnessSessionService {
 		fitnessSessionRepository.save(session);
 	}
 
-	public FitnessSession updateSession(Long id, FitnessSession updatedSession) {
+	public FitnessSession updateSession(java.util.UUID id, FitnessSession updatedSession) {
 		FitnessSession existing = getSession(id);
 		existing.setSessionType(updatedSession.getSessionType());
 		existing.setSessionTime(updatedSession.getSessionTime());
@@ -112,12 +112,12 @@ public class FitnessSessionService {
 		return fitnessSessionRepository.save(existing);
 	}
 
-	public String checkVoteStatus(Long sessionId, String username) {
+	public String checkVoteStatus(java.util.UUID sessionId, String username) {
 		return sessionVoteRepository.findBySessionIdAndUsername(sessionId, username).map(vote -> vote.getVoteType())
 				.orElse(null);
 	}
 
-	public void deleteSession(Long id) {
+	public void deleteSession(java.util.UUID id) {
 		if (fitnessSessionRepository.existsById(id)) {
 			fitnessSessionRepository.deleteById(id);
 		} else {

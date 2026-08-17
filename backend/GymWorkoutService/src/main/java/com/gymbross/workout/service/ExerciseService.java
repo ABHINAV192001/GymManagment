@@ -6,11 +6,11 @@ import java.util.List;
 public interface ExerciseService {
     ExerciseDto createExercise(ExerciseDto exerciseDto);
 
-    ExerciseDto updateExercise(Long id, ExerciseDto exerciseDto);
+    ExerciseDto updateExercise(java.util.UUID id, ExerciseDto exerciseDto);
 
-    void deleteExercise(Long id);
+    void deleteExercise(java.util.UUID id);
 
-    ExerciseDto getExercise(Long id);
+    ExerciseDto getExercise(java.util.UUID id);
 
     List<ExerciseDto> getAllExercises(String muscleGroup);
 }

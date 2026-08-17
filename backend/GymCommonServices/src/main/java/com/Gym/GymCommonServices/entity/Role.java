@@ -9,5 +9,6 @@ public enum Role {
     TRAINER,
     CLEANER,
     RECEPTIONIST,
-    PREMIUM_USER
+    PREMIUM_USER,
+    STAFF
 }

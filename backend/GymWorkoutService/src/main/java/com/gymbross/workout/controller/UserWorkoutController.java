@@ -19,27 +19,27 @@ public class UserWorkoutController {
 
     @PutMapping("/{userId}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
-    public ResponseEntity<ApiResponse<Void>> updateWorkoutPlan(@PathVariable Long userId, @RequestBody List<String> workoutPlan) {
+    public ResponseEntity<ApiResponse<Void>> updateWorkoutPlan(@PathVariable java.util.UUID userId, @RequestBody List<String> workoutPlan) {
         userWorkoutService.updateWorkoutPlan(userId, workoutPlan);
         return ResponseEntity.ok(ApiResponse.success(null, "Workout plan updated successfully"));
     }
 
     @GetMapping("/{userId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<String>>> getWorkoutPlan(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<List<String>>> getWorkoutPlan(@PathVariable java.util.UUID userId) {
         return ResponseEntity.ok(ApiResponse.success(userWorkoutService.getWorkoutPlan(userId)));
     }
 
     @PostMapping("/{userId}/weekly")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
-    public ResponseEntity<ApiResponse<Void>> updateWeeklyPlan(@PathVariable Long userId, @RequestBody WeeklyWorkoutPlanDto dto) {
+    public ResponseEntity<ApiResponse<Void>> updateWeeklyPlan(@PathVariable java.util.UUID userId, @RequestBody WeeklyWorkoutPlanDto dto) {
         userWorkoutService.updateWeeklyPlan(userId, dto);
         return ResponseEntity.ok(ApiResponse.success(null, "Weekly plan updated successfully"));
     }
 
     @GetMapping("/{userId}/weekly")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<WeeklyWorkoutPlanDto>> getWeeklyPlan(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<WeeklyWorkoutPlanDto>> getWeeklyPlan(@PathVariable java.util.UUID userId) {
         return ResponseEntity.ok(ApiResponse.success(userWorkoutService.getWeeklyPlan(userId)));
     }
 }

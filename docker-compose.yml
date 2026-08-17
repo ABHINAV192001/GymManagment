@@ -1,0 +1,185 @@
+
+services:
+  # ──────────────────────────────────────────────────────────
+  # Infrastructure
+  # ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15
+    container_name: gym-postgres
+    environment:
+      POSTGRES_DB: gymmanagment
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS:-1234}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d gymmanagment"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - gym-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: gym-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASS:-}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - gym-network
+
+  # ──────────────────────────────────────────────────────────
+  # Backend Microservices
+  # ──────────────────────────────────────────────────────────
+  gym-common-services:
+    build:
+      context: ./backend
+      dockerfile: GymCommonServices/Dockerfile
+    container_name: gym-common-services
+    ports:
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/gymmanagment
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-1234}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_MAX_HTTP_HEADER_SIZE: 65536
+      SERVER_TOMCAT_MAX_HTTP_HEADER_SIZE: 65536
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-abhinavsahu120@gmail.com}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-bffffdjgdsuqtror}
+    depends_on:
+      gym-user-management:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - gym-network
+
+  gym-user-management:
+    build:
+      context: ./backend
+      dockerfile: GymUserManagement/Dockerfile
+    container_name: gym-user-management
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/gymmanagment
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-1234}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS:-604800000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+      SPRING_FLYWAY_BASELINE_VERSION: "-1"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_MAX_HTTP_HEADER_SIZE: 65536
+      SERVER_TOMCAT_MAX_HTTP_HEADER_SIZE: 65536
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-abhinavsahu120@gmail.com}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-vwccsddnzklnsgrn}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - gym-network
+
+  gym-workout-service:
+    build:
+      context: ./backend
+      dockerfile: GymWorkoutService/Dockerfile
+    container_name: gym-workout-service
+    ports:
+      - "8083:8083"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/gymmanagment
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-1234}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_MAX_HTTP_HEADER_SIZE: 65536
+      SERVER_TOMCAT_MAX_HTTP_HEADER_SIZE: 65536
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-abhinavsahu120@gmail.com}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-bffffdjgdsuqtror}
+    depends_on:
+      gym-user-management:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - gym-network
+
+  gym-chat-service:
+    build:
+      context: ./backend
+      dockerfile: GymChatService/Dockerfile
+    container_name: gym-chat-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/gymmanagment
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-1234}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_MAX_HTTP_HEADER_SIZE: 65536
+      SERVER_TOMCAT_MAX_HTTP_HEADER_SIZE: 65536
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-abhinavsahu120@gmail.com}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-bffffdjgdsuqtror}
+    depends_on:
+      gym-user-management:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - gym-network
+
+  # ──────────────────────────────────────────────────────────
+  # Frontend (nginx + SPA)
+  # ──────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gym-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - gym-user-management
+      - gym-workout-service
+      - gym-chat-service
+    restart: unless-stopped
+    networks:
+      - gym-network
+
+# ──────────────────────────────────────────────────────────
+# Volumes & Networks
+# ──────────────────────────────────────────────────────────
+volumes:
+  pgdata:
+  uploads:
+
+networks:
+  gym-network:
+    driver: bridge

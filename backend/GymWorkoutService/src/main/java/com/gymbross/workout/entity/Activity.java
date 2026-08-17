@@ -16,8 +16,8 @@ import java.util.List;
 public class Activity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue
+    private java.util.UUID id;
 
     private String title;
     private String time;
@@ -40,5 +40,10 @@ public class Activity {
 
     private String category; // "CLASS" or "PROGRAM"
 
-    private Long linkedWorkoutId;
+    private java.util.UUID linkedWorkoutId;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

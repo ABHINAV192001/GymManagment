@@ -118,7 +118,7 @@ public class WorkoutAssignmentServiceImpl implements WorkoutAssignmentService {
     }
 
     @Override
-    public WeeklyWorkoutPlanDto getUserWeeklyPlan(Long userId) {
+    public WeeklyWorkoutPlanDto getUserWeeklyPlan(java.util.UUID userId) {
         return userWorkoutService.getWeeklyPlan(userId);
     }
 }

@@ -15,10 +15,11 @@ public class RegisterUserDto {
     private String email;
     private String phone;
     private String password;
-    private Long orgId;
-    private Long branchId;
+    private java.util.UUID orgId;
+    private java.util.UUID branchId;
     private LocalDate startDate;
     private LocalDate dob;
     private java.math.BigDecimal amountPaid;
+    private String gender;
     private String plan;
 }

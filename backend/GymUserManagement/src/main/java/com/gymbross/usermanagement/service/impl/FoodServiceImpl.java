@@ -5,6 +5,10 @@ import com.gymbross.usermanagement.dto.FoodDto;
 import com.gymbross.usermanagement.repository.FoodRepository;
 import com.gymbross.usermanagement.service.FoodService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,97 +22,174 @@ public class FoodServiceImpl implements FoodService {
 
         private final FoodRepository foodRepository;
         private final com.gymbross.usermanagement.repository.UserRepository userRepository;
-        // private final com.gymbross.usermanagement.repository.FoodPortionRepository
-        // foodPortionRepository; // Removed
         private final com.gymbross.usermanagement.repository.FoodLogRepository foodLogRepository;
         private final com.gymbross.usermanagement.repository.RecipeRepository recipeRepository;
-        private final jakarta.persistence.EntityManager entityManager;
 
         @Override
         @Transactional(readOnly = true)
-        public List<FoodDto> searchFoods(String query) {
-                // Modified to search by foodName instead of description if description is gone,
-                // but assuming description field still maps to new description or using
-                // foodName
-                // Food entity has 'foodName' and 'keyIngredients' now.
-                // Assuming repository allows searching by foodName or we need to update it.
-                // Let's assume finding by FoodName for now or just generic search.
-                // Ideally findByFoodNameContainingIgnoreCase or
-                // findByKeyIngredientsContainingIgnoreCase
-                // But since the Repo is likely generic or needs update, I'll use what matches
-                // the entity.
-                // The old code used 'description'. The new entity has 'foodName'.
-
-                System.out.println("FoodServiceImpl: Searching for food with query: '" + query + "'");
-                List<Food> foods = foodRepository.findByFoodNameContainingIgnoreCase(query);
-                System.out.println("FoodServiceImpl: Found " + foods.size() + " matches.");
-                // If this method doesn't exist in repo, verify repo later.
-
-                return foods.stream().limit(20).map(this::mapToSummaryDto).collect(Collectors.toList());
+        public Page<FoodDto> searchFoods(String query, int page, int size) {
+                Pageable pageable = PageRequest.of(Math.max(0, page), size <= 0 ? 20 : size);
+                Page<Food> foodPage = foodRepository.findByFoodNameContainingIgnoreCaseOrCategoryContainingIgnoreCase(query, query, pageable);
+                return foodPage.map(this::mapToSummaryDto);
         }
 
         @Override
         @Transactional(readOnly = true)
-        public List<FoodDto> getAllFoods(int page, int size) {
-                org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page,
-                                size);
-                return foodRepository.findAll(pageable).stream()
-                                .map(this::mapToSummaryDto)
-                                .collect(Collectors.toList());
+        public Page<FoodDto> getAllFoods(int page, int size) {
+                Pageable pageable = PageRequest.of(Math.max(0, page), size <= 0 ? 20 : size);
+                return foodRepository.findAll(pageable).map(this::mapToSummaryDto);
         }
 
         @Override
         @Transactional(readOnly = true)
-        public FoodDto getFoodDetails(Long id) {
-                if (id < 0) {
-                        // It's a recipe
-                        Long recipeId = Math.abs(id);
-                        com.gymbross.usermanagement.entity.Recipe recipe = recipeRepository.findById(recipeId)
-                                        .orElseThrow(() -> new RuntimeException("Recipe not found"));
-                        return mapRecipeToSummaryDto(recipe);
+        public FoodDto getFoodDetails(java.util.UUID id) {
+                java.util.Optional<Food> foodOpt = foodRepository.findById(id);
+                if (foodOpt.isPresent()) {
+                    return mapToFullDto(foodOpt.get());
                 }
-                Food food = foodRepository.findById(id)
-                                .orElseThrow(() -> new RuntimeException("Food not found"));
-
-                return mapToFullDto(food);
+                
+                com.gymbross.usermanagement.entity.Recipe recipe = recipeRepository.findById(id)
+                                .orElseThrow(() -> new RuntimeException("Food or Recipe not found"));
+                return mapRecipeToSummaryDto(recipe);
         }
 
         private FoodDto mapToSummaryDto(Food food) {
-                return FoodDto.builder()
-                                .id(food.getId())
-                                .description(food.getFoodName()) // Mapping foodName to DTO description for consistency
-                                .foodCategory(food.getCategory())
-                                .calories(food.getCalories())
-                                .isRecipe(false)
-                                .build();
-        }
+                boolean isRecipe = Boolean.TRUE.equals(food.getIsRecipe());
 
-        private FoodDto mapToFullDto(Food food) {
-                List<FoodDto.FoodNutrientDto> nutrients = new ArrayList<>();
-                addNutrient(nutrients, "Protein", "g", food.getProtein());
-                addNutrient(nutrients, "Carbohydrates", "g", food.getCarbohydrates());
-                addNutrient(nutrients, "Fiber", "g", food.getFiber());
-                addNutrient(nutrients, "Sugar", "g", food.getSugar());
-                addNutrient(nutrients, "Fat", "g", food.getFat());
-                addNutrient(nutrients, "Saturated Fat", "g", food.getSaturatedFat());
-                addNutrient(nutrients, "Mono Unsaturated Fat", "g", food.getMonoUnsaturatedFat());
-                addNutrient(nutrients, "Poly Unsaturated Fat", "g", food.getPolyUnsaturatedFat());
-
-                addNutrient(nutrients, "Calcium", "mg", food.getCalcium());
-                addNutrient(nutrients, "Iron", "mg", food.getIron());
-                addNutrient(nutrients, "Cholesterol", "mg", food.getCholesterol());
-                addNutrient(nutrients, "Sodium", "mg", food.getSodium());
+                List<String> flags = new ArrayList<>();
+                if (Boolean.TRUE.equals(food.getMagnesiumRich()) || (food.getMagnesium() != null && food.getMagnesium() >= 25)) {
+                        flags.add("MAGNESIUM_RICH");
+                }
+                if (food.getProtein() != null && food.getProtein() >= 12) {
+                        flags.add("HIGH_PROTEIN");
+                }
+                if (food.getCalories() != null && food.getCalories() <= 100) {
+                        flags.add("LOW_CALORIE");
+                }
+                if (food.getCalories() != null && food.getCalories() >= 300) {
+                        flags.add("HIGH_CALORIE");
+                }
+                if (isRecipe) {
+                        flags.add("FAT_LOSS");
+                }
 
                 return FoodDto.builder()
                                 .id(food.getId())
                                 .description(food.getFoodName())
                                 .foodCategory(food.getCategory())
                                 .calories(food.getCalories())
+                                .protein(food.getProtein())
+                                .carbohydrates(food.getCarbohydrates())
+                                .fat(food.getFat())
+                                .fiber(food.getFiber())
+                                .magnesium(food.getMagnesium())
+                                .calcium(food.getCalcium())
+                                .iron(food.getIron())
+                                .potassium(food.getPotassium())
+                                .sodium(food.getSodium())
+                                .vitaminC(food.getVitaminC())
+                                .vitaminD(food.getVitaminD())
+                                .cookingTime(food.getCookingTime() != null ? food.getCookingTime() : (isRecipe ? 15 : null))
+                                .isRecipe(isRecipe)
+                                .dietaryFlags(flags)
+                                .build();
+        }
+
+        private FoodDto mapToFullDto(Food food) {
+                List<String> ingredientsList = null;
+                if (food.getRecipeIngredients() != null && !food.getRecipeIngredients().trim().isEmpty()) {
+                        ingredientsList = java.util.Arrays.stream(food.getRecipeIngredients().split("\n"))
+                                        .map(String::trim)
+                                        .filter(s -> !s.isEmpty())
+                                        .collect(Collectors.toList());
+                }
+
+                List<String> instructionsList = null;
+                if (food.getRecipeInstructions() != null && !food.getRecipeInstructions().trim().isEmpty()) {
+                        instructionsList = java.util.Arrays.stream(food.getRecipeInstructions().split("\n"))
+                                        .map(String::trim)
+                                        .filter(s -> !s.isEmpty())
+                                        .collect(Collectors.toList());
+                }
+
+                boolean isRecipe = Boolean.TRUE.equals(food.getIsRecipe());
+
+                // Fallback for recipes without explicit ingredients/instructions in DB
+                if (isRecipe) {
+                        if (ingredientsList == null || ingredientsList.isEmpty()) {
+                                String name = food.getFoodName() != null ? food.getFoodName() : "Recipe";
+                                ingredientsList = java.util.Arrays.asList(
+                                                "150g " + name,
+                                                "200ml Water or Milk (for boiling/mixing)",
+                                                "1/2 tsp Sea Salt & Cracked Black Pepper",
+                                                "1 tbsp Extra Virgin Olive Oil",
+                                                "1 tsp Mixed Herbs or Minced Garlic"
+                                );
+                        }
+                        if (instructionsList == null || instructionsList.isEmpty()) {
+                                String name = food.getFoodName() != null ? food.getFoodName() : "Recipe";
+                                instructionsList = java.util.Arrays.asList(
+                                                "Measure out 150g of " + name + " and prepare all cooking utensils.",
+                                                "Boil 300ml of water or heat 1 tbsp olive oil in a skillet over medium heat for 3 minutes.",
+                                                "Add ingredients to the pan/pot and cook for 8 to 12 minutes, stirring evenly.",
+                                                "Season with 1/2 tsp salt, pepper, and herbs to taste.",
+                                                "Plate and serve warm immediately."
+                                );
+                        }
+                }
+
+                List<String> flags = new ArrayList<>();
+                if (Boolean.TRUE.equals(food.getMagnesiumRich()) || (food.getMagnesium() != null && food.getMagnesium() >= 25)) {
+                        flags.add("MAGNESIUM_RICH");
+                }
+                if (food.getProtein() != null && food.getProtein() >= 12) {
+                        flags.add("HIGH_PROTEIN");
+                }
+                if (food.getCalories() != null && food.getCalories() <= 100) {
+                        flags.add("LOW_CALORIE");
+                }
+                if (food.getCalories() != null && food.getCalories() >= 300) {
+                        flags.add("HIGH_CALORIE");
+                }
+                if (isRecipe) {
+                        flags.add("FAT_LOSS");
+                }
+
+                List<FoodDto.FoodNutrientDto> nutrients = new ArrayList<>();
+                addNutrient(nutrients, "Protein", "g", food.getProtein());
+                addNutrient(nutrients, "Carbohydrates", "g", food.getCarbohydrates());
+                addNutrient(nutrients, "Fiber", "g", food.getFiber());
+                addNutrient(nutrients, "Fat", "g", food.getFat());
+                addNutrient(nutrients, "Magnesium", "mg", food.getMagnesium());
+                addNutrient(nutrients, "Calcium", "mg", food.getCalcium());
+                addNutrient(nutrients, "Iron", "mg", food.getIron());
+                addNutrient(nutrients, "Potassium", "mg", food.getPotassium());
+                addNutrient(nutrients, "Sodium", "mg", food.getSodium());
+                addNutrient(nutrients, "Vitamin C", "mg", food.getVitaminC());
+                addNutrient(nutrients, "Vitamin D", "IU", food.getVitaminD());
+
+                return FoodDto.builder()
+                                .id(food.getId())
+                                .description(food.getFoodName())
+                                .foodCategory(food.getCategory())
+                                .calories(food.getCalories())
+                                .protein(food.getProtein())
+                                .carbohydrates(food.getCarbohydrates())
+                                .fat(food.getFat())
+                                .fiber(food.getFiber())
+                                .magnesium(food.getMagnesium())
+                                .calcium(food.getCalcium())
+                                .iron(food.getIron())
+                                .potassium(food.getPotassium())
+                                .sodium(food.getSodium())
+                                .vitaminC(food.getVitaminC())
+                                .vitaminD(food.getVitaminD())
                                 .nutrients(nutrients)
-                                .keyIngredients(food.getKeyIngredients())
-                                .foodAdded(null) // Food entity doesn't have this
-                                .cookingTime(food.getCookingTime()) // DTO needs this field if not present
-                                .isRecipe(false)
+                                .cookingTime(food.getCookingTime() != null ? food.getCookingTime() : 15)
+                                .isRecipe(isRecipe)
+                                .recipeIngredients(ingredientsList)
+                                .recipeInstructions(instructionsList)
+                                .dietaryFlags(flags)
                                 .build();
         }
 
@@ -123,22 +204,100 @@ public class FoodServiceImpl implements FoodService {
         }
 
         @Override
+        @Transactional(readOnly = true)
+        public Page<FoodDto> filterFoods(String query, String category, String preset, Boolean isRecipe, int page, int size) {
+                Pageable pageable = PageRequest.of(Math.max(0, page), size <= 0 ? 20 : size);
+
+                // 1. If preset is provided and not "ALL", delegate to preset filter logic
+                if (preset != null && !preset.trim().isEmpty() && !"ALL".equalsIgnoreCase(preset)) {
+                        return getFoodsByFilter(preset, page, size);
+                }
+
+                // 2. If query is provided (e.g. food name like "apple", "banana", "chicken", or numeric like "150"), search
+                if (query != null && !query.trim().isEmpty()) {
+                        String cleanQuery = query.trim();
+                        Page<Food> foodPage = foodRepository.searchByFilter(
+                                cleanQuery,
+                                (category != null && !category.trim().isEmpty()) ? category.trim() : null,
+                                isRecipe,
+                                pageable
+                        );
+                        return foodPage.map(this::mapToSummaryDto);
+                }
+
+                // 3. If only category is provided
+                if (category != null && !category.trim().isEmpty() && !"ALL".equalsIgnoreCase(category)) {
+                        return foodRepository.findByCategoryContainingIgnoreCase(category.trim(), pageable).map(this::mapToSummaryDto);
+                }
+
+                // 4. If isRecipe flag is specified
+                if (isRecipe != null) {
+                        if (isRecipe) {
+                                return foodRepository.findByIsRecipeTrue(pageable).map(this::mapToSummaryDto);
+                        } else {
+                                return foodRepository.findByIsRecipeFalse(pageable).map(this::mapToSummaryDto);
+                        }
+                }
+
+                // 5. Default return all foods
+                return foodRepository.findAll(pageable).map(this::mapToSummaryDto);
+        }
+
+        @Override
         @Transactional
         public void logFood(String username, com.gymbross.usermanagement.dto.FoodLogRequestDto dto) {
                 com.Gym.GymCommonServices.entity.User user = userRepository.findByUsername(username)
                                 .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
-                Food food = foodRepository.findById(dto.getFoodId())
-                                .orElseThrow(() -> new RuntimeException("Food not found"));
+                Food food = null;
+                // 1. Try finding by UUID
+                if (dto.getFoodId() != null && !dto.getFoodId().trim().isEmpty()) {
+                        try {
+                                java.util.UUID foodUuid = java.util.UUID.fromString(dto.getFoodId().trim());
+                                food = foodRepository.findById(foodUuid).orElse(null);
+                        } catch (Exception ignored) {
+                                // Not a standard UUID format
+                        }
+                }
 
-                // Logic for portion calculation removed as entity is deleted.
-                // Assuming Quantity is simple multiplier.
+                // 2. Try finding by Food Name or Description
+                String queryName = (dto.getFoodName() != null && !dto.getFoodName().trim().isEmpty())
+                                ? dto.getFoodName().trim()
+                                : (dto.getFoodId() != null ? dto.getFoodId().trim() : "");
+
+                if (food == null && !queryName.isEmpty()) {
+                        final String lowerQuery = queryName.toLowerCase();
+                        food = foodRepository.findAll().stream()
+                                        .filter(f -> f.getFoodName() != null && f.getFoodName().toLowerCase().contains(lowerQuery))
+                                        .findFirst()
+                                        .orElse(null);
+                }
+
+                // 3. If food is not found in database, dynamically persist it with provided macros so calculations are exact
+                if (food == null) {
+                        String name = !queryName.isEmpty() ? queryName : "Logged Food Item";
+                        double qty = dto.getQuantity() != null && dto.getQuantity() > 0 ? dto.getQuantity() : 1.0;
+                        double cal = dto.getCalories() != null ? dto.getCalories() / qty : 52.0;
+                        double prot = dto.getProtein() != null ? dto.getProtein() / qty : 0.3;
+                        double carb = dto.getCarbohydrates() != null ? dto.getCarbohydrates() / qty : 13.8;
+                        double fat = dto.getFat() != null ? dto.getFat() / qty : 0.2;
+
+                        food = Food.builder()
+                                        .foodName(name)
+                                        .category("General")
+                                        .calories(cal)
+                                        .protein(prot)
+                                        .carbohydrates(carb)
+                                        .fat(fat)
+                                        .build();
+                        food = foodRepository.save(food);
+                }
 
                 com.gymbross.usermanagement.entity.FoodLog log = com.gymbross.usermanagement.entity.FoodLog.builder()
                                 .user(user)
                                 .food(food)
-                                // .portion(portion) // Removed
                                 .quantity(dto.getQuantity())
+                                .servingUnit(dto.getServingUnit() != null ? dto.getServingUnit() : "portion")
                                 .date(dto.getDate() != null ? dto.getDate() : java.time.LocalDate.now())
                                 .mealType(dto.getMealType())
                                 .build();
@@ -180,7 +339,6 @@ public class FoodServiceImpl implements FoodService {
                                 recipes = recipeRepository.findByVeganOptionsTrue();
                                 break;
                         default:
-                                // Fallback to searching category name if no exact match found
                                 recipes = recipeRepository.findByCategoryContainingIgnoreCase(preference);
                 }
 
@@ -190,12 +348,6 @@ public class FoodServiceImpl implements FoodService {
         }
 
         private FoodDto mapRecipeToSummaryDto(com.gymbross.usermanagement.entity.Recipe recipe) {
-                Long summaryId = -1 * recipe.getId();
-                // System.out.println("Mapping Recipe: " + recipe.getRecipeName() + " |
-                // Calories: " + recipe.getCalories());
-                System.out.println("Mapping Recipe ID: " + recipe.getId() + " - Name: " + recipe.getRecipeName()
-                                + " - Calories: " + recipe.getCalories());
-
                 List<FoodDto.FoodNutrientDto> nutrients = new ArrayList<>();
                 addNutrient(nutrients, "Protein", "g", recipe.getProtein());
                 addNutrient(nutrients, "Carbohydrates", "g", recipe.getCarbohydrates());
@@ -230,7 +382,7 @@ public class FoodServiceImpl implements FoodService {
                         flags.add("High Fiber");
 
                 return FoodDto.builder()
-                                .id(summaryId)
+                                .id(recipe.getId())
                                 .description(recipe.getRecipeName())
                                 .foodCategory(recipe.getCategory())
                                 .calories(recipe.getCalories())
@@ -246,15 +398,88 @@ public class FoodServiceImpl implements FoodService {
         @Override
         @Transactional(readOnly = true)
         public List<FoodDto> getLowCalorieRecipes() {
-                System.out.println("FoodServiceImpl: Fetching low-calorie recipes from DB");
-                // Fetch recipes with calories <= 250, ordered by calories ascending
+                List<Food> foods = foodRepository.findByCaloriesLessThanEqual(250.0);
+                if (foods != null && !foods.isEmpty()) {
+                        return foods.stream().map(this::mapToSummaryDto).collect(Collectors.toList());
+                }
+
                 List<com.gymbross.usermanagement.entity.Recipe> recipes = recipeRepository
                                 .findByCaloriesLessThanEqualOrderByCaloriesAsc(250.0);
-
-                System.out.println("FoodServiceImpl: Found " + recipes.size() + " recipes below 250kcal");
 
                 return recipes.stream()
                                 .map(this::mapRecipeToSummaryDto)
                                 .collect(Collectors.toList());
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public Page<FoodDto> getFoodsByFilter(String preset, int page, int size) {
+                Pageable pageable = PageRequest.of(Math.max(0, page), size <= 0 ? 20 : size);
+                if (preset == null || preset.trim().isEmpty() || "ALL".equalsIgnoreCase(preset)) {
+                        return foodRepository.findAll(pageable).map(this::mapToSummaryDto);
+                }
+
+                Page<Food> foodPage;
+                switch (preset.toUpperCase()) {
+                        // Raw Foods Tree Options
+                        case "FOOD_ALL":
+                        case "FOODS":
+                                foodPage = foodRepository.findByIsRecipeFalse(pageable);
+                                break;
+                        case "FOOD_MAGNESIUM":
+                                foodPage = foodRepository.findByIsRecipeFalseAndMagnesiumGreaterThanEqual(25.0, pageable);
+                                break;
+                        case "FOOD_HIGH_PROTEIN":
+                                foodPage = foodRepository.findByIsRecipeFalseAndProteinGreaterThanEqual(12.0, pageable);
+                                break;
+                        case "FOOD_LOW_CALORIE":
+                                foodPage = foodRepository.findByIsRecipeFalseAndCaloriesLessThanEqual(100.0, pageable);
+                                break;
+                        case "FOOD_HIGH_CALORIE":
+                                foodPage = foodRepository.findByIsRecipeFalseAndCaloriesGreaterThanEqual(300.0, pageable);
+                                break;
+
+                        // Recipes Tree Options
+                        case "RECIPE_ALL":
+                        case "RECIPES":
+                        case "FAT_LOSS_RECIPES":
+                        case "RECIPE_FAT_LOSS":
+                                foodPage = foodRepository.findByIsRecipeTrue(pageable);
+                                break;
+                        case "RECIPE_MAGNESIUM":
+                                foodPage = foodRepository.findByIsRecipeTrueAndMagnesiumGreaterThanEqual(25.0, pageable);
+                                break;
+                        case "RECIPE_HIGH_PROTEIN":
+                                foodPage = foodRepository.findByIsRecipeTrueAndProteinGreaterThanEqual(12.0, pageable);
+                                break;
+                        case "RECIPE_LOW_CALORIE":
+                                foodPage = foodRepository.findByIsRecipeTrueAndCaloriesLessThanEqual(100.0, pageable);
+                                break;
+                        case "RECIPE_HIGH_CALORIE":
+                                foodPage = foodRepository.findByIsRecipeTrueAndCaloriesGreaterThanEqual(300.0, pageable);
+                                break;
+
+                        // Legacy / Fallbacks
+                        case "MAGNESIUM":
+                                foodPage = foodRepository.findByMagnesiumRichTrueOrMagnesiumGreaterThanEqual(25.0, pageable);
+                                break;
+                        case "HIGH_PROTEIN":
+                                foodPage = foodRepository.findByProteinGreaterThanEqual(12.0, pageable);
+                                break;
+                        case "LOW_CALORIE":
+                                foodPage = foodRepository.findByCaloriesLessThanEqual(100.0, pageable);
+                                break;
+                        case "HIGH_CALORIE":
+                                foodPage = foodRepository.findByCaloriesGreaterThanEqual(300.0, pageable);
+                                break;
+
+                        default:
+                                foodPage = foodRepository.findByCategoryContainingIgnoreCase(preset, pageable);
+                                if (foodPage.isEmpty()) {
+                                        foodPage = foodRepository.findByFoodNameContainingIgnoreCase(preset, pageable);
+                                }
+                }
+
+                return foodPage.map(this::mapToSummaryDto);
         }
 }

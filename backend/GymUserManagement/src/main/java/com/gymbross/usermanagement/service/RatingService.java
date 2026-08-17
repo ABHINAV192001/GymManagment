@@ -1,5 +1,5 @@
 package com.gymbross.usermanagement.service;
 
 public interface RatingService {
-    void rateTrainer(String username, Long trainerId, Double rating, String comment);
+    void rateTrainer(String username, java.util.UUID trainerId, Double rating, String comment);
 }

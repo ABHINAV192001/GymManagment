@@ -37,6 +37,10 @@
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
@@ -44,7 +48,7 @@
         <dependency>
             <groupId>com.Gym</groupId>
             <artifactId>GymCommonServices</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.1.1</version>
         </dependency>
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>

@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 
@@ -17,11 +18,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "branches")
-public class Branch {
+@SQLRestriction("deleted_at IS NULL")
+public class Branch extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "org_id", nullable = false)
@@ -43,13 +43,8 @@ public class Branch {
     @Column(name = "admin_email", unique = true, nullable = false)
     private String adminEmail;
 
-    @NotBlank(message = "Password is required")
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash", nullable = true)
     private String passwordHash;
-
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
 
     @Builder.Default
     @Column(name = "is_active", nullable = false, columnDefinition = "boolean default false")
@@ -58,4 +53,7 @@ public class Branch {
     @Builder.Default
     @Column(name = "is_deleted", nullable = false, columnDefinition = "boolean default false")
     private Boolean isDeleted = false;
+
+    @Column(name = "default_pt_trainer_percentage", precision = 5, scale = 2)
+    private java.math.BigDecimal defaultPtTrainerPercentage;
 }

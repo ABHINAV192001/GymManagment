@@ -3,11 +3,7 @@ package com.gymbross.usermanagement.service;
 import com.gymbross.usermanagement.dto.UserProfileDto;
 
 public interface UserService {
-    UserProfileDto getProfile(String username);
 
-    UserProfileDto updateProfile(String username, UserProfileDto dto);
-
-    void toggleUserStatus(String username, boolean isActive);
 
     // Mock data for UI
     java.util.List<Object> getAttendanceHistory(String username);
@@ -20,11 +16,11 @@ public interface UserService {
 
     void submitOnboarding(String username, com.gymbross.usermanagement.dto.OnboardingDto dto);
 
-    void logWater(String username, double amount, String date);
+    void logWater(String username, com.gymbross.usermanagement.dto.WaterLogRequestDto request);
 
     com.gymbross.usermanagement.dto.DailyLogDto getDailyLog(String username, String date);
 
-    void deleteFoodLog(Long id, String username);
+    void deleteFoodLog(java.util.UUID id, String username);
 
-    void deleteWaterLog(Long id, String username);
+    void deleteWaterLog(java.util.UUID id, String username);
 }

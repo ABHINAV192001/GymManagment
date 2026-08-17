@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.iml
+.settings
+.project
+.classpath
+.factorypath
+.apt_generated
+
+# Build artifacts (we rebuild inside Docker)
+**/target/
+**/bin/
+**/node_modules/
+**/dist/
+
+# Misc
+**/*.log
+**/compile_errors.txt
+**/.env
+FOOD/

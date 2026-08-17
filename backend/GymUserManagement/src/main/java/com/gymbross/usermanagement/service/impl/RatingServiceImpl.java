@@ -1,10 +1,9 @@
 package com.gymbross.usermanagement.service.impl;
 
-import com.Gym.GymCommonServices.entity.Trainer;
+import com.Gym.GymCommonServices.entity.User;
 import com.Gym.GymCommonServices.entity.TrainerRating;
 import com.Gym.GymCommonServices.entity.User;
 import com.gymbross.usermanagement.repository.TrainerRatingRepository;
-import com.gymbross.usermanagement.repository.TrainerRepository;
 import com.gymbross.usermanagement.repository.UserRepository;
 import com.gymbross.usermanagement.service.RatingService;
 import lombok.RequiredArgsConstructor;
@@ -16,18 +15,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class RatingServiceImpl implements RatingService {
 
     private final TrainerRatingRepository trainerRatingRepository;
-    private final TrainerRepository trainerRepository;
-    private final UserRepository userRepository;
+        private final UserRepository userRepository;
 
     @Override
     @Transactional
     @SuppressWarnings("null")
-    public void rateTrainer(String username, Long trainerId, Double rating, String comment) {
+    public void rateTrainer(String username, java.util.UUID trainerId, Double rating, String comment) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Trainer trainer = trainerRepository.findById(trainerId)
-                .orElseThrow(() -> new RuntimeException("Trainer not found"));
+        User trainer = userRepository.findById(trainerId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Optional: Check if trainer is actually assigned to this user
         if (user.getTrainer() == null || !user.getTrainer().getId().equals(trainerId)) {

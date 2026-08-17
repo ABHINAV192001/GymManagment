@@ -17,12 +17,12 @@ import java.time.LocalDateTime;
 public class WorkoutHistory {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue
+    private java.util.UUID id;
 
-    private Long userId;
+    private java.util.UUID userId;
 
-    private Long workoutId;
+    private java.util.UUID workoutId;
 
     private String workoutTitle;
 
@@ -31,4 +31,9 @@ public class WorkoutHistory {
     private Integer caloriesBurned;
 
     private LocalDateTime completedAt;
+
+    @org.hibernate.annotations.CreationTimestamp
+    @jakarta.persistence.Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
 }

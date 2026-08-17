@@ -34,32 +34,32 @@ public class FitnessSessionController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<FitnessSession>> getSession(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<FitnessSession>> getSession(@PathVariable java.util.UUID id) {
         return ResponseEntity.ok(ApiResponse.success(fitnessSessionService.getSession(id)));
     }
 
     @PostMapping("/{id}/vote")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> vote(@PathVariable Long id, @RequestParam String vote, @RequestParam String username) {
+    public ResponseEntity<ApiResponse<Void>> vote(@PathVariable java.util.UUID id, @RequestParam String vote, @RequestParam String username) {
         fitnessSessionService.vote(id, vote, username);
         return ResponseEntity.ok(ApiResponse.success(null, "Vote cast successfully"));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN', 'TRAINER')")
-    public ResponseEntity<ApiResponse<FitnessSession>> updateSession(@PathVariable Long id, @RequestBody FitnessSession session) {
+    public ResponseEntity<ApiResponse<FitnessSession>> updateSession(@PathVariable java.util.UUID id, @RequestBody FitnessSession session) {
         return ResponseEntity.ok(ApiResponse.success(fitnessSessionService.updateSession(id, session), "Fitness session updated successfully"));
     }
 
     @GetMapping("/{id}/vote-status")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<String>> checkVote(@PathVariable Long id, @RequestParam String username) {
+    public ResponseEntity<ApiResponse<String>> checkVote(@PathVariable java.util.UUID id, @RequestParam String username) {
         return ResponseEntity.ok(ApiResponse.success(fitnessSessionService.checkVoteStatus(id, username)));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ORG_ADMIN', 'BRANCH_ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deleteSession(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteSession(@PathVariable java.util.UUID id) {
         fitnessSessionService.deleteSession(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Fitness session deleted successfully"));
     }

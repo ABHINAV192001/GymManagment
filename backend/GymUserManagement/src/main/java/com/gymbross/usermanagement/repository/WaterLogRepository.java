@@ -9,6 +9,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Repository
-public interface WaterLogRepository extends JpaRepository<WaterLog, Long> {
+public interface WaterLogRepository extends JpaRepository<WaterLog, java.util.UUID> {
     List<WaterLog> findByUserAndDate(User user, LocalDate date);
 }

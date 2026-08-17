@@ -5,7 +5,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,16 +17,22 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.Gym.GymCommonServices.security.TokenRevocationService;
 import com.Gym.GymCommonServices.util.JwtUtil;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
+    private final TokenRevocationService tokenRevocationService;
+    private final com.gymbross.usermanagement.repository.BranchRepository branchRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -32,13 +41,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        // System.out.println("JwtAuthFilter: Processing path: " + path);
 
-        // ✅ SKIP PUBLIC APIs - DO NOT PROCESS JWT FOR THESE PATHS
-        if (path.contains("/api/auth/login")
-                || path.contains("/api/auth/register")
-                || path.contains("/api/public/")
-                || path.contains("/api/otp/")) {
+        // SKIP PUBLIC APIs - DO NOT PROCESS JWT FOR THESE PATHS
+        if (isPublicPath(path)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -49,8 +54,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 1. Check Authorization Header
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             accessToken = authHeader.substring(7);
-        } else {
-            System.out.println("JwtAuthFilter: No Bearer token in header for path: " + path);
         }
 
         // 2. Check Cookie if header is missing
@@ -58,47 +61,59 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
                 if ("accessToken".equals(cookie.getName())) {
                     accessToken = cookie.getValue();
-                    System.out.println("JwtAuthFilter: Found token in cookie");
                     break;
                 }
             }
         }
 
         if (accessToken == null) {
-            System.out.println("JwtAuthFilter: No access token found. Proceeding anonymously.");
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
+            String jti = jwtUtil.extractJti(accessToken);
+            if (tokenRevocationService.isRevoked(jti)) {
+                log.debug("JwtAuthFilter: Rejected revoked token (jti={})", jti);
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             String username = jwtUtil.extractUsername(accessToken);
-            System.out.println("JwtAuthFilter: Extracted username: " + username);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                System.out.println("JwtAuthFilter: User loaded: " + userDetails.getUsername() + ", Authorities: "
-                        + userDetails.getAuthorities());
 
                 if (jwtUtil.isTokenValid(accessToken, userDetails)) {
-                    System.out.println("JwtAuthFilter: Token is VALID for user: " + username);
-
                     // Extract and Set IDs in Request Attributes for Controllers
-                    Long organizationId = jwtUtil.extractOrganizationId(accessToken);
-                    Long branchId = jwtUtil.extractBranchId(accessToken);
+                    java.util.UUID organizationId = jwtUtil.extractOrganizationId(accessToken);
+                    java.util.UUID branchId = jwtUtil.extractBranchId(accessToken);
                     String role = jwtUtil.extractRole(accessToken);
 
-                    // Allow ORG_ADMIN or OWNER to override branchId context via cookie
-                    if ("ORG_ADMIN".equals(role) || "OWNER".equals(role)) {
+                    // Extract permissions early to use for branch override logic
+                    List<String> permissions = jwtUtil.extractPermissions(accessToken);
+                    
+                    // Allow branch override if caller holds BRANCHES:VIEW, has wildcard permission, or has no fixed branch
+                    boolean canOverrideBranch = permissions.contains("*") || permissions.contains("BRANCHES:VIEW") 
+                            || "ORG_ADMIN".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role) || branchId == null;
+
+                    if (canOverrideBranch) {
                         if (request.getCookies() != null) {
                             for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
                                 if ("branchId".equals(cookie.getName()) && cookie.getValue() != null
                                         && !cookie.getValue().isEmpty()) {
                                     try {
-                                        branchId = Long.parseLong(cookie.getValue());
-                                        System.out.println("JwtAuthFilter: Branch context overridden to: " + branchId);
-                                    } catch (NumberFormatException e) {
-                                        System.out.println(
-                                                "JwtAuthFilter: Invalid branchId cookie format: " + cookie.getValue());
+                                        java.util.UUID requestedBranchId = java.util.UUID.fromString(cookie.getValue());
+                                        // Validate that this branch belongs to the user's organization
+                                        branchRepository.findById(requestedBranchId).ifPresent(branch -> {
+                                            if (branch.getOrganization().getId().equals(organizationId)) {
+                                                request.setAttribute("branchId", requestedBranchId);
+                                            } else {
+                                                log.warn("JwtAuthFilter: Branch {} does not belong to organization {}", requestedBranchId, organizationId);
+                                            }
+                                        });
+                                    } catch (IllegalArgumentException e) {
+                                        log.debug("JwtAuthFilter: Invalid branchId cookie format: {}", cookie.getValue());
                                     }
                                     break;
                                 }
@@ -109,33 +124,50 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     if (organizationId != null) {
                         request.setAttribute("organizationId", organizationId);
                     }
-                    if (branchId != null) {
+                    if (branchId != null && request.getAttribute("branchId") == null) {
                         request.setAttribute("branchId", branchId);
                     }
 
+                    java.util.Set<GrantedAuthority> authorities = new java.util.HashSet<>(userDetails.getAuthorities());
+                    for (String permission : permissions) {
+                        authorities.add(new SimpleGrantedAuthority(permission));
+                    }
+
                     UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities());
+                            userDetails, null, authorities);
 
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 } else {
-                    System.err.println("JwtAuthFilter: Token is INVALID or EXPIRED for user: " + username);
+                    log.debug("JwtAuthFilter: Token is invalid or expired for user: {}", username);
                 }
             }
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            System.err.println("JwtAuthFilter: JWT Token EXPIRED: " + e.getMessage());
             request.setAttribute("jwt_error", "EXPIRED");
         } catch (io.jsonwebtoken.security.SignatureException e) {
-            System.err.println("JwtAuthFilter: JWT Signature INVALID Check secret key encoding. Error: " + e.getMessage());
+            log.warn("JwtAuthFilter: JWT signature invalid - check secret key configuration");
             request.setAttribute("jwt_error", "INVALID_SIGNATURE");
         } catch (Exception e) {
-            System.err.println("JwtAuthFilter: JWT Token validation failed: " + e.getClass().getSimpleName() + " - "
-                    + e.getMessage());
+            log.debug("JwtAuthFilter: JWT validation failed: {} - {}", e.getClass().getSimpleName(), e.getMessage());
             request.setAttribute("jwt_error", "GENERAL_ERROR");
-            e.printStackTrace();
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isPublicPath(String path) {
+        return path.startsWith("/api/auth/login")
+                || path.startsWith("/api/auth/register")
+                || path.startsWith("/api/auth/refresh")
+                || path.startsWith("/api/auth/forgot-password")
+                || path.startsWith("/api/auth/reset-password")
+                || path.startsWith("/api/auth/verify-otp")
+                || path.startsWith("/api/public/")
+                || path.startsWith("/api/otp/")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/swagger-resources")
+                || path.startsWith("/webjars");
     }
 
 }

@@ -1,0 +1,27 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.iml
+
+# Java build artifacts (rebuilt inside Docker)
+**/target/
+**/bin/
+**/.apt_generated/
+
+# IDE metadata
+**/.settings/
+**/.classpath
+**/.project
+**/.factorypath
+
+# Misc
+**/*.log
+**/compile_errors.txt
+**/refactor.py
+
+# FOOD data (not needed for Docker builds)
+FOOD/

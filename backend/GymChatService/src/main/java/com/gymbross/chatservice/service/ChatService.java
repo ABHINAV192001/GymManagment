@@ -1,5 +1,6 @@
 package com.gymbross.chatservice.service;
 
+import com.gymbross.chatservice.dto.ConversationSummary;
 import com.gymbross.chatservice.dto.MessageRequest;
 import com.gymbross.chatservice.dto.MessageResponse;
 import java.util.List;
@@ -10,4 +11,8 @@ public interface ChatService {
     List<MessageResponse> getConversation(String user1, String user2);
 
     List<MessageResponse> getUserHistory(String username);
+
+    List<ConversationSummary> getConversations(String username);
+
+    void markConversationRead(String readerUsername, String senderUsername);
 }

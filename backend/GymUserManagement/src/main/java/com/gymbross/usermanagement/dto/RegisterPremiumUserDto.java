@@ -15,9 +15,10 @@ public class RegisterPremiumUserDto {
     private String email;
     private String phone;
     private String password;
-    private Long orgId;
-    private Long branchId;
-    private Long trainerId;
+    private java.util.UUID orgId;
+    private java.util.UUID branchId;
+    private java.util.UUID trainerId;
     private LocalDate startDate;
+    private String gender;
     private String plan;
 }

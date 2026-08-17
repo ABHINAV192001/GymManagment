@@ -16,11 +16,9 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Otp {
+public class Otp extends com.Gym.GymCommonServices.common.BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -45,9 +43,6 @@ public class Otp {
 
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;
 
     @Builder.Default
     @Column(name = "is_used", nullable = false)
