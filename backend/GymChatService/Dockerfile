@@ -2,8 +2,8 @@
 FROM maven:3.9-eclipse-temurin-17 AS common-builder
 WORKDIR /build/common
 
-COPY GymCommonServices/pom.xml ./pom.xml
-COPY GymCommonServices/src ./src
+COPY backend/GymCommonServices/pom.xml ./pom.xml
+COPY backend/GymCommonServices/src ./src
 RUN mvn clean install -DskipTests -B
 
 # ---------- Stage 2: Build GymChatService ----------
@@ -11,11 +11,11 @@ FROM common-builder AS builder
 WORKDIR /build/service
 
 # Copy POM first for dependency caching
-COPY GymChatService/pom.xml ./pom.xml
+COPY backend/GymChatService/pom.xml ./pom.xml
 RUN mvn dependency:go-offline -B || true
 
 # Copy source and build
-COPY GymChatService/src ./src
+COPY backend/GymChatService/src ./src
 RUN mvn clean package -DskipTests -B
 
 # ---------- Stage 3: Runtime ----------

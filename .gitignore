@@ -45,3 +45,11 @@ bin/
 .metadata/
 .settings/
 .apt_generated/
+
+# Raw Seed Data & Local DBs
+FOOD/
+*.db
+*.class
+temp.java
+old_dataseeder*.txt
+
