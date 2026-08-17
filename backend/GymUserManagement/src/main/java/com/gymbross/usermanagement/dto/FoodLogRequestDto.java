@@ -9,15 +9,26 @@ import java.time.LocalDate;
 
 @Data
 public class FoodLogRequestDto {
-    @NotNull(message = "Food ID is required")
-    private java.util.UUID foodId;
+    private String foodId;
 
-    private java.util.UUID portionId;
+    private String foodName;
+
+    private String portionId;
+
+    private String servingUnit;
 
     @NotNull(message = "Quantity is required")
-    @DecimalMin(value = "0.01", message = "Quantity must be at least 0.01")
-    @DecimalMax(value = "50.0", message = "Quantity cannot exceed 50 servings")
+    @DecimalMin(value = "0.001", message = "Quantity must be at least 0.001")
+    @DecimalMax(value = "100.0", message = "Quantity cannot exceed 100 servings")
     private Double quantity;
+
+    private Double calories;
+
+    private Double protein;
+
+    private Double carbohydrates;
+
+    private Double fat;
 
     private LocalDate date;
 

@@ -37,13 +37,11 @@ public class ExerciseController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<ExerciseDto>> getExercise(@PathVariable java.util.UUID id) {
         return ResponseEntity.ok(ApiResponse.success(exerciseService.getExercise(id)));
     }
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<ExerciseDto>>> getAllExercises(@RequestParam(required = false) String muscleGroup) {
         return ResponseEntity.ok(ApiResponse.success(exerciseService.getAllExercises(muscleGroup)));
     }

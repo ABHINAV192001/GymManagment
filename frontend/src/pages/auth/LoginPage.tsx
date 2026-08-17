@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Activity, ShieldCheck, UsersRound } from 'lucide-react';
 import { LoginForm } from '../../features/auth/components/LoginForm';
+import { ForgotPasswordFlow } from '../../features/auth/components/ForgotPasswordFlow';
 
 type LoginPageProps = {
   onLogin: () => void;
 };
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+
   return (
     <main className="min-h-screen bg-zinc-100 p-4 text-zinc-900 sm:p-6 lg:grid lg:grid-cols-2 lg:p-0">
       <section className="relative hidden overflow-hidden bg-zinc-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
@@ -35,9 +39,34 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-black text-white">G</div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-600">GymOS Pro</p>
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-zinc-950">Welcome back</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Sign in to access your organization’s GymOS workspace.</p>
-          <div className="mt-8"><LoginForm onSuccess={onLogin} /></div>
+
+          {!isForgotPassword ? (
+            <>
+              <h2 className="text-3xl font-extrabold tracking-tight text-zinc-950">Welcome back</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-500">Sign in to access your organization’s GymOS workspace.</p>
+              <div className="mt-8">
+                <LoginForm
+                  onSuccess={onLogin}
+                  initialEmail={userEmail}
+                  onForgotPassword={(email) => {
+                    if (email) setUserEmail(email);
+                    setIsForgotPassword(true);
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="mt-2">
+              <ForgotPasswordFlow
+                initialEmail={userEmail}
+                onBackToLogin={(prefilledEmail) => {
+                  if (prefilledEmail) setUserEmail(prefilledEmail);
+                  setIsForgotPassword(false);
+                }}
+              />
+            </div>
+          )}
+
           <p className="mt-7 text-center text-xs leading-5 text-zinc-500">By continuing, you agree to your organization’s security and access policies.</p>
         </div>
       </section>

@@ -30,15 +30,40 @@ export type LayoutContext = {
  */
 export function usePermissions() {
   const ctx = useOutletContext<LayoutContext>();
-  const permissions: PermissionMap = ctx?.permissions ?? {};
+  let permissions: PermissionMap = ctx?.permissions ?? {};
+
+  // If ctx?.permissions is empty or null, fallback to localStorage cached permissions
+  if (!permissions || Object.keys(permissions).length === 0) {
+    try {
+      const saved = localStorage.getItem('gymos_permissions');
+      if (saved) {
+        permissions = JSON.parse(saved);
+      }
+    } catch {}
+  }
 
   /**
    * Check whether the current user has `action` on `module`.
-   * Always returns true if permissions haven't loaded yet (fail-open during
-   * the brief loading window; the Layout already shows a spinner then).
+   * Evaluates permissions strictly against the loaded permission map.
+   * Super/Org Admins bypass RBAC.
    */
   const can = (module: string, action: string): boolean => {
-    const allowed = permissions[module.toLowerCase()] ?? [];
+    const role = (
+      localStorage.getItem('gymos_role') ||
+      document.cookie.match(/(?:^|; )gymos_role=([^;]+)/)?.[1] ||
+      ''
+    ).toUpperCase();
+
+    if (
+      role === 'ADMIN' ||
+      role === 'ORGANIZATION_ADMIN' ||
+      role === 'ORG_ADMIN' ||
+      role === 'SUPER_ADMIN'
+    ) {
+      return true;
+    }
+
+    const allowed = permissions?.[module.toLowerCase()] ?? [];
     return allowed.map(a => a.toLowerCase()).includes(action.toLowerCase());
   };
 
@@ -51,6 +76,22 @@ export function usePermissions() {
   const canAssign = (module: string) => can(module, 'assign');
   const canSend = (module: string) => can(module, 'send');
   const canBookSpot = (module: string) => can(module, 'bookspot');
+  const canCheckout = (module: string) => can(module, 'checkout');
+  const canRefund = (module: string) => can(module, 'refund');
 
-  return { can, canView, canCreate, canEdit, canDelete, canExport, canAssign, canSend, canBookSpot, permissions };
+  return {
+    can,
+    canView,
+    canCreate,
+    canEdit,
+    canDelete,
+    canExport,
+    canAssign,
+    canSend,
+    canBookSpot,
+    canCheckout,
+    canRefund,
+    permissions,
+  };
 }
+

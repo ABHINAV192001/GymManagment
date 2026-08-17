@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { 
   Search, X, DollarSign, UserPlus, Printer, Mail, Phone as PhoneIcon, 
   Edit, Trash2, Calendar, User, CheckCircle2, AlertTriangle, 
   CreditCard, Eye, Award, Activity, Building2, Sparkles, ShieldCheck, AlertCircle,
-  CalendarCheck, Clock, LogOut, Check, Loader2
+  CalendarCheck, Clock, LogOut, Check, Loader2, Filter, RotateCcw
 } from 'lucide-react';
 import { Member, Branch, Staff, Payment, Plan } from '../../types';
 import { getUsers, createUser, updateUser, deleteUser, getAdminBranches, getStaff, resendPasswordNotification } from '../../lib/api/admin';
@@ -44,6 +44,7 @@ export const MembersInternal: React.FC = () => {
   const [branchFilter, setBranchFilter] = useState<string>('ALL');
   const [startDateFrom, setStartDateFrom] = useState<string>('');
   const [startDateTo, setStartDateTo] = useState<string>('');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [paginationInfo, setPaginationInfo] = useState<{
@@ -90,6 +91,8 @@ export const MembersInternal: React.FC = () => {
   // Edit & Delete States
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<Member | null>(null);
+  const [editFormErrors, setEditFormErrors] = useState<{ role?: string; name?: string; phone?: string; email?: string; gender?: string }>({});
+  const [editFormErrorMessage, setEditFormErrorMessage] = useState<string | null>(null);
   const [editMemberData, setEditMemberData] = useState({
     name: '',
     email: '',
@@ -278,14 +281,17 @@ export const MembersInternal: React.FC = () => {
   };
 
   // Form Validation Logic
-  const validateMemberForm = (data: { name: string; phone: string; email?: string; role?: string; gender?: string }) => {
+  const validateMemberForm = (
+    data: { name: string; phone: string; email?: string; role?: string; gender?: string },
+    isEdit = false
+  ) => {
     const errors: { name?: string; phone?: string; email?: string; role?: string; gender?: string } = {};
 
     if (!data.name || data.name.trim().length < 2) {
       errors.name = 'Full name must be at least 2 characters.';
     }
 
-    if (!data.gender) {
+    if (!isEdit && !data.gender) {
       errors.gender = 'Gender is required.';
     }
 
@@ -308,12 +314,14 @@ export const MembersInternal: React.FC = () => {
   // Open Edit Modal with current member data
   const openEditModal = (member: Member, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    setEditFormErrors({});
+    setEditFormErrorMessage(null);
     setMemberToEdit(member);
     setEditMemberData({
       name: member.name || '',
       email: member.email || '',
       phone: member.phone || '',
-      gender: member.gender || '',
+      gender: member.gender || 'MALE',
       dob: member.dob || '',
       startDate: member.startDate || new Date().toISOString().split('T')[0],
       endDate: member.endDate || '',
@@ -331,11 +339,46 @@ export const MembersInternal: React.FC = () => {
   const closeEditModal = () => {
     setIsEditFormOpen(false);
     setMemberToEdit(null);
+    setEditFormErrors({});
+    setEditFormErrorMessage(null);
   };
+
+  const currentUserId = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('gymos_user_profile') || localStorage.getItem('gymos_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed?.id || parsed?.userId || null;
+      }
+    } catch {}
+    return null;
+  }, []);
+
+  const currentUserEmail = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('gymos_user_profile') || localStorage.getItem('gymos_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return (parsed?.email || '').toLowerCase().trim();
+      }
+    } catch {}
+    return '';
+  }, []);
+
+  const isSelf = useCallback((m: Member | null | undefined): boolean => {
+    if (!m) return false;
+    if (currentUserId && m.id === currentUserId) return true;
+    if (currentUserEmail && m.email && m.email.toLowerCase().trim() === currentUserEmail) return true;
+    return false;
+  }, [currentUserId, currentUserEmail]);
 
   // Open Delete Confirmation Modal
   const openDeleteModal = (member: Member, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (isSelf(member)) {
+      triggerAnnouncement('You cannot delete your own user account.');
+      return;
+    }
     setMemberToDelete(member);
     setIsDeleteConfirmOpen(true);
   };
@@ -363,8 +406,9 @@ export const MembersInternal: React.FC = () => {
     }
   };
 
-  // Filters
+  // Filters (safely excludes logged-in user from member list)
   const filteredMembers = members.filter((m) => {
+    if (isSelf(m)) return false;
     const matchesBranch = selectedBranchId === 'ALL' || m.branchId === selectedBranchId;
     const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase()) || 
                           m.phone.includes(search) || 
@@ -448,7 +492,7 @@ export const MembersInternal: React.FC = () => {
     e.preventDefault();
     const targetMember = memberToEdit || selectedMember;
     if (!targetMember) {
-      triggerAnnouncement("No member selected for updating.");
+      setEditFormErrorMessage("No member selected for updating.");
       return;
     }
 
@@ -457,13 +501,17 @@ export const MembersInternal: React.FC = () => {
       phone: editMemberData.phone,
       email: editMemberData.email,
       role: editMemberData.role,
-    });
+      gender: editMemberData.gender,
+    }, true);
+
+    setEditFormErrors(errors);
 
     if (Object.keys(errors).length > 0) {
-      triggerAnnouncement(`Validation error: ${Object.values(errors)[0]}`);
+      setEditFormErrorMessage(Object.values(errors)[0] || 'Please resolve the highlighted validation errors.');
       return;
     }
 
+    setEditFormErrorMessage(null);
     setIsSubmitting(true);
     try {
       await updateUser(targetMember.id, {
@@ -491,6 +539,7 @@ export const MembersInternal: React.FC = () => {
         name: editMemberData.name,
         email: editMemberData.email,
         phone: editMemberData.phone,
+        gender: editMemberData.gender,
         dob: editMemberData.dob,
         startDate: editMemberData.startDate,
         endDate: editMemberData.endDate,
@@ -509,8 +558,11 @@ export const MembersInternal: React.FC = () => {
       }
       setIsEditFormOpen(false);
       setMemberToEdit(null);
+      setEditFormErrors({});
+      setEditFormErrorMessage(null);
       triggerAnnouncement(`Member profile for "${editMemberData.name}" updated successfully.`);
     } catch (err: any) {
+      setEditFormErrorMessage(err.message || 'Failed to update member profile.');
       triggerAnnouncement(`Update Error: ${err.message}`);
     } finally {
       setIsSubmitting(false);
@@ -571,120 +623,182 @@ export const MembersInternal: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Directory Header & Filters */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 flex-1">
-          {/* 1. SEARCH */}
-          <div className="relative xl:col-span-2">
-            <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search by name, phone, email, or code..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              className="w-full text-xs pl-9 pr-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/80 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-              aria-label="Search members"
-            />
+      {/* Directory Header & Dynamic Filters */}
+      {(() => {
+        const activeFilterCount = (roleFilter !== 'ALL' ? 1 : 0) + 
+          (statusFilter !== 'ALL' ? 1 : 0) + 
+          (staffFilter !== 'ALL' ? 1 : 0) + 
+          (branchFilter !== 'ALL' ? 1 : 0) + 
+          (startDateFrom ? 1 : 0) + 
+          (startDateTo ? 1 : 0);
+
+        const handleResetFilters = () => {
+          setRoleFilter('ALL');
+          setStatusFilter('ALL');
+          setStaffFilter('ALL');
+          setBranchFilter('ALL');
+          setStartDateFrom('');
+          setStartDateTo('');
+          setPage(0);
+        };
+
+        return (
+          <div className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm space-y-3">
+            {/* Primary Action Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search members by name, phone, email, or code..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                  className="w-full text-xs pl-9 pr-3 py-2.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/80 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  aria-label="Search members"
+                />
+              </div>
+
+              {/* Mobile Filter Toggle & Add Member Button */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 active:scale-95 ${
+                    showMobileFilters || activeFilterCount > 0
+                      ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+                      : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                  }`}
+                  aria-expanded={showMobileFilters}
+                  aria-label="Toggle directory filter controls"
+                >
+                  <Filter className="w-3.5 h-3.5" />
+                  <span>Filters</span>
+                  {activeFilterCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[10px] font-black">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-red-50 dark:hover:bg-red-950/30 text-zinc-500 hover:text-red-600 transition"
+                    title="Reset all active filters"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {canCreate('users') && (
+                  <button
+                    onClick={() => {
+                      setFormErrors({});
+                      setTouchedFields({});
+                      setIsSubmitAttempted(false);
+                      setFormErrorMessage(null);
+                      setIsFormOpen(true);
+                    }}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition shadow-sm shadow-blue-500/20 active:scale-[0.98] shrink-0"
+                    aria-haspopup="dialog"
+                  >
+                    <UserPlus className="w-4 h-4" /> <span>Add Member</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Secondary Filter Controls Grid (Collapsible on mobile/tablet, expandable on toggle) */}
+            <div className={`${showMobileFilters ? 'grid' : 'hidden xl:grid'} grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-3 border-t border-zinc-150 dark:border-zinc-800/80`}>
+              {/* ROLE FILTER */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5">Role</label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => { setRoleFilter(e.target.value); setPage(0); }}
+                  className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
+                >
+                  <option value="ALL">All Roles</option>
+                  {availableRoles.map(r => (
+                    <option key={r.id || r.name} value={r.name}>{r.name.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* STATUS FILTER */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value as any); setPage(0); }}
+                  className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">Active Members</option>
+                  <option value="INACTIVE">Inactive Members</option>
+                </select>
+              </div>
+
+              {/* STAFF/MEMBER FILTER */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5">Personnel</label>
+                <select
+                  value={staffFilter}
+                  onChange={(e) => { setStaffFilter(e.target.value as any); setPage(0); }}
+                  className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
+                >
+                  <option value="ALL">All Personnel</option>
+                  <option value="MEMBERS">Gym Members</option>
+                  <option value="STAFF">Staff Only</option>
+                </select>
+              </div>
+
+              {/* BRANCH FILTER */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5">Branch</label>
+                <select
+                  value={branchFilter}
+                  onChange={(e) => { setBranchFilter(e.target.value); setPage(0); }}
+                  className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
+                >
+                  <option value="ALL">All Branches</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* DATE RANGE: JOINED FROM */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-cyan-500" /> Joined From
+                </label>
+                <input
+                  type="date"
+                  value={startDateFrom}
+                  onChange={(e) => { setStartDateFrom(e.target.value); setPage(0); }}
+                  className="w-full text-xs px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
+                />
+              </div>
+
+              {/* DATE RANGE: JOINED TO */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-cyan-500" /> Joined To
+                </label>
+                <input
+                  type="date"
+                  value={startDateTo}
+                  onChange={(e) => { setStartDateTo(e.target.value); setPage(0); }}
+                  className="w-full text-xs px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
+                />
+              </div>
+            </div>
           </div>
-
-          {/* 2. ROLE FILTER */}
-          <div>
-            <select
-              value={roleFilter}
-              onChange={(e) => { setRoleFilter(e.target.value); setPage(0); }}
-              className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium appearance-none"
-            >
-              <option value="ALL">All Roles</option>
-              {availableRoles.map(r => (
-                <option key={r.id || r.name} value={r.name}>{r.name.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 3. STATUS FILTER */}
-          <div>
-            <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value as any); setPage(0); }}
-              className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium appearance-none"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="ACTIVE">Active Members</option>
-              <option value="INACTIVE">Inactive Members</option>
-            </select>
-          </div>
-
-          {/* 4. STAFF/MEMBER FILTER */}
-          <div>
-            <select
-              value={staffFilter}
-              onChange={(e) => { setStaffFilter(e.target.value as any); setPage(0); }}
-              className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium appearance-none"
-            >
-              <option value="ALL">All Personnel</option>
-              <option value="MEMBERS">Gym Members</option>
-              <option value="STAFF">Staff Only</option>
-            </select>
-          </div>
-
-          {/* 5. BRANCH FILTER */}
-          <div>
-            <select
-              value={branchFilter}
-              onChange={(e) => { setBranchFilter(e.target.value); setPage(0); }}
-              className="w-full text-xs px-2.5 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium appearance-none"
-            >
-              <option value="ALL">All Branches</option>
-              {branches.map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 6. DATE RANGE: JOINED FROM */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-cyan-500" /> Joined From
-            </label>
-            <input
-              type="date"
-              value={startDateFrom}
-              onChange={(e) => { setStartDateFrom(e.target.value); setPage(0); }}
-              className="w-full text-xs px-2.5 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
-            />
-          </div>
-
-          {/* 7. DATE RANGE: JOINED TO */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-cyan-500" /> Joined To
-            </label>
-            <input
-              type="date"
-              value={startDateTo}
-              onChange={(e) => { setStartDateTo(e.target.value); setPage(0); }}
-              className="w-full text-xs px-2.5 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40 font-medium"
-            />
-          </div>
-
-        </div>
-
-        {canCreate('users') && (
-          <button
-            onClick={() => {
-              setFormErrors({});
-              setTouchedFields({});
-              setIsSubmitAttempted(false);
-              setFormErrorMessage(null);
-              setIsFormOpen(true);
-            }}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition shadow-sm shadow-blue-500/20 active:scale-[0.98]"
-            aria-haspopup="dialog"
-          >
-            <UserPlus className="w-4 h-4" /> Add Member
-          </button>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Directory Table Grid */}
       <section className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm" aria-label="Member List">
@@ -1341,20 +1455,24 @@ export const MembersInternal: React.FC = () => {
 
               {/* Drawer Bottom Quick Action Footer */}
               <div className="p-5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 flex items-center justify-between gap-3">
-                <button
-                  onClick={() => openDeleteModal(selectedMember)}
-                  className="px-4 py-2 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 rounded-xl transition border border-red-200 dark:border-red-800 flex items-center gap-1.5"
-                >
-                  <Trash2 className="w-4 h-4" /> Delete Member
-                </button>
+                {canDelete('users') && !isSelf(selectedMember) ? (
+                  <button
+                    onClick={() => openDeleteModal(selectedMember)}
+                    className="px-4 py-2 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 rounded-xl transition border border-red-200 dark:border-red-800 flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete Member
+                  </button>
+                ) : <div />}
 
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEditModal(selectedMember)}
-                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-blue-500/20"
-                  >
-                    <Edit className="w-4 h-4" /> Edit Profile
-                  </button>
+                  {canEdit('users') && (
+                    <button
+                      onClick={() => openEditModal(selectedMember)}
+                      className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-blue-500/20"
+                    >
+                      <Edit className="w-4 h-4" /> Edit Profile
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1386,6 +1504,14 @@ export const MembersInternal: React.FC = () => {
               {/* Form Body */}
               <form onSubmit={handleUpdateMember} className="p-6 space-y-4 text-xs text-zinc-700 dark:text-zinc-300 max-h-[75vh] overflow-y-auto">
                 
+                {/* Error Banner */}
+                {editFormErrorMessage && (
+                  <div className="p-3.5 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800/80 rounded-xl text-red-700 dark:text-red-300 text-xs flex items-center gap-2.5 shadow-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                    <span className="font-semibold leading-relaxed">{editFormErrorMessage}</span>
+                  </div>
+                )}
+
                 {/* Member Identity Badge */}
                 {memberToEdit && (
                   <div className="p-3 bg-zinc-100 dark:bg-zinc-900/80 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
@@ -1410,9 +1536,17 @@ export const MembersInternal: React.FC = () => {
                       type="text"
                       required
                       value={editMemberData.name}
-                      onChange={(e) => setEditMemberData({ ...editMemberData, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      onChange={(e) => {
+                        setEditMemberData({ ...editMemberData, name: e.target.value });
+                        if (editFormErrors.name) setEditFormErrors({ ...editFormErrors, name: undefined });
+                      }}
+                      className={`w-full px-3 py-2 border rounded-xl text-zinc-900 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-900 ${
+                        editFormErrors.name ? 'border-red-500 focus:ring-2 focus:ring-red-500/40' : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500/40'
+                      }`}
                     />
+                    {editFormErrors.name && (
+                      <p className="text-[10px] text-red-500 font-medium mt-1">{editFormErrors.name}</p>
+                    )}
                   </div>
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Phone Number (10 Digits) *</label>
@@ -1421,9 +1555,17 @@ export const MembersInternal: React.FC = () => {
                       required
                       maxLength={10}
                       value={editMemberData.phone}
-                      onChange={(e) => setEditMemberData({ ...editMemberData, phone: e.target.value.replace(/[^0-9]/g, '') })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono"
+                      onChange={(e) => {
+                        setEditMemberData({ ...editMemberData, phone: e.target.value.replace(/[^0-9]/g, '') });
+                        if (editFormErrors.phone) setEditFormErrors({ ...editFormErrors, phone: undefined });
+                      }}
+                      className={`w-full px-3 py-2 border rounded-xl text-zinc-900 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-900 font-mono ${
+                        editFormErrors.phone ? 'border-red-500 focus:ring-2 focus:ring-red-500/40' : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500/40'
+                      }`}
                     />
+                    {editFormErrors.phone && (
+                      <p className="text-[10px] text-red-500 font-medium mt-1">{editFormErrors.phone}</p>
+                    )}
                   </div>
                 </div>
 
@@ -1434,16 +1576,24 @@ export const MembersInternal: React.FC = () => {
                     <input
                       type="email"
                       value={editMemberData.email}
-                      onChange={(e) => setEditMemberData({ ...editMemberData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      onChange={(e) => {
+                        setEditMemberData({ ...editMemberData, email: e.target.value });
+                        if (editFormErrors.email) setEditFormErrors({ ...editFormErrors, email: undefined });
+                      }}
+                      className={`w-full px-3 py-2 border rounded-xl text-zinc-900 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-900 ${
+                        editFormErrors.email ? 'border-red-500 focus:ring-2 focus:ring-red-500/40' : 'border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500/40'
+                      }`}
                     />
+                    {editFormErrors.email && (
+                      <p className="text-[10px] text-red-500 font-medium mt-1">{editFormErrors.email}</p>
+                    )}
                   </div>
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Account Status</label>
                     <select
                       value={editMemberData.status}
                       onChange={(e) => setEditMemberData({ ...editMemberData, status: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold focus:ring-2 focus:ring-blue-500/40"
                     >
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
@@ -1461,7 +1611,7 @@ export const MembersInternal: React.FC = () => {
                       <select
                         value={editMemberData.plan}
                         onChange={(e) => setEditMemberData({ ...editMemberData, plan: e.target.value })}
-                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold focus:ring-2 focus:ring-blue-500/40"
                       >
                         <option value="">-- No Plan --</option>
                         {availablePlans.map((p) => (
@@ -1476,7 +1626,7 @@ export const MembersInternal: React.FC = () => {
                         placeholder="e.g. Monthly Premium"
                         value={editMemberData.plan}
                         onChange={(e) => setEditMemberData({ ...editMemberData, plan: e.target.value })}
-                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40"
                       />
                     )}
                   </div>
@@ -1485,7 +1635,7 @@ export const MembersInternal: React.FC = () => {
                     <select
                       value={editMemberData.role}
                       onChange={(e) => setEditMemberData({ ...editMemberData, role: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-semibold focus:ring-2 focus:ring-blue-500/40"
                     >
                       {availableRoles.map((r) => (
                         <option key={r.id || r.name} value={r.name}>
@@ -1506,7 +1656,7 @@ export const MembersInternal: React.FC = () => {
                     <select
                       value={editMemberData.branchId}
                       onChange={(e) => setEditMemberData({ ...editMemberData, branchId: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40"
                     >
                       <option value="">-- No Branch (HQ) --</option>
                       {branches.map((b) => (
@@ -1521,7 +1671,7 @@ export const MembersInternal: React.FC = () => {
                     <select
                       value={editMemberData.trainerCode}
                       onChange={(e) => setEditMemberData({ ...editMemberData, trainerCode: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40"
                     >
                       <option value="">Unassigned (Floor Supervisor)</option>
                       {staff.filter(s => s.role === 'TRAINER' && s.code).map((t) => (
@@ -1538,11 +1688,12 @@ export const MembersInternal: React.FC = () => {
                     <select
                       value={editMemberData.gender}
                       onChange={(e) => setEditMemberData({ ...editMemberData, gender: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40"
                     >
                       <option value="">Select</option>
                       <option value="MALE">Male</option>
                       <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
                     </select>
                   </div>
                   <div>
@@ -1551,7 +1702,7 @@ export const MembersInternal: React.FC = () => {
                       type="date"
                       value={editMemberData.dob}
                       onChange={(e) => setEditMemberData({ ...editMemberData, dob: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40"
                     />
                   </div>
                   <div>
@@ -1560,7 +1711,7 @@ export const MembersInternal: React.FC = () => {
                       type="date"
                       value={editMemberData.startDate}
                       onChange={(e) => setEditMemberData({ ...editMemberData, startDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40"
                     />
                   </div>
                   <div>
@@ -1569,7 +1720,7 @@ export const MembersInternal: React.FC = () => {
                       type="date"
                       value={editMemberData.endDate}
                       onChange={(e) => setEditMemberData({ ...editMemberData, endDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40"
                     />
                   </div>
                 </div>
@@ -1582,7 +1733,7 @@ export const MembersInternal: React.FC = () => {
                       type="number"
                       value={editMemberData.amountPaid}
                       onChange={(e) => setEditMemberData({ ...editMemberData, amountPaid: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono focus:ring-2 focus:ring-blue-500/40"
                     />
                   </div>
                   <div>
@@ -1591,7 +1742,7 @@ export const MembersInternal: React.FC = () => {
                       type="number"
                       value={editMemberData.attendanceCount}
                       onChange={(e) => setEditMemberData({ ...editMemberData, attendanceCount: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono"
+                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono focus:ring-2 focus:ring-blue-500/40"
                     />
                   </div>
                 </div>
@@ -1608,9 +1759,10 @@ export const MembersInternal: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition shadow-sm shadow-blue-500/20 disabled:opacity-50"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition shadow-sm shadow-blue-500/20 disabled:opacity-50 flex items-center gap-2"
                   >
-                    {isSubmitting ? 'Saving...' : 'Save Changes'}
+                    {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
                   </button>
                 </div>
               </form>

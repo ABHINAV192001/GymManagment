@@ -26,4 +26,7 @@ public class WorkoutExercise extends com.Gym.GymCommonServices.common.BaseEntity
     private String reps;
 
     private Integer time; // in seconds
+
+    @Column(name = "target_days")
+    private String targetDays; // e.g. "Monday,Wednesday,Friday"
 }

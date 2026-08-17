@@ -4,6 +4,9 @@ import { LoginPage } from '../pages/auth/LoginPage';
 import { JoinPage } from '../pages/auth/JoinPage';
 import { Layout } from '../components/layout/Layout';
 import { getRedirectPathForUser } from '../lib/navigation';
+import { getStoredToken } from '../lib/api/client';
+import { logout } from '../lib/api/auth';
+
 
 // Components
 import { Dashboard } from '../pages/dashboard/Dashboard';
@@ -14,7 +17,9 @@ import { Attendance } from '../pages/attendance/Attendance';
 import { Branches } from '../pages/branches/Branches';
 import { Plans } from '../pages/plans/Plans';
 import { WorkoutsAndDiets } from '../pages/workouts/WorkoutsAndDiets';
+import { DietDatabase } from '../pages/diets/DietDatabase';
 import { Activities } from '../pages/activities/Activity';
+
 import { Accounts } from '../pages/accounts/Accounts';
 import { Inventory } from '../pages/inventory/Inventory';
 import { Chat } from '../pages/chat/Chat';
@@ -51,11 +56,14 @@ const LoginRoute = () => {
 
   useEffect(() => {
     // If user has active token, auto redirect to primary page
-    const tokenMatch = document.cookie.match(/(?:(?:^|.*;\s*)gymos_token\s*=\s*([^;]*).*$)|^.*$/);
-    if (tokenMatch && tokenMatch[1]) {
-      getRedirectPathForUser().then((path) => navigate(path, { replace: true }));
+    const token = getStoredToken();
+    if (token) {
+      getRedirectPathForUser()
+        .then((path) => navigate(path, { replace: true }))
+        .catch(() => logout());
     }
   }, [navigate]);
+
 
   const handleLogin = async () => {
     const targetPath = await getRedirectPathForUser();
@@ -102,7 +110,8 @@ export function AppRoutes() {
           {/* Workouts & Diet */}
           <Route path="/workouts" element={<WorkoutsAndDiets />} />
           <Route path="/activities" element={<Activities />} />
-          <Route path="/diets" element={<WorkoutsAndDiets />} />
+          <Route path="/diets" element={<DietDatabase />} />
+
           
           {/* Financials & Inventory */}
           <Route path="/accounts" element={<Accounts />} />

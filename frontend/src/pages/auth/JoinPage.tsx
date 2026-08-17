@@ -11,8 +11,9 @@ export function JoinPage() {
   const adminCode = searchParams.get('ref') || 'Unknown';
   const role = searchParams.get('role') || 'USER';
   const email = searchParams.get('email') || '';
+  const urlOtp = searchParams.get('otp') || '';
 
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState(urlOtp);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -43,7 +44,8 @@ export function JoinPage() {
     setError(null);
     setSuccess(null);
 
-    if (!userCode) {
+    const identifier = userCode || email;
+    if (!identifier) {
       setError('Invalid registration link. Missing user identifier.');
       return;
     }
@@ -72,6 +74,7 @@ export function JoinPage() {
     try {
       await completeRegistration({
         userCode,
+        email,
         adminCode,
         role,
         password,

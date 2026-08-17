@@ -8,6 +8,7 @@ import com.gymbross.usermanagement.service.FoodService;
 import com.gymbross.usermanagement.service.FoodDataImportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,6 @@ public class FoodController {
     private final FoodDataImportService importService;
 
     @GetMapping("/low-calorie")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<FoodDto>>> getLowCalorieRecipes(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
@@ -34,28 +34,45 @@ public class FoodController {
     }
 
     @GetMapping("/{id:[0-9-]+}")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<FoodDto>> getFoodDetails(@PathVariable java.util.UUID id) {
         log.info("Fetching details for Food ID: {}", id);
         return ResponseEntity.ok(ApiResponse.success(foodService.getFoodDetails(id)));
     }
 
     @GetMapping("/list")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<FoodDto>>> getAllFoods(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.paginated(foodService.getAllFoods(page, size), page, size));
+            @RequestParam(defaultValue = "20") int size) {
+        Page<FoodDto> foodPage = foodService.getAllFoods(page, size);
+        return ResponseEntity.ok(ApiResponse.pageResult(foodPage.getContent(), foodPage.getNumber(), foodPage.getSize(), foodPage.getTotalElements()));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<FoodDto>>> searchFoodsGet(
+            @RequestParam(value = "query", required = false) String query,
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "isRecipe", required = false) Boolean isRecipe,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        String searchQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : (name != null ? name.trim() : "");
+        log.info("GET Searching foods for query: {}, category: {}, isRecipe: {}", searchQuery, category, isRecipe);
+        Page<FoodDto> foodPage = foodService.filterFoods(searchQuery, category, null, isRecipe, page, size);
+        return ResponseEntity.ok(ApiResponse.pageResult(foodPage.getContent(), foodPage.getNumber(), foodPage.getSize(), foodPage.getTotalElements()));
     }
 
     @PostMapping("/search")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<FoodDto>>> searchFoods(@RequestBody FoodSearchRequestDto dto) {
+    public ResponseEntity<ApiResponse<List<FoodDto>>> searchFoods(
+            @RequestBody FoodSearchRequestDto dto,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
         log.info("Searching foods for query: {}", dto.getQuery());
         if (dto.getQuery() == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Query cannot be null", 400));
         }
-        return ResponseEntity.ok(ApiResponse.success(foodService.searchFoods(dto.getQuery())));
+        Page<FoodDto> foodPage = foodService.searchFoods(dto.getQuery(), page, size);
+        return ResponseEntity.ok(ApiResponse.pageResult(foodPage.getContent(), foodPage.getNumber(), foodPage.getSize(), foodPage.getTotalElements()));
     }
 
     @PostMapping("/log")
@@ -66,12 +83,26 @@ public class FoodController {
     }
 
     @GetMapping("/preference")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<FoodDto>>> getFoodsByPreference(
             @RequestParam String preference,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.paginated(foodService.getFoodsByPreference(preference), page, size));
+    }
+
+    @GetMapping("/filter")
+    public ResponseEntity<ApiResponse<List<FoodDto>>> getFoodsByFilter(
+            @RequestParam(value = "query", required = false) String query,
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "preset", defaultValue = "ALL") String preset,
+            @RequestParam(value = "isRecipe", required = false) Boolean isRecipe,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        String searchQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : (name != null ? name.trim() : null);
+        log.info("Filtering foods: query={}, preset={}, category={}, isRecipe={}, page={}, size={}", searchQuery, preset, category, isRecipe, page, size);
+        Page<FoodDto> foodPage = foodService.filterFoods(searchQuery, category, preset, isRecipe, page, size);
+        return ResponseEntity.ok(ApiResponse.pageResult(foodPage.getContent(), foodPage.getNumber(), foodPage.getSize(), foodPage.getTotalElements()));
     }
 
     @PostMapping("/import")

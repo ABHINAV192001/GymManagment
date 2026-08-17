@@ -112,6 +112,37 @@ public class ApiResponse<T> {
                 .build();
     }
 
+    public static <T> ApiResponse<List<T>> pageResult(List<T> content, int page, int size, long totalElements) {
+        return pageResult(content, page, size, totalElements, "Operation successful");
+    }
+
+    public static <T> ApiResponse<List<T>> pageResult(List<T> content, int page, int size, long totalElements, String message) {
+        if (content == null) {
+            content = Collections.emptyList();
+        }
+        int pageSize = size <= 0 ? 10 : size;
+        int currentPage = Math.max(0, page);
+        int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / pageSize);
+
+        Pagination meta = Pagination.builder()
+                .page(currentPage)
+                .size(pageSize)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .hasNext(currentPage + 1 < totalPages)
+                .hasPrev(currentPage > 0)
+                .build();
+
+        return ApiResponse.<List<T>>builder()
+                .success(true)
+                .message(message)
+                .data(content)
+                .timestamp(LocalDateTime.now())
+                .status(200)
+                .pagination(meta)
+                .build();
+    }
+
     public static <T> ApiResponse<T> error(String message, int status) {
         return ApiResponse.<T>builder()
                 .success(false)

@@ -7,6 +7,7 @@ import {
 import { Lead, getLeadsByOrg, createLead, updateLead, deleteLead } from '../../lib/api/crm';
 import { getMyOrg } from '../../lib/api/organizations';
 import { Branch } from '../../types';
+import { usePermissions } from '../../lib/usePermissions';
 
 const STATUS_CONFIG = {
   NEW: { label: 'New Lead', color: 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800', dot: 'bg-blue-500' },
@@ -20,6 +21,7 @@ const EMPTY_FORM = { name: '', phone: '', email: '', source: 'Walk-In', status: 
 
 export const CRM: React.FC = () => {
   const { triggerAnnouncement, selectedBranchId, branches } = useOutletContext<{ triggerAnnouncement: (msg: string) => void; selectedBranchId: string; branches: Branch[] }>();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [orgId, setOrgId] = useState<string>('');
@@ -130,9 +132,11 @@ export const CRM: React.FC = () => {
           <button onClick={() => orgId && load(orgId)} className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition" title="Refresh">
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition shadow-lg shadow-blue-500/20">
-            <Plus className="w-4 h-4" /> Add Lead
-          </button>
+          {canCreate('crm') && (
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition shadow-lg shadow-blue-500/20">
+              <Plus className="w-4 h-4" /> Add Lead
+            </button>
+          )}
         </div>
       </div>
 
@@ -177,9 +181,11 @@ export const CRM: React.FC = () => {
           <UserCheck className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-3" />
           <p className="font-bold text-zinc-700 dark:text-zinc-300">No leads found</p>
           <p className="text-sm text-zinc-400 mt-1">Add your first walk-in or phone enquiry to start tracking.</p>
-          <button onClick={openCreate} className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition">
-            <Plus className="w-4 h-4" /> Add Lead
-          </button>
+          {canCreate('crm') && (
+            <button onClick={openCreate} className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition">
+              <Plus className="w-4 h-4" /> Add Lead
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid gap-3">
@@ -214,18 +220,22 @@ export const CRM: React.FC = () => {
                 </div>
                 {/* Quick status change */}
                 <div className="flex items-center gap-2 flex-wrap shrink-0">
-                  {(['NEW', 'FOLLOW_UP', 'CONVERTED'] as Lead['status'][]).filter(s => s !== lead.status).map(s => (
+                  {canEdit('crm') && (['NEW', 'FOLLOW_UP', 'CONVERTED'] as Lead['status'][]).filter(s => s !== lead.status).map(s => (
                     <button key={s} onClick={() => handleQuickStatus(lead, s)}
                       className="px-2.5 py-1 rounded-lg text-[10px] font-black border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
                       → {s.replace('_', ' ')}
                     </button>
                   ))}
-                  <button onClick={() => openEdit(lead)} className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition" title="Edit">
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => handleDelete(lead)} className="p-1.5 rounded-lg border border-red-200 dark:border-red-900 text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition" title="Delete">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {canEdit('crm') && (
+                    <button onClick={() => openEdit(lead)} className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition" title="Edit">
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {canDelete('crm') && (
+                    <button onClick={() => handleDelete(lead)} className="p-1.5 rounded-lg border border-red-200 dark:border-red-900 text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition" title="Delete">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             );

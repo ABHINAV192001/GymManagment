@@ -22,7 +22,14 @@ import {
   Search,
   Check,
   Loader2,
-  Sliders
+  Sliders,
+  Coffee,
+  Sun,
+  Cookie,
+  Moon,
+  Trash2,
+  PlusCircle,
+  RotateCcw
 } from 'lucide-react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import {
@@ -30,12 +37,30 @@ import {
   logWater,
   getRecipes,
   logFoodItem,
+  getDailyLog,
+  deleteFoodLog,
   searchFoodsList,
   getAllFoodsList,
   getUserProfile
 } from '../../lib/api/user';
 import { getWorkouts, getExercises } from '../../lib/api/workouts';
 import { OnboardingWizard } from '../../components/onboarding/OnboardingWizard';
+import { HydrationModal } from '../../components/member-portal/HydrationModal';
+import { FoodLogModal, LoggedFoodPayload, ModalTab } from '../../components/member-portal/FoodLogModal';
+
+export interface FoodLogDashboardEntry {
+  id: string;
+  foodName: string;
+  mealType: 'Breakfast' | 'Lunch' | 'Snacks' | 'Dinner' | string;
+  portionName?: string;
+  customGrams?: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+  time?: string;
+}
 
 interface ExerciseItem {
   id: string;
@@ -264,13 +289,19 @@ export const MemberDashboard: React.FC = () => {
   const [weightKg, setWeightKg] = useState<string>('72');
   const [calculatedBmi, setCalculatedBmi] = useState<{ score: number; label: string; color: string } | null>(null);
 
-  // Food Log State & Live Backend Food Search
-  const [foodSearchQuery, setFoodSearchQuery] = useState('');
-  const [availableFoods, setAvailableFoods] = useState<any[]>([]);
-  const [selectedFood, setSelectedFood] = useState<any | null>(null);
-  const [foodQuantity, setFoodQuantity] = useState<string>('1');
-  const [mealType, setMealType] = useState<string>('Lunch');
-  const [isSearchingFood, setIsSearchingFood] = useState(false);
+  // Food Log State & Itemized Meals Tracking
+  const getTodayDateString = () => new Date().toISOString().split('T')[0];
+
+  const [foodLogs, setFoodLogs] = useState<FoodLogDashboardEntry[]>(() => {
+    const dateKey = new Date().toISOString().split('T')[0];
+    const saved = localStorage.getItem(`gymOSFoodLogs_${dateKey}`);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [];
+  });
+
+  const [foodModalInitialMeal, setFoodModalInitialMeal] = useState<ModalTab>('Breakfast');
   const [isLoggingFood, setIsLoggingFood] = useState(false);
 
   // Today's Workout Exercises state & Selected Program
@@ -324,11 +355,13 @@ export const MemberDashboard: React.FC = () => {
 
   const fetchData = async () => {
     setIsLoading(true);
+    const dateKey = getTodayDateString();
     try {
-      // 1. Fetch User Profile & Dashboard from Backend API (GET /api/user/dashboard, GET /api/user/profile)
-      const [dashRes, profileRes, recRes, workoutsData, exercisesData] = await Promise.all([
+      // 1. Fetch User Profile, Dashboard & Daily Food Logs from Backend API (GET /api/user/dashboard, GET /api/user/daily-log)
+      const [dashRes, profileRes, dailyLogRes, recRes, workoutsData, exercisesData] = await Promise.all([
         getUserDashboard().catch(() => null),
         getUserProfile().catch(() => null),
+        getDailyLog(dateKey).catch(() => null),
         getRecipes().catch(() => ({ data: { content: [] } })),
         getWorkouts().catch(() => []),
         getExercises().catch(() => [])
@@ -336,6 +369,7 @@ export const MemberDashboard: React.FC = () => {
 
       const realData = dashRes?.data || dashRes;
       const profileData = profileRes?.data || profileRes;
+      const dailyLogData = dailyLogRes?.data || dailyLogRes;
 
       const fallbackDashboard = {
         today: {
@@ -344,13 +378,13 @@ export const MemberDashboard: React.FC = () => {
           date: new Date().toLocaleDateString('en-GB')
         },
         macros: {
-          carbs: { current: 0, target: 0 },
-          protein: { current: 0, target: 0 },
-          fat: { current: 0, target: 0 }
+          carbs: { current: 0, target: 250 },
+          protein: { current: 0, target: 180 },
+          fat: { current: 0, target: 70 }
         },
-        calories: { current: 0, target: 0 },
+        calories: { current: 0, target: 2400 },
         activity: {
-          water: { current: 0, target: 0, unit: 'L' }
+          water: { current: 0, target: 3.5, unit: 'L' }
         },
         biometrics: { height: 0, weight: 0 }
       };
@@ -373,6 +407,23 @@ export const MemberDashboard: React.FC = () => {
         setWeightKg(String(finalDash.biometrics.weight));
       }
 
+      // Sync backend food logs into local state if available
+      if (dailyLogData && Array.isArray(dailyLogData.foodLogs) && dailyLogData.foodLogs.length > 0) {
+        const syncedLogs: FoodLogDashboardEntry[] = dailyLogData.foodLogs.map((item: any) => ({
+          id: String(item.id || Date.now() + Math.random()),
+          foodName: item.foodName || item.description || 'Food Item',
+          mealType: item.mealType || 'Breakfast',
+          portionName: item.portionName || `${item.quantity || 1} serving(s)`,
+          customGrams: item.customGrams || (item.quantity ? Math.round(item.quantity * 100) : 100),
+          calories: Math.round(item.calories || 0),
+          protein: parseFloat((item.protein || 0).toFixed(1)),
+          carbs: parseFloat((item.carbs || 0).toFixed(1)),
+          fat: parseFloat((item.fat || 0).toFixed(1))
+        }));
+        setFoodLogs(syncedLogs);
+        localStorage.setItem(`gymOSFoodLogs_${dateKey}`, JSON.stringify(syncedLogs));
+      }
+
       // 2. Process Recipes from Backend API (GET /api/v1/recipes)
       const recipeList = recRes?.data?.content || recRes?.content || recRes?.data || recRes || [];
       if (Array.isArray(recipeList) && recipeList.length > 0) {
@@ -385,17 +436,12 @@ export const MemberDashboard: React.FC = () => {
           { id: 'r4', recipeName: 'Greek Yogurt Protein Smoothie', category: 'Post Workout', calories: 290, protein: 30 }
         ]);
       }
-
-      // Note: todayExercises are now correctly populated by syncSavedSplit 
-      // based on the selected program and the current day's focus (e.g., REST_DAY).
     } catch (err: any) {
       triggerAnnouncement(`Failed to load dashboard: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
   };
-
-  const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
   const [waterLogs, setWaterLogs] = useState<WaterLogEntry[]>(() => {
     const dateKey = new Date().toISOString().split('T')[0];
@@ -411,27 +457,10 @@ export const MemberDashboard: React.FC = () => {
   const [draftGlasses, setDraftGlasses] = useState<number>(0);
 
   const handleOpenWaterModal = () => {
-    const currentLiters = dashboardData?.activity?.water?.current || waterLogs.reduce((acc, curr) => acc + curr.amountLiters, 0);
-    const bCount = Math.min(4, Math.floor(currentLiters / 1.0));
-    const rem = Math.max(0, currentLiters - bCount * 1.0);
-    const gCount = Math.min(5, Math.floor(rem / 0.25));
-
-    setDraftBottles(bCount);
-    setDraftGlasses(gCount);
     setIsWaterModalOpen(true);
   };
 
-  const toggleDraftBottle = (bNum: number) => {
-    setDraftBottles(prev => (prev === bNum ? bNum - 1 : bNum));
-  };
-
-  const toggleDraftGlass = (gNum: number) => {
-    setDraftGlasses(prev => (prev === gNum ? gNum - 1 : gNum));
-  };
-
-  const handleSaveWaterDraft = async () => {
-    const targetLiters = parseFloat(((draftBottles * 1.0) + (draftGlasses * 0.25)).toFixed(2));
-
+  const handleSaveWaterDraft = async (targetLiters: number, bottles: number, glasses: number) => {
     setIsWaterAdding(true);
     try {
       if (targetLiters > 0) {
@@ -443,8 +472,8 @@ export const MemberDashboard: React.FC = () => {
         id: Date.now().toString(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         amountLiters: targetLiters,
-        label: `${draftBottles} Bottle(s) (1L) + ${draftGlasses} Glass(es) (250ml)`,
-        type: draftBottles > 0 ? 'bottle' : 'glass'
+        label: `${bottles} Bottle(s) (1L) + ${glasses} Glass(es) (250ml)`,
+        type: bottles > 0 ? 'bottle' : 'glass'
       };
 
       const updatedLogs = [newEntry, ...waterLogs];
@@ -483,62 +512,100 @@ export const MemberDashboard: React.FC = () => {
     const dateKey = getTodayDateString();
     setWaterLogs([]);
     localStorage.removeItem(`gymOSWaterLogs_${dateKey}`);
-    setDraftBottles(0);
-    setDraftGlasses(0);
     triggerAnnouncement(`Today's water intake history has been reset for a fresh start!`);
   };
 
-  // Real Food Search API Call (POST /api/user/food/search or GET /api/user/food/list)
-  const loadFoodsFromBackend = async (query?: string) => {
-    setIsSearchingFood(true);
+  const handleOpenFoodModal = (meal: ModalTab = 'Breakfast') => {
+    setFoodModalInitialMeal(meal);
+    setIsFoodModalOpen(true);
+  };
+
+  // Real API Call: Log Food Item (POST /api/user/food/log) with complete payload
+  const handleLogFoodItem = async (payload: LoggedFoodPayload) => {
+    setIsLoggingFood(true);
+    const dateKey = payload.date || getTodayDateString();
+
+    // 1. Create optimistic entry for instant zero-latency UI update
+    const optimisticEntry: FoodLogDashboardEntry = {
+      id: String(Date.now()),
+      foodName: payload.foodName,
+      mealType: payload.mealType || 'Breakfast',
+      portionName: payload.servingUnit || `${payload.customGrams || 100}g`,
+      customGrams: payload.customGrams,
+      calories: Math.round(payload.calories),
+      protein: parseFloat(payload.protein.toFixed(1)),
+      carbs: parseFloat(payload.carbs.toFixed(1)),
+      fat: parseFloat(payload.fat.toFixed(1)),
+      fiber: payload.fiber ? parseFloat(payload.fiber.toFixed(1)) : undefined,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    const updatedList = [optimisticEntry, ...foodLogs];
+    setFoodLogs(updatedList);
+    localStorage.setItem(`gymOSFoodLogs_${dateKey}`, JSON.stringify(updatedList));
+
     try {
-      if (query && query.trim().length > 1) {
-        const res = await searchFoodsList(query.trim());
-        const list = res?.data || res || [];
-        setAvailableFoods(Array.isArray(list) ? list : []);
-      } else {
-        const res = await getAllFoodsList();
-        const list = res?.data || res || [];
-        setAvailableFoods(Array.isArray(list) ? list : []);
+      // 2. Call backend API to persist in database
+      await logFoodItem(payload);
+      triggerAnnouncement(`Logged ${payload.foodName} (${Math.round(payload.calories)} kcal) to ${payload.mealType}!`);
+
+      // 3. Re-sync backend dashboard and daily log
+      const [updatedDash, updatedLogs] = await Promise.all([
+        getUserDashboard().catch(() => null),
+        getDailyLog(dateKey).catch(() => null)
+      ]);
+
+      if (updatedDash) {
+        setDashboardData(updatedDash.data || updatedDash);
       }
-    } catch (err) {
-      console.error('Failed to load foods from backend', err);
+      if (updatedLogs?.data?.foodLogs && Array.isArray(updatedLogs.data.foodLogs)) {
+        const synced: FoodLogDashboardEntry[] = updatedLogs.data.foodLogs.map((item: any) => ({
+          id: String(item.id),
+          foodName: item.foodName || 'Food Item',
+          mealType: item.mealType || 'Breakfast',
+          portionName: item.portionName,
+          customGrams: item.customGrams || (item.quantity ? Math.round(item.quantity * 100) : 100),
+          calories: Math.round(item.calories || 0),
+          protein: parseFloat((item.protein || 0).toFixed(1)),
+          carbs: parseFloat((item.carbs || 0).toFixed(1)),
+          fat: parseFloat((item.fat || 0).toFixed(1))
+        }));
+        setFoodLogs(synced);
+        localStorage.setItem(`gymOSFoodLogs_${dateKey}`, JSON.stringify(synced));
+      }
+
+      setIsFoodModalOpen(false);
+    } catch (err: any) {
+      triggerAnnouncement(`Food logged to your dashboard! Backend sync notice: ${err.message}`);
+      setIsFoodModalOpen(false);
     } finally {
-      setIsSearchingFood(false);
+      setIsLoggingFood(false);
     }
   };
 
-  const handleOpenFoodModal = () => {
-    setIsFoodModalOpen(true);
-    loadFoodsFromBackend();
-  };
-
-  // Real API Call: Log Food Item (POST /api/user/food/log)
-  const handleAddFoodSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoggingFood(true);
+  const handleDeleteFoodLog = async (id: string, foodName: string) => {
+    const dateKey = getTodayDateString();
+    const updated = foodLogs.filter(f => f.id !== id);
+    setFoodLogs(updated);
+    localStorage.setItem(`gymOSFoodLogs_${dateKey}`, JSON.stringify(updated));
+    triggerAnnouncement(`Removed ${foodName} from today's logged meals.`);
 
     try {
-      if (selectedFood?.id) {
-        await logFoodItem(selectedFood.id, parseFloat(foodQuantity) || 1.0, mealType);
-        triggerAnnouncement(`Logged ${selectedFood.foodName || 'Food'} to your backend meal log!`);
-      } else {
-        triggerAnnouncement(`Logged meal entry (${foodSearchQuery || 'Meal'})`);
-      }
-
-      // Re-fetch backend dashboard stats
+      await deleteFoodLog(id);
       const updatedDash = await getUserDashboard().catch(() => null);
       if (updatedDash) {
         setDashboardData(updatedDash.data || updatedDash);
       }
-      setIsFoodModalOpen(false);
-      setSelectedFood(null);
-      setFoodSearchQuery('');
-    } catch (err: any) {
-      triggerAnnouncement(`Failed to log food: ${err.message}`);
-    } finally {
-      setIsLoggingFood(false);
+    } catch (e) {
+      console.warn('Backend delete error (logged locally):', e);
     }
+  };
+
+  const handleClearFoodLogs = () => {
+    const dateKey = getTodayDateString();
+    setFoodLogs([]);
+    localStorage.removeItem(`gymOSFoodLogs_${dateKey}`);
+    triggerAnnouncement(`Today's meal logs have been reset.`);
   };
 
   const toggleExerciseComplete = (id: string) => {
@@ -580,6 +647,153 @@ export const MemberDashboard: React.FC = () => {
     return `${day}/${month}/${year}`;
   }, []);
 
+  const { today, macros, calories, activity } = dashboardData || {};
+
+  // Compute live accurate totals from foodLogs + backend
+  const totalCaloriesLogged = useMemo(() => {
+    const localSum = foodLogs.reduce((sum, item) => sum + (item.calories || 0), 0);
+    const backendVal = calories?.current || 0;
+    return Math.max(localSum, backendVal);
+  }, [foodLogs, calories]);
+
+  const targetCaloriesVal = calories?.target && calories.target > 0 ? calories.target : 2400;
+
+  const totalCarbsLogged = useMemo(() => {
+    const localSum = parseFloat(foodLogs.reduce((sum, item) => sum + (item.carbs || 0), 0).toFixed(1));
+    const backendVal = macros?.carbs?.current || 0;
+    return Math.max(localSum, backendVal);
+  }, [foodLogs, macros]);
+  const targetCarbsVal = macros?.carbs?.target && macros.carbs.target > 0 ? macros.carbs.target : 250;
+
+  const totalProteinLogged = useMemo(() => {
+    const localSum = parseFloat(foodLogs.reduce((sum, item) => sum + (item.protein || 0), 0).toFixed(1));
+    const backendVal = macros?.protein?.current || 0;
+    return Math.max(localSum, backendVal);
+  }, [foodLogs, macros]);
+  const targetProteinVal = macros?.protein?.target && macros.protein.target > 0 ? macros.protein.target : 180;
+
+  const totalFatLogged = useMemo(() => {
+    const localSum = parseFloat(foodLogs.reduce((sum, item) => sum + (item.fat || 0), 0).toFixed(1));
+    const backendVal = macros?.fat?.current || 0;
+    return Math.max(localSum, backendVal);
+  }, [foodLogs, macros]);
+  const targetFatVal = macros?.fat?.target && macros.fat.target > 0 ? macros.fat.target : 70;
+
+  const waterCurr = activity?.water?.current ?? 2.25;
+  const waterTarg = activity?.water?.target ?? 3.5;
+
+  // Percentages for Concentric Rings
+  const carbPct = Math.min((totalCarbsLogged / (targetCarbsVal || 1)) * 100, 100);
+  const protPct = Math.min((totalProteinLogged / (targetProteinVal || 1)) * 100, 100);
+  const fatPct = Math.min((totalFatLogged / (targetFatVal || 1)) * 100, 100);
+
+  // Helper to render each meal category card (Breakfast, Lunch, Snacks, Dinner)
+  const renderMealCard = (
+    mealName: 'Breakfast' | 'Lunch' | 'Snacks' | 'Dinner',
+    icon: React.ReactNode,
+    gradientTheme: string,
+    accentColor: string
+  ) => {
+    const mealItems = foodLogs.filter(
+      item => (item.mealType || '').toLowerCase() === mealName.toLowerCase()
+    );
+    const mealCalories = mealItems.reduce((sum, item) => sum + (item.calories || 0), 0);
+    const mealProtein = parseFloat(mealItems.reduce((sum, item) => sum + (item.protein || 0), 0).toFixed(1));
+    const mealCarbs = parseFloat(mealItems.reduce((sum, item) => sum + (item.carbs || 0), 0).toFixed(1));
+    const mealFat = parseFloat(mealItems.reduce((sum, item) => sum + (item.fat || 0), 0).toFixed(1));
+
+    return (
+      <div className={`p-3 sm:p-4 rounded-2xl border bg-gradient-to-b ${gradientTheme} flex flex-col justify-between space-y-2 sm:space-y-3 shadow-xs hover:shadow-md transition`}>
+        {/* Card Header */}
+        <div className="flex items-center justify-between border-b border-zinc-200/70 dark:border-zinc-800/70 pb-2 sm:pb-2.5 gap-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <div className="p-1 sm:p-1.5 rounded-lg bg-white dark:bg-zinc-800 shadow-xs border border-zinc-200 dark:border-zinc-700 shrink-0">
+              {icon}
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-[11px] sm:text-xs font-extrabold text-zinc-900 dark:text-zinc-100 truncate">{mealName}</h3>
+              <span className="text-[9px] sm:text-[10px] font-mono font-bold text-zinc-500 dark:text-zinc-400 block truncate">
+                {mealCalories} kcal
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => handleOpenFoodModal(mealName)}
+            className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 text-[9px] sm:text-[10px] font-bold transition flex items-center gap-0.5 sm:gap-1 shadow-xs shrink-0"
+            title={`Add food item to ${mealName}`}
+          >
+            <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            <span>Add</span>
+          </button>
+        </div>
+
+        {/* Meal Items List */}
+        <div className="space-y-1.5 sm:space-y-2 min-h-[55px] sm:min-h-[90px] max-h-[140px] sm:max-h-[190px] overflow-y-auto pr-0.5 sm:pr-1">
+          {mealItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-2 sm:py-4 text-center text-zinc-400 space-y-0.5 sm:space-y-1">
+              <Apple className="w-3.5 h-3.5 sm:w-5 sm:h-5 stroke-[1.5] text-zinc-300 dark:text-zinc-600" />
+              <p className="text-[9px] sm:text-[11px] text-zinc-400 dark:text-zinc-500">No food logged</p>
+              <button
+                type="button"
+                onClick={() => handleOpenFoodModal(mealName)}
+                className={`text-[9px] sm:text-[10px] ${accentColor} font-bold hover:underline`}
+              >
+                + Log
+              </button>
+            </div>
+          ) : (
+            mealItems.map((item) => (
+              <div
+                key={item.id}
+                className="p-1.5 sm:p-2.5 rounded-xl bg-white/95 dark:bg-zinc-950/90 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition flex items-center justify-between gap-1.5 shadow-xs group"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <h4 className="text-[11px] sm:text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate" title={item.foodName}>
+                      {item.foodName}
+                    </h4>
+                    <span className="text-[10px] sm:text-[11px] font-black font-mono text-orange-600 dark:text-orange-400 shrink-0 ml-0.5">
+                      {item.calories}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 font-mono">
+                    <span className="font-semibold text-zinc-600 dark:text-zinc-300 truncate max-w-[55px] sm:max-w-none">{item.portionName || `${item.customGrams || 100}g`}</span>
+                    <span className="text-[8px] sm:text-[9px] text-zinc-400 dark:text-zinc-500 shrink-0">
+                      P:{item.protein} C:{item.carbs} F:{item.fat}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteFoodLog(item.id, item.foodName)}
+                  className="p-0.5 sm:p-1 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 opacity-70 group-hover:opacity-100 transition shrink-0"
+                  title="Remove from meal log"
+                >
+                  <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Meal Macro Subtotal Footer */}
+        {mealItems.length > 0 && (
+          <div className="pt-1.5 sm:pt-2 border-t border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between text-[8px] sm:text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
+            <span className="font-semibold hidden sm:inline">Subtotal:</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 font-bold justify-between sm:justify-end w-full sm:w-auto">
+              <span className="text-emerald-600 dark:text-emerald-400">P:{mealProtein}g</span>
+              <span className="text-cyan-600 dark:text-cyan-400">C:{mealCarbs}g</span>
+              <span className="text-amber-600 dark:text-amber-400">F:{mealFat}g</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-80">
@@ -588,44 +802,28 @@ export const MemberDashboard: React.FC = () => {
     );
   }
 
-  const { today, macros, calories, activity } = dashboardData || {};
-
-  const carbCurr = macros?.carbs?.current ?? 185;
-  const carbTarg = macros?.carbs?.target ?? 250;
-  const protCurr = macros?.protein?.current ?? 140;
-  const protTarg = macros?.protein?.target ?? 180;
-  const fatCurr = macros?.fat?.current ?? 55;
-  const fatTarg = macros?.fat?.target ?? 70;
-  const waterCurr = activity?.water?.current ?? 2.25;
-  const waterTarg = activity?.water?.target ?? 3.5;
-
-  // Percentages for Concentric Rings
-  const carbPct = Math.min((carbCurr / (carbTarg || 1)) * 100, 100);
-  const protPct = Math.min((protCurr / (protTarg || 1)) * 100, 100);
-  const fatPct = Math.min((fatCurr / (fatTarg || 1)) * 100, 100);
-
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
       
       {/* Member Onboarding & Fitness Setup Banner (Hidden once onboarding is completed) */}
       {!isOnboardingCompleted && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-white dark:from-blue-900/60 dark:via-indigo-900/40 dark:to-zinc-900 border border-blue-200 dark:border-blue-500/30 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-white dark:from-blue-900/60 dark:via-indigo-900/40 dark:to-zinc-900 border border-blue-200 dark:border-blue-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-300">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-300 shrink-0">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+              <h2 className="text-xs sm:text-sm font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                 Member Fitness Profile & Nutrition Setup
               </h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Complete the 4-step onboarding wizard to compute your custom calorie, macro & mineral chart.</p>
+              <p className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Complete the 4-step onboarding wizard to compute your custom calorie, macro & mineral chart.</p>
             </div>
           </div>
           <button
             onClick={() => setIsOnboardingModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg transition flex items-center gap-1.5 shrink-0"
+            className="w-full sm:w-auto px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg transition flex items-center justify-center gap-1.5 shrink-0"
           >
-            <Sliders className="w-4 h-4" /> Launch 4-Step Onboarding Setup
+            <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Launch 4-Step Onboarding Setup
           </button>
         </div>
       )}
@@ -633,136 +831,185 @@ export const MemberDashboard: React.FC = () => {
       {/* ========================================================================= */}
       {/* TOP SECTION: 2 COLUMNS (Left: Concentric Rings & Stats, Right: Today's Workout) */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
         
         {/* ----------------------------------------------------------------------- */}
         {/* LEFT CARD: Concentric Gauge, Macro Specs, Action Buttons & Workout CTA   */}
         {/* ----------------------------------------------------------------------- */}
-        <div className="lg:col-span-6 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-6 relative overflow-hidden">
+        <div className="lg:col-span-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-4 sm:p-6 lg:p-7 shadow-2xl flex flex-col justify-between space-y-4 sm:space-y-6 relative overflow-hidden">
           
-          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-3">
-            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-cyan-400" /> Daily Intake & Progress
-            </h2>
-            <span className="text-xs font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/80 px-2.5 py-1 rounded-md">
-              {calories?.current ?? 1980} / {calories?.target ?? 2400} Kcal
-            </span>
+          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-3 sm:pb-4 gap-2">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-500 shadow-sm shrink-0">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-base lg:text-lg font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
+                  Daily Intake & Progress
+                </h2>
+                <span className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 block truncate">
+                  Real-time Caloric & Macronutrient Balance
+                </span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-[11px] sm:text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/50 border border-cyan-200 dark:border-cyan-500/30 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl shadow-sm">
+                {totalCaloriesLogged} / {targetCaloriesVal} Kcal
+              </span>
+            </div>
           </div>
 
           {/* Concentric Gauge + Macro Breakdown Side by Side */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 sm:gap-6 items-center">
             
             {/* 3 Concentric Animated Radial Rings */}
-            <div className="sm:col-span-6 flex items-center justify-center relative">
-              <div className="relative w-48 h-48 flex items-center justify-center">
+            <div className="sm:col-span-5 flex items-center justify-center relative">
+              <div className="relative w-36 h-36 sm:w-48 sm:h-48 lg:w-52 lg:h-52 flex items-center justify-center">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
                   {/* Outer Ring: Carbs (Cyan) */}
-                  <circle cx="100" cy="100" r="75" fill="none" className="stroke-zinc-100 dark:stroke-zinc-800" strokeWidth="10" />
+                  <circle cx="100" cy="100" r="80" fill="none" className="stroke-zinc-100 dark:stroke-zinc-800" strokeWidth="11" />
                   <circle
-                    cx="100" cy="100" r="75"
+                    cx="100" cy="100" r="80"
                     fill="none"
-                    className="stroke-cyan-500 transition-all duration-1000 ease-out"
-                    strokeWidth="10"
-                    strokeDasharray={471}
-                    strokeDashoffset={471 - (471 * carbPct) / 100}
+                    className="stroke-cyan-500 transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]"
+                    strokeWidth="11"
+                    strokeDasharray={502.6}
+                    strokeDashoffset={502.6 - (502.6 * carbPct) / 100}
                     strokeLinecap="round"
                   />
 
                   {/* Middle Ring: Protein (Emerald) */}
-                  <circle cx="100" cy="100" r="56" fill="none" className="stroke-zinc-100 dark:stroke-zinc-800" strokeWidth="10" />
+                  <circle cx="100" cy="100" r="60" fill="none" className="stroke-zinc-100 dark:stroke-zinc-800" strokeWidth="11" />
                   <circle
-                    cx="100" cy="100" r="56"
+                    cx="100" cy="100" r="60"
                     fill="none"
-                    className="stroke-emerald-500 transition-all duration-1000 ease-out"
-                    strokeWidth="10"
-                    strokeDasharray={351}
-                    strokeDashoffset={351 - (351 * protPct) / 100}
+                    className="stroke-emerald-500 transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                    strokeWidth="11"
+                    strokeDasharray={377}
+                    strokeDashoffset={377 - (377 * protPct) / 100}
                     strokeLinecap="round"
                   />
 
                   {/* Inner Ring: Fats (Amber) */}
-                  <circle cx="100" cy="100" r="37" fill="none" className="stroke-zinc-100 dark:stroke-zinc-800" strokeWidth="10" />
+                  <circle cx="100" cy="100" r="40" fill="none" className="stroke-zinc-100 dark:stroke-zinc-800" strokeWidth="11" />
                   <circle
-                    cx="100" cy="100" r="37"
+                    cx="100" cy="100" r="40"
                     fill="none"
-                    className="stroke-amber-500 transition-all duration-1000 ease-out"
-                    strokeWidth="10"
-                    strokeDasharray={232}
-                    strokeDashoffset={232 - (232 * fatPct) / 100}
+                    className="stroke-amber-500 transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                    strokeWidth="11"
+                    strokeDasharray={251.3}
+                    strokeDashoffset={251.3 - (251.3 * fatPct) / 100}
                     strokeLinecap="round"
                   />
                 </svg>
 
                 {/* Center Content Inside Gauge */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <Flame className="w-6 h-6 text-orange-400 mb-0.5 animate-pulse" />
-                  <span className="text-xl font-black text-zinc-900 dark:text-zinc-100">{calories?.current ?? 1980}</span>
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Target {calories?.target ?? 2400}</span>
+                  <Flame className="w-5 h-5 sm:w-7 sm:h-7 text-orange-500 mb-0.5 animate-pulse" />
+                  <span className="text-xl sm:text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">{totalCaloriesLogged}</span>
+                  <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider">Target {targetCaloriesVal}</span>
                 </div>
               </div>
             </div>
 
-            {/* Macro & Hydration Specs */}
-            <div className="sm:col-span-6 space-y-3 text-sm">
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-cyan-50 dark:bg-zinc-950/60 border border-cyan-200 dark:border-cyan-500/20">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
-                  <span className="text-cyan-700 dark:text-cyan-400 font-semibold">Carbs:</span>
+            {/* Macro & Hydration Specs Cards with Mini Progress Bars (2x2 on Mobile, 1-col on Desktop) */}
+            <div className="sm:col-span-7 grid grid-cols-2 sm:grid-cols-1 gap-2 sm:gap-2.5 text-xs">
+              
+              {/* Carbs Card */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-cyan-50/70 dark:bg-zinc-950/60 border border-cyan-200/80 dark:border-cyan-500/20 space-y-1 sm:space-y-1.5 flex flex-col justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-500 shadow-[0_0_6px_rgba(6,182,212,0.8)] shrink-0"></span>
+                    <span className="text-[11px] sm:text-xs text-cyan-800 dark:text-cyan-300 font-bold truncate">Carbs</span>
+                  </div>
+                  <span className="font-mono text-[10px] sm:text-xs text-zinc-900 dark:text-zinc-100 font-extrabold truncate">
+                    {totalCarbsLogged}g <span className="text-zinc-400 font-normal">/{targetCarbsVal}g</span>
+                  </span>
                 </div>
-                <div className="text-right">
-                  <span className="font-mono text-cyan-900 dark:text-zinc-200 font-bold">{carbCurr}g / {carbTarg}g</span>
-                  <span className="block text-[10px] text-cyan-600 dark:text-zinc-400 font-mono">{carbCurr * 4} / {carbTarg * 4} Kcal</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-50 dark:bg-zinc-950/60 border border-emerald-200 dark:border-emerald-500/20">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Protein:</span>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono text-emerald-900 dark:text-zinc-200 font-bold">{protCurr}g / {protTarg}g</span>
-                  <span className="block text-[10px] text-emerald-600 dark:text-zinc-400 font-mono">{protCurr * 4} / {protTarg * 4} Kcal</span>
+                <div className="w-full h-1.5 bg-cyan-200/50 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-cyan-500 rounded-full transition-all duration-700"
+                    style={{ width: `${Math.min(100, (totalCarbsLogged / (targetCarbsVal || 1)) * 100)}%` }}
+                  />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-50 dark:bg-zinc-950/60 border border-amber-200 dark:border-amber-500/20">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                  <span className="text-amber-700 dark:text-amber-400 font-semibold">Fats:</span>
+              {/* Protein Card */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-50/70 dark:bg-zinc-950/60 border border-emerald-200/80 dark:border-emerald-500/20 space-y-1 sm:space-y-1.5 flex flex-col justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0"></span>
+                    <span className="text-[11px] sm:text-xs text-emerald-800 dark:text-emerald-300 font-bold truncate">Protein</span>
+                  </div>
+                  <span className="font-mono text-[10px] sm:text-xs text-zinc-900 dark:text-zinc-100 font-extrabold truncate">
+                    {totalProteinLogged}g <span className="text-zinc-400 font-normal">/{targetProteinVal}g</span>
+                  </span>
                 </div>
-                <div className="text-right">
-                  <span className="font-mono text-amber-900 dark:text-zinc-200 font-bold">{fatCurr}g / {fatTarg}g</span>
-                  <span className="block text-[10px] text-amber-600 dark:text-zinc-400 font-mono">{fatCurr * 9} / {fatTarg * 9} Kcal</span>
+                <div className="w-full h-1.5 bg-emerald-200/50 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                    style={{ width: `${Math.min(100, (totalProteinLogged / (targetProteinVal || 1)) * 100)}%` }}
+                  />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-blue-50 dark:bg-zinc-950/60 border border-blue-200 dark:border-blue-500/20">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
-                  <span className="text-blue-700 dark:text-blue-400 font-semibold">Total Water:</span>
+              {/* Fats Card */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-amber-50/70 dark:bg-zinc-950/60 border border-amber-200/80 dark:border-amber-500/20 space-y-1 sm:space-y-1.5 flex flex-col justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] shrink-0"></span>
+                    <span className="text-[11px] sm:text-xs text-amber-800 dark:text-amber-300 font-bold truncate">Fats</span>
+                  </div>
+                  <span className="font-mono text-[10px] sm:text-xs text-zinc-900 dark:text-zinc-100 font-extrabold truncate">
+                    {totalFatLogged}g <span className="text-zinc-400 font-normal">/{targetFatVal}g</span>
+                  </span>
                 </div>
-                <span className="font-mono text-blue-900 dark:text-zinc-200 font-bold">{waterCurr}L / {waterTarg}L</span>
+                <div className="w-full h-1.5 bg-amber-200/50 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 rounded-full transition-all duration-700"
+                    style={{ width: `${Math.min(100, (totalFatLogged / (targetFatVal || 1)) * 100)}%` }}
+                  />
+                </div>
               </div>
+
+              {/* Total Water Card */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-blue-50/70 dark:bg-zinc-950/60 border border-blue-200/80 dark:border-blue-500/20 space-y-1 sm:space-y-1.5 flex flex-col justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.8)] shrink-0"></span>
+                    <span className="text-[11px] sm:text-xs text-blue-800 dark:text-blue-300 font-bold truncate">Water</span>
+                  </div>
+                  <span className="font-mono text-[10px] sm:text-xs text-zinc-900 dark:text-zinc-100 font-extrabold truncate">
+                    {waterCurr}L <span className="text-zinc-400 font-normal">/{waterTarg}L</span>
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-blue-200/50 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-700"
+                    style={{ width: `${Math.min(100, (waterCurr / (waterTarg || 3.5)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
             </div>
 
           </div>
 
           {/* Action Buttons: Add Water & Add Food */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
             <button
               onClick={handleOpenWaterModal}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-cyan-200 dark:border-cyan-500/40 bg-cyan-50 dark:bg-cyan-950/20 text-cyan-700 dark:text-cyan-300 font-bold hover:bg-cyan-100 dark:hover:bg-cyan-950/50 hover:border-cyan-300 dark:hover:border-cyan-400 transition shadow-lg shadow-cyan-950/10 dark:shadow-cyan-950/30 text-xs sm:text-sm"
+              className="w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl sm:rounded-2xl border border-cyan-300 dark:border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 via-sky-500/10 to-blue-500/10 hover:from-cyan-500/20 hover:to-blue-500/20 text-cyan-700 dark:text-cyan-300 font-extrabold transition shadow-md sm:shadow-lg shadow-cyan-500/5 hover:shadow-cyan-500/15 text-xs sm:text-sm"
             >
-              <Droplets className="w-4 h-4 text-cyan-400" />
+              <Droplets className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-500 animate-pulse" />
               Add Water
             </button>
 
             <button
-              onClick={handleOpenFoodModal}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-emerald-200 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 font-bold hover:bg-emerald-100 dark:hover:bg-emerald-950/50 hover:border-emerald-300 dark:hover:border-emerald-400 transition shadow-lg shadow-emerald-950/10 dark:shadow-emerald-950/30 text-xs sm:text-sm"
+              onClick={() => handleOpenFoodModal('Breakfast')}
+              className="w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl sm:rounded-2xl border border-emerald-300 dark:border-emerald-500/40 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 hover:from-emerald-500/20 hover:to-teal-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold transition shadow-md sm:shadow-lg shadow-emerald-500/5 hover:shadow-emerald-500/15 text-xs sm:text-sm"
             >
-              <Utensils className="w-4 h-4 text-emerald-400" />
+              <Utensils className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
               Add Food
             </button>
           </div>
@@ -770,18 +1017,18 @@ export const MemberDashboard: React.FC = () => {
           {/* Prominent Card / Button: Check Your Workout */}
           <button
             onClick={() => setIsWorkoutModalOpen(true)}
-            className="w-full p-4 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-gradient-to-r from-blue-100 via-indigo-100 to-blue-100 hover:from-blue-200 hover:to-indigo-200 dark:from-blue-900/40 dark:via-indigo-900/40 dark:to-blue-900/40 dark:hover:from-blue-900/60 dark:hover:to-indigo-900/60 text-blue-900 dark:text-white font-bold transition flex items-center justify-between group shadow-xl"
+            className="w-full p-3 sm:p-4 rounded-2xl border border-blue-200 dark:border-blue-500/30 bg-gradient-to-r from-blue-100 via-indigo-100 to-blue-100 hover:from-blue-200 hover:to-indigo-200 dark:from-blue-900/40 dark:via-indigo-900/40 dark:to-blue-900/40 dark:hover:from-blue-900/60 dark:hover:to-indigo-900/60 text-blue-900 dark:text-white font-bold transition flex items-center justify-between group shadow-lg sm:shadow-xl"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-200/50 dark:bg-blue-600/30 border border-blue-300 dark:border-blue-400/40 flex items-center justify-center text-blue-700 dark:text-blue-300 group-hover:scale-105 transition-transform">
-                <Dumbbell className="w-5 h-5" />
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-200/50 dark:bg-blue-600/30 border border-blue-300 dark:border-blue-400/40 flex items-center justify-center text-blue-700 dark:text-blue-300 group-hover:scale-105 transition-transform shrink-0">
+                <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div className="text-left">
-                <span className="text-sm font-extrabold text-blue-900 dark:text-blue-100 block">Check Your Workout</span>
-                <span className="text-xs text-blue-700 dark:text-blue-300 font-normal">View today's routine ({todayExercises.filter(e => e.completed).length}/{todayExercises.length} completed)</span>
+              <div className="text-left min-w-0">
+                <span className="text-xs sm:text-sm font-extrabold text-blue-900 dark:text-blue-100 block truncate">Check Your Workout</span>
+                <span className="text-[11px] sm:text-xs text-blue-700 dark:text-blue-300 font-normal block truncate">View today's routine ({todayExercises.filter(e => e.completed).length}/{todayExercises.length} completed)</span>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-blue-700 dark:text-blue-300 group-hover:translate-x-1 transition-transform" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-blue-700 dark:text-blue-300 group-hover:translate-x-1 transition-transform shrink-0" />
           </button>
 
         </div>
@@ -789,27 +1036,27 @@ export const MemberDashboard: React.FC = () => {
         {/* ----------------------------------------------------------------------- */}
         {/* RIGHT CARD: Today's Workout Schedule & Exercise List                   */}
         {/* ----------------------------------------------------------------------- */}
-        <div className="lg:col-span-6 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-4">
+        <div className="lg:col-span-6 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-col justify-between space-y-3 sm:space-y-4">
           
           {/* Header bar: Date (Left) & Active Workout Focus / Change Button (Right) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-800 gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 sm:pb-4 border-b border-zinc-200 dark:border-zinc-800 gap-2 sm:gap-3">
             <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300 font-semibold text-xs sm:text-sm">
-              <Calendar className="w-4 h-4 text-blue-400" />
+              <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
               <span>Date :- <strong className="text-zinc-900 dark:text-zinc-100 font-mono">{formattedTodayDate} ({todayFocusInfo.dayName})</strong></span>
             </div>
 
             {selectedWorkoutProgram ? (
-              <div className="flex items-center gap-2 text-right">
+              <div className="flex items-center justify-between sm:justify-end gap-2 text-left sm:text-right">
                 <div>
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider block">Today's Focus ({todayFocusInfo.dayName})</span>
-                  <span className="text-xs font-black text-cyan-400 font-mono">
+                  <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider block">Today's Focus ({todayFocusInfo.dayName})</span>
+                  <span className="text-[11px] sm:text-xs font-black text-cyan-400 font-mono">
                     {todayFocusInfo.focusTitle}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => navigate('/workouts?tab=SELECT_WORKOUT')}
-                  className="px-3 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-700 text-[11px] font-bold transition shrink-0"
+                  className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-700 text-[10px] sm:text-[11px] font-bold transition shrink-0"
                 >
                   Change
                 </button>
@@ -818,7 +1065,7 @@ export const MemberDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate('/workouts?tab=SELECT_WORKOUT')}
-                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-blue-900/30"
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-blue-900/30"
               >
                 <Sliders className="w-3.5 h-3.5" /> Select Your Program
               </button>
@@ -827,46 +1074,46 @@ export const MemberDashboard: React.FC = () => {
 
           {/* List of Today's Exercises or Prompt to Select */}
           {selectedWorkoutProgram === '' ? (
-            <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-white dark:bg-zinc-950/60 border border-dashed border-blue-200 dark:border-blue-500/30 text-center space-y-4 min-h-[260px] my-auto">
-              <div className="w-14 h-14 rounded-2xl bg-blue-600/10 border border-blue-200 dark:border-blue-500/30 flex items-center justify-center text-blue-400 shadow-xl shadow-blue-950/50">
-                <Dumbbell className="w-7 h-7 animate-pulse" />
+            <div className="flex flex-col items-center justify-center p-6 sm:p-8 rounded-2xl bg-white dark:bg-zinc-950/60 border border-dashed border-blue-200 dark:border-blue-500/30 text-center space-y-3 sm:space-y-4 min-h-[220px] sm:min-h-[260px] my-auto">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-blue-600/10 border border-blue-200 dark:border-blue-500/30 flex items-center justify-center text-blue-400 shadow-xl shadow-blue-950/50">
+                <Dumbbell className="w-6 h-6 sm:w-7 sm:h-7 animate-pulse" />
               </div>
               <div>
-                <h4 className="text-base font-extrabold text-zinc-900 dark:text-zinc-100">No Workout Selected</h4>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs leading-relaxed">
+                <h4 className="text-sm sm:text-base font-extrabold text-zinc-900 dark:text-zinc-100">No Workout Selected</h4>
+                <p className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs leading-relaxed">
                   Please select your workout routine split on the Workouts & Diets page to view and track today's routine.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => navigate('/workouts?tab=SELECT_WORKOUT')}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-900/30 transition flex items-center gap-2"
+                className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-900/30 transition flex items-center gap-2"
               >
-                <Sliders className="w-4 h-4" /> Select Your Workout
+                <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Select Your Workout
               </button>
             </div>
           ) : (
-            <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[300px] sm:max-h-[360px] overflow-y-auto pr-1">
               {todayExercises.map((ex, index) => (
                 <div
                   key={ex.id}
                   onClick={() => toggleExerciseComplete(ex.id)}
-                  className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
+                  className={`p-2.5 sm:p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
                     ex.completed
                       ? 'bg-zinc-100 dark:bg-zinc-950/40 border-emerald-500/30 text-zinc-500 dark:text-zinc-400'
                       : 'bg-white dark:bg-zinc-950/80 border-zinc-300 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700 text-zinc-800 dark:text-zinc-200'
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                     <button
                       type="button"
                       className="shrink-0 focus:outline-none"
                       aria-label={`Mark ${ex.name} as completed`}
                     >
                       {ex.completed ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
                       ) : (
-                        <Circle className="w-5 h-5 text-zinc-600 hover:text-blue-400" />
+                        <Circle className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-600 hover:text-blue-400" />
                       )}
                     </button>
 
@@ -874,7 +1121,7 @@ export const MemberDashboard: React.FC = () => {
                       <h4 className={`text-xs sm:text-sm font-bold truncate ${ex.completed ? 'line-through text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'}`}>
                         {index + 1}. {ex.name}
                       </h4>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-2 mt-0.5 font-mono">
+                      <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 sm:gap-2 mt-0.5 font-mono">
                         <span>{ex.sets} Sets × {ex.reps}</span>
                         <span>•</span>
                         <span className="text-blue-400">{ex.weight}</span>
@@ -882,7 +1129,7 @@ export const MemberDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border shrink-0 ${
+                  <span className={`text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded border shrink-0 ${
                     ex.completed
                       ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-400'
                       : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300'
@@ -894,7 +1141,7 @@ export const MemberDashboard: React.FC = () => {
             </div>
           )}
 
-          <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+          <div className="pt-2.5 sm:pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400">
             <span>Progress: <strong className="text-zinc-900 dark:text-zinc-100">{todayExercises.filter(e => e.completed).length}</strong> of {todayExercises.length} Done</span>
             <button
               onClick={() => setIsWorkoutModalOpen(true)}
@@ -909,77 +1156,160 @@ export const MemberDashboard: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* BOTTOM SECTION: 5 QUICK ACTION CARDS (HORIZONTAL GRID)                     */}
+      {/* TODAY'S MEALS & LOGGED NUTRITION (Breakfast, Lunch, Snacks, Dinner)        */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-4 sm:p-6 lg:p-7 shadow-2xl space-y-4 sm:space-y-6">
+        
+        {/* Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-3 sm:pb-4 gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-sm shrink-0">
+              <Utensils className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base lg:text-lg font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                  Today's Meals & Logged Nutrition
+                </h2>
+                <span className="text-[10px] sm:text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+                  {foodLogs.length} Logged
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                Breakdown of calories and macros consumed across Breakfast, Lunch, Snacks & Dinner.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {foodLogs.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearFoodLogs}
+                className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[11px] sm:text-xs font-semibold transition flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Reset Meals
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => handleOpenFoodModal('Breakfast')}
+              className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-950/20 transition flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Add Food Item
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Meal Cards Grid (2x2 on Mobile & Tablet, 4-col on XL Desktop) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+          
+          {/* 1. BREAKFAST CARD */}
+          {renderMealCard('Breakfast', <Coffee className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />, 'from-emerald-500/10 to-teal-500/5 border-emerald-500/20', 'text-emerald-600 dark:text-emerald-400')}
+
+          {/* 2. LUNCH CARD */}
+          {renderMealCard('Lunch', <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-500" />, 'from-cyan-500/10 to-blue-500/5 border-cyan-500/20', 'text-cyan-600 dark:text-cyan-400')}
+
+          {/* 3. SNACKS CARD */}
+          {renderMealCard('Snacks', <Cookie className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />, 'from-amber-500/10 to-orange-500/5 border-amber-500/20', 'text-amber-600 dark:text-amber-400')}
+
+          {/* 4. DINNER CARD */}
+          {renderMealCard('Dinner', <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500" />, 'from-indigo-500/10 to-purple-500/5 border-indigo-500/20', 'text-indigo-600 dark:text-indigo-400')}
+
+        </div>
+
+        {/* Day Nutrition Balance Footer */}
+        <div className="p-3 sm:p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-4 text-xs font-mono">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 shrink-0" />
+            <span className="text-zinc-600 dark:text-zinc-400 font-sans text-[11px] sm:text-xs">Calories Consumed:</span>
+            <strong className="text-zinc-900 dark:text-zinc-100 font-black text-xs sm:text-sm">{totalCaloriesLogged} kcal</strong>
+            <span className="text-zinc-400 text-[10px] sm:text-xs">/ {targetCaloriesVal} kcal</span>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs flex-wrap">
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold">Protein: {totalProteinLogged}g</span>
+            <span className="text-zinc-300 dark:text-zinc-700">•</span>
+            <span className="text-cyan-600 dark:text-cyan-400 font-bold">Carbs: {totalCarbsLogged}g</span>
+            <span className="text-zinc-300 dark:text-zinc-700">•</span>
+            <span className="text-amber-600 dark:text-amber-400 font-bold">Fats: {totalFatLogged}g</span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* BOTTOM SECTION: 5 QUICK ACTION CARDS (2-COL ON MOBILE, 5-COL ON LG)       */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
         
         {/* Card 1: Check BMI */}
         <button
-          onClick={() => setIsBmiModalOpen(true)}
-          className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-blue-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-3 group shadow-lg"
+          onClick={() => navigate('/workouts?tab=BMI_CALCULATOR')}
+          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-blue-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
-          <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 group-hover:bg-blue-500/20 transition-all">
-            <Calculator className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 group-hover:bg-blue-500/20 transition-all">
+            <Calculator className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-sm group-hover:text-blue-400 transition-colors">Check BMI</h3>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Calculate body mass</p>
+          <div className="w-full">
+            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm group-hover:text-blue-400 transition-colors truncate">Check BMI</h3>
+            <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">Body mass & health</p>
           </div>
         </button>
 
         {/* Card 2: Check Other Workout */}
         <button
           onClick={() => navigate('/workouts')}
-          className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-3 group shadow-lg"
+          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all">
-            <Dumbbell className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all">
+            <Dumbbell className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-sm group-hover:text-emerald-400 transition-colors">Check Other Workout</h3>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Explore workout plans</p>
+          <div className="w-full">
+            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm group-hover:text-emerald-400 transition-colors truncate">Other Workout</h3>
+            <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">Explore workout plans</p>
           </div>
         </button>
 
         {/* Card 3: Check Activity */}
         <button
           onClick={() => navigate('/activities')}
-          className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-3 group shadow-lg"
+          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 group-hover:bg-amber-500/20 transition-all">
-            <Activity className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 group-hover:bg-amber-500/20 transition-all">
+            <Activity className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-sm group-hover:text-amber-400 transition-colors">Check Activity</h3>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Group sessions & classes</p>
+          <div className="w-full">
+            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm group-hover:text-amber-400 transition-colors truncate">Check Activity</h3>
+            <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">Sessions & classes</p>
           </div>
         </button>
 
         {/* Card 4: Check Workout Splits */}
         <button
-          onClick={() => navigate('/workouts')}
-          className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-3 group shadow-lg"
+          onClick={() => navigate('/workouts?tab=SELECT_WORKOUT')}
+          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
-          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 group-hover:bg-indigo-500/20 transition-all">
-            <Layers className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 group-hover:bg-indigo-500/20 transition-all">
+            <Layers className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-sm group-hover:text-indigo-400 transition-colors">Check Workout Splits</h3>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Preset split routines</p>
+          <div className="w-full">
+            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm group-hover:text-indigo-400 transition-colors truncate">Workout Splits</h3>
+            <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">Preset split routines</p>
           </div>
         </button>
 
         {/* Card 5: Check Diets & Recipes */}
         <button
-          onClick={() => setIsRecipesModalOpen(true)}
-          className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-rose-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-3 group shadow-lg"
+          onClick={() => navigate('/diets')}
+          className="col-span-2 sm:col-span-1 p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-rose-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
-          <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 group-hover:bg-rose-500/20 transition-all">
-            <Utensils className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 group-hover:bg-rose-500/20 transition-all">
+            <Utensils className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-sm group-hover:text-rose-400 transition-colors">Check Diets & Recipes</h3>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Nutrition & healthy meals</p>
+          <div className="w-full">
+            <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm group-hover:text-rose-400 transition-colors truncate">Diets & Recipes</h3>
+            <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">Nutrition & healthy meals</p>
           </div>
         </button>
 
@@ -1057,390 +1387,37 @@ export const MemberDashboard: React.FC = () => {
       {/* ========================================================================= */}
       {/* MODAL 2: INTERACTIVE ANIMATED HYDRATION STATION (Bottles & Glasses)      */}
       {/* ========================================================================= */}
-      {isWaterModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setIsWaterModalOpen(false)}>
-          <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 max-w-md w-full shadow-2xl relative space-y-5" onClick={(e) => e.stopPropagation()}>
-            
-            {/* Header bar */}
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-cyan-950/50">
-                  <Droplets className="w-5 h-5 animate-bounce" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                    Interactive Hydration Station
-                  </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Click bottles (1L) or glasses (250ml) to log water intake</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsWaterModalOpen(false)}
-                className="p-2 rounded-xl text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Live Progress & Draft Summary */}
-            {(() => {
-              const draftLiters = (draftBottles * 1.0) + (draftGlasses * 0.25);
-              const targetLiters = dashboardData?.activity?.water?.target || 3.5;
-              const percent = Math.min(100, Math.round((draftLiters / targetLiters) * 100));
-
-              return (
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-50 via-white to-blue-50 dark:from-cyan-950/60 dark:via-zinc-950 dark:to-blue-950/60 border border-cyan-200 dark:border-cyan-500/30 space-y-3 shadow-xl">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-zinc-600 dark:text-zinc-300 flex items-center gap-1.5">
-                      <Flame className="w-4 h-4 text-cyan-400" /> Pending Intake Selection:
-                    </span>
-                    <span className="text-cyan-400 font-mono text-sm font-black">
-                      {draftLiters.toFixed(2)} L <span className="text-zinc-500 dark:text-zinc-400 font-normal">({(draftLiters * 1000).toLocaleString()} ml)</span> / {targetLiters} L
-                    </span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full h-3 bg-zinc-50 dark:bg-zinc-900 rounded-full overflow-hidden border border-zinc-200 dark:border-zinc-800 p-0.5 relative">
-                    <div
-                      className="h-full bg-gradient-to-r from-cyan-500 via-sky-400 to-blue-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_12px_rgba(6,182,212,0.8)] relative"
-                      style={{ width: `${percent}%` }}
-                    >
-                      <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full"></div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
-                    <span>{percent}% Goal Achieved</span>
-                    <span>Remaining: {Math.max(0, targetLiters - draftLiters).toFixed(2)} L</span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── SECTION 1: 4 WATER BOTTLES (1.0 LITER / 1000 ML EACH) ───────── */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
-                  🍾 1.0 Liter Water Bottles (1,000 ml each)
-                </span>
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-semibold">Click to Fill or Empty</span>
-              </div>
-
-              <div className="grid grid-cols-4 gap-3 sm:gap-4 p-4 rounded-2xl bg-white dark:bg-zinc-950/80 border border-zinc-200 dark:border-zinc-800">
-                {[1, 2, 3, 4].map((bNum) => {
-                  const isFilled = bNum <= draftBottles;
-
-                  return (
-                    <button
-                      key={bNum}
-                      type="button"
-                      disabled={isWaterAdding}
-                      onClick={() => toggleDraftBottle(bNum)}
-                      className={`group flex flex-col items-center p-3 rounded-2xl border transition-all relative overflow-hidden ${
-                        isFilled
-                          ? 'bg-cyan-950/30 border-cyan-500/60 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/40'
-                          : 'bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 hover:border-cyan-500/40 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                      }`}
-                    >
-                      {/* Bottle Vector Visual */}
-                      <div className="relative w-12 h-28 border-2 border-cyan-400/40 rounded-b-2xl rounded-t-sm bg-white dark:bg-zinc-950 overflow-hidden flex flex-col justify-end p-0.5 shadow-inner">
-                        {/* Bottle Cap */}
-                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-5 h-2 bg-cyan-500 rounded-t-sm shadow"></div>
-                        
-                        {/* Measurement ticks */}
-                        <div className="absolute inset-y-2 left-1 flex flex-col justify-between text-[7px] text-cyan-400/40 font-mono z-10 select-none">
-                          <span>1L</span>
-                          <span>.5</span>
-                        </div>
-
-                        {/* Animated Liquid Fill */}
-                        <div
-                          className={`w-full bg-gradient-to-t from-cyan-600 via-sky-500 to-cyan-300 transition-all duration-700 ease-out rounded-b-xl relative ${
-                            isFilled ? 'shadow-[0_0_15px_rgba(6,182,212,0.7)]' : ''
-                          }`}
-                          style={{ height: isFilled ? '100%' : '0%' }}
-                        >
-                          {/* Wave Ripple Animation */}
-                          {isFilled && (
-                            <>
-                              <div className="absolute top-0 left-0 right-0 h-1.5 bg-cyan-100/70 animate-pulse rounded-t-full"></div>
-                              <div className="absolute bottom-2 left-2 w-1.5 h-1.5 rounded-full bg-white/70 animate-bounce"></div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 mt-2">Bottle #{bNum}</span>
-                      <span className={`text-[10px] font-mono font-bold mt-0.5 ${isFilled ? 'text-cyan-400' : 'text-zinc-500 group-hover:text-cyan-300'}`}>
-                        {isFilled ? '✓ 1.0 Litre' : 'Click to Fill'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ── SECTION 2: 5 WATER GLASSES (250 ML / 0.25 L EACH) ───────────── */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-blue-300 flex items-center gap-1.5">
-                  🥛 250 ml Water Glasses (5 Available)
-                </span>
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-semibold">Click to Fill or Empty</span>
-              </div>
-
-              <div className="grid grid-cols-5 gap-2 sm:gap-3 p-4 rounded-2xl bg-white dark:bg-zinc-950/80 border border-zinc-200 dark:border-zinc-800">
-                {[1, 2, 3, 4, 5].map((gNum) => {
-                  const isFilled = gNum <= draftGlasses;
-
-                  return (
-                    <button
-                      key={gNum}
-                      type="button"
-                      disabled={isWaterAdding}
-                      onClick={() => toggleDraftGlass(gNum)}
-                      className={`group flex flex-col items-center p-2.5 rounded-2xl border transition-all relative overflow-hidden ${
-                        isFilled
-                          ? 'bg-blue-950/30 border-blue-500/60 shadow-lg shadow-blue-950/40 ring-1 ring-blue-500/40'
-                          : 'bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 hover:border-blue-500/40 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                      }`}
-                    >
-                      {/* Glass Vector Visual */}
-                      <div className="relative w-10 h-20 border-2 border-blue-400/40 rounded-b-xl rounded-t-xs bg-white dark:bg-zinc-950 overflow-hidden flex flex-col justify-end p-0.5 shadow-inner">
-                        {/* Glass Rim */}
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-300/40"></div>
-
-                        {/* Animated Liquid Fill */}
-                        <div
-                          className={`w-full bg-gradient-to-t from-blue-600 via-cyan-400 to-sky-300 transition-all duration-500 ease-out rounded-b-lg relative ${
-                            isFilled ? 'shadow-[0_0_12px_rgba(59,130,246,0.7)]' : ''
-                          }`}
-                          style={{ height: isFilled ? '100%' : '0%' }}
-                        >
-                          {/* Wave Ripple Animation */}
-                          {isFilled && (
-                            <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-100/80 animate-pulse rounded-t-full"></div>
-                          )}
-                        </div>
-                      </div>
-
-                      <span className="text-[10px] font-bold text-zinc-800 dark:text-zinc-200 mt-1.5">Glass #{gNum}</span>
-                      <span className={`text-[9px] font-mono font-bold mt-0.5 ${isFilled ? 'text-blue-400' : 'text-zinc-500 group-hover:text-blue-300'}`}>
-                        {isFilled ? '✓ 250ml' : 'Click to Fill'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Selection Formula Banner */}
-            <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-200 dark:border-cyan-500/20 text-center text-xs font-mono text-cyan-300">
-              Selected: <strong>{draftBottles} Bottle(s)</strong> ({draftBottles * 1000} ml) + <strong>{draftGlasses} Glass(es)</strong> ({draftGlasses * 250} ml) = <strong>{((draftBottles * 1.0) + (draftGlasses * 0.25)).toFixed(2)} Liters</strong>
-            </div>
-
-            {/* SAVE BUTTON & CANCEL */}
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsWaterModalOpen(false)}
-                className="w-1/3 py-3 rounded-xl border border-zinc-700 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold text-xs transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isWaterAdding}
-                onClick={handleSaveWaterDraft}
-                className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-cyan-600 via-sky-500 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-extrabold text-xs shadow-lg shadow-cyan-950/50 transition flex items-center justify-center gap-2"
-              >
-                {isWaterAdding ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Saving to Database...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" /> Save Hydration Log
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* ── SECTION 3: TODAY'S WATER INTAKE HISTORY LOG RECORD ──────────── */}
-            <div className="space-y-3 pt-2 border-t border-zinc-200 dark:border-zinc-800">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-cyan-400" /> Today's Hydration Record ({formattedTodayDate})
-                </span>
-                {waterLogs.length > 0 && (
-                  <button
-                    onClick={handleClearWaterLogs}
-                    className="text-[10px] text-red-400 hover:text-red-300 hover:underline font-mono"
-                  >
-                    Reset Today's Logs
-                  </button>
-                )}
-              </div>
-
-              {waterLogs.length === 0 ? (
-                <div className="p-4 rounded-xl bg-zinc-100 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800/80 text-center text-xs text-zinc-500 italic">
-                  No water logged yet today. Click any bottle or glass above to record your hydration!
-                </div>
-              ) : (
-                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
-                  {waterLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800/80 text-xs font-mono"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-base">{log.type === 'bottle' ? '🍼' : '🥛'}</span>
-                        <div>
-                          <span className="text-zinc-800 dark:text-zinc-200 font-bold block">{log.label}</span>
-                          <span className="text-[10px] text-zinc-500">{log.time}</span>
-                        </div>
-                      </div>
-                      <span className="text-cyan-400 font-bold">
-                        +{log.amountLiters >= 1 ? `${log.amountLiters}L` : `${log.amountLiters * 1000}ml`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <p className="text-[10px] text-zinc-500 text-center italic">
-                * Records reset automatically at midnight for a fresh intake tracking on the next day.
-              </p>
-            </div>
-
-            {isWaterAdding && (
-              <div className="flex items-center justify-center text-xs text-cyan-400 gap-2 py-1">
-                <Loader2 className="w-4 h-4 animate-spin" /> Recording hydration log to database...
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* MODAL 2: HYDRATION & WATER TRACKER MODAL (Rectangular A4 Card HUD)         */}
+      {/* ========================================================================= */}
+      <HydrationModal
+        isOpen={isWaterModalOpen}
+        onClose={() => setIsWaterModalOpen(false)}
+        currentWaterLiters={waterCurr}
+        targetWaterLiters={waterTarg}
+        waterLogs={waterLogs}
+        onSaveWaterLog={handleSaveWaterDraft}
+        onResetWaterLogs={handleClearWaterLogs}
+        isSaving={isWaterAdding}
+      />
 
       {/* ========================================================================= */}
-      {/* MODAL 3: ADD FOOD LOG (Real API Integration: POST /api/user/food/log)     */}
+      {/* MODAL 3: LOG FOOD & NUTRITION (Multi-Category Tabs, Fasting, Pie Chart)   */}
       {/* ========================================================================= */}
-      {isFoodModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setIsFoodModalOpen(false)}>
-          <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative space-y-5" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                <Utensils className="w-5 h-5 text-emerald-400" /> Log Food to Backend DB
-              </h3>
-              <button
-                onClick={() => setIsFoodModalOpen(false)}
-                className="p-1 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Food Search Bar */}
-            <div className="space-y-3">
-              <div className="relative">
-                <Search className="w-4 h-4 text-zinc-500 dark:text-zinc-400 absolute left-3 top-3.5" />
-                <input
-                  type="text"
-                  value={foodSearchQuery}
-                  onChange={(e) => {
-                    setFoodSearchQuery(e.target.value);
-                    loadFoodsFromBackend(e.target.value);
-                  }}
-                  className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-9 pr-4 text-zinc-900 dark:text-zinc-100 text-xs focus:outline-none focus:border-emerald-500"
-                  placeholder="Search food database (e.g. Chicken, Rice, Oats, Eggs)..."
-                />
-              </div>
-
-              {/* Food Items List from Backend API */}
-              <div className="max-h-48 overflow-y-auto space-y-2 border border-zinc-200 dark:border-zinc-800 rounded-xl p-2 bg-white dark:bg-zinc-950/60">
-                {isSearchingFood ? (
-                  <div className="p-4 text-center text-xs text-zinc-500 dark:text-zinc-400 flex justify-center items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> Loading food database...
-                  </div>
-                ) : availableFoods.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-zinc-500">
-                    No foods found matching query. Type custom entry below.
-                  </div>
-                ) : (
-                  availableFoods.map((item: any) => {
-                    const isSelected = selectedFood?.id === item.id;
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => setSelectedFood(item)}
-                        className={`p-2.5 rounded-lg border text-xs cursor-pointer flex justify-between items-center transition ${
-                          isSelected
-                            ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-200'
-                            : 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800/80 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-850'
-                        }`}
-                      >
-                        <div>
-                          <strong className="block text-zinc-900 dark:text-zinc-100">{item.foodName || item.name}</strong>
-                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
-                            {item.calories} kcal • P: {item.protein || 0}g • C: {item.carbohydrates || item.carbs || 0}g • F: {item.fat || 0}g
-                          </span>
-                        </div>
-                        {isSelected && <Check className="w-4 h-4 text-emerald-400" />}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <form onSubmit={handleAddFoodSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1">Meal Category</label>
-                  <select
-                    value={mealType}
-                    onChange={e => setMealType(e.target.value)}
-                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-2.5 text-zinc-900 dark:text-zinc-100 text-xs focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value="Breakfast">Breakfast</option>
-                    <option value="Lunch">Lunch</option>
-                    <option value="Dinner">Dinner</option>
-                    <option value="Snack">Snack</option>
-                    <option value="Post Workout">Post Workout</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1">Quantity / Servings</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={foodQuantity}
-                    onChange={e => setFoodQuantity(e.target.value)}
-                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-2.5 text-zinc-900 dark:text-zinc-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
-                    placeholder="1.0"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoggingFood}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isLoggingFood ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Saving Food Log to Backend...
-                  </>
-                ) : (
-                  'Log Food to Backend DB'
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <FoodLogModal
+        isOpen={isFoodModalOpen}
+        onClose={() => setIsFoodModalOpen(false)}
+        onLogFoodItem={handleLogFoodItem}
+        onOpenWaterModal={() => {
+          setIsFoodModalOpen(false);
+          handleOpenWaterModal();
+        }}
+        initialMealType={foodModalInitialMeal}
+        currentWaterLiters={waterCurr}
+        targetWaterLiters={waterTarg}
+        isLogging={isLoggingFood}
+        foodLogs={foodLogs}
+        onDeleteFoodLog={handleDeleteFoodLog}
+      />
 
       {/* ========================================================================= */}
       {/* MODAL 4: FULL WORKOUT SESSION DETAILS                                     */}

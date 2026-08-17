@@ -285,22 +285,22 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       
-      {/* Vibrant KPI Cards Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4" aria-label="Key Performance Indicators">
+      {/* Vibrant High-Density KPI Cards Grid */}
+      <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-4" aria-label="Key Performance Indicators">
         
         {/* Card 1: Total Active Members */}
-        <div className="glass-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer" onClick={() => navigate('/members')}>
+        <div className="glass-card p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition hover:shadow-md" onClick={() => navigate('/members')}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">Total Members</span>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white flex items-center justify-center shadow-md shadow-blue-500/25">
-              <Users className="w-5 h-5" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-zinc-400">Total Members</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900 dark:text-zinc-50">{totalMembersCount}</span>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50">
+          <div className="mt-2 sm:mt-3">
+            <span className="text-lg sm:text-2xl font-black text-slate-900 dark:text-zinc-50">{totalMembersCount}</span>
+            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1 truncate">
+              <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 truncate">
                 +{activeMembersCount} Active
               </span>
             </div>
@@ -308,92 +308,92 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Card 2: Total Income */}
-        <div className="glass-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer" onClick={() => navigate('/accounts')}>
+        <div className="glass-card p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition hover:shadow-md" onClick={() => navigate('/accounts')}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">Total Income</span>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/25">
-              <DollarSign className="w-5 h-5" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-zinc-400">Total Income</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0">
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900 dark:text-zinc-50">₹{totalRevenue.toLocaleString()}</span>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50">
-                +7.4% vs prev month
+          <div className="mt-2 sm:mt-3">
+            <span className="text-lg sm:text-2xl font-black text-slate-900 dark:text-zinc-50">₹{totalRevenue.toLocaleString()}</span>
+            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1 truncate">
+              <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 truncate">
+                +7.4% MoM
               </span>
             </div>
           </div>
         </div>
 
         {/* Card 3: Today's Check-ins */}
-        <div className="glass-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer" onClick={() => navigate('/attendance')}>
+        <div className="glass-card p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition hover:shadow-md" onClick={() => navigate('/attendance')}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">Live Check-ins</span>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-purple-500 text-white flex items-center justify-center shadow-md shadow-purple-500/25">
-              <Clock className="w-5 h-5" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-zinc-400">Live Check-ins</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-violet-600 to-purple-500 text-white flex items-center justify-center shadow-md shadow-purple-500/25 shrink-0">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900 dark:text-zinc-50">{checkedInToday}</span>
-            <div className="text-[11px] font-bold text-violet-600 dark:text-violet-400 mt-1">
-              <span className="px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-900/50">
-                Members on floor right now
+          <div className="mt-2 sm:mt-3">
+            <span className="text-lg sm:text-2xl font-black text-slate-900 dark:text-zinc-50">{checkedInToday}</span>
+            <div className="text-[10px] sm:text-[11px] font-bold text-violet-600 dark:text-violet-400 mt-1 truncate">
+              <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-900/50 truncate block">
+                On floor right now
               </span>
             </div>
           </div>
         </div>
 
         {/* Card 4: Active Trainers */}
-        <div className="glass-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer" onClick={() => navigate('/staff')}>
+        <div className="glass-card p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition hover:shadow-md" onClick={() => navigate('/staff')}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">Active Trainers</span>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/25">
-              <UserCheck className="w-5 h-5" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-zinc-400">Trainers</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0">
+              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900 dark:text-zinc-50">{activeTrainersCount}</span>
-            <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-1">
-              <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50">
-                On duty / Scheduled
+          <div className="mt-2 sm:mt-3">
+            <span className="text-lg sm:text-2xl font-black text-slate-900 dark:text-zinc-50">{activeTrainersCount}</span>
+            <div className="text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-1 truncate">
+              <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 truncate block">
+                On duty scheduled
               </span>
             </div>
           </div>
         </div>
 
         {/* Card 5: Expired Plans */}
-        <div className="glass-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer" onClick={() => navigate('/members')}>
+        <div className="glass-card p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition hover:shadow-md" onClick={() => navigate('/members')}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">Expired Plans</span>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center shadow-md shadow-orange-500/25">
-              <AlertTriangle className="w-5 h-5" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-zinc-400">Expired Plans</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900 dark:text-zinc-50">{expiredMembersCount}</span>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 mt-1">
-              <TrendingDown className="w-3.5 h-3.5" />
-              <span className="px-2 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50">
-                Requires action
+          <div className="mt-2 sm:mt-3">
+            <span className="text-lg sm:text-2xl font-black text-slate-900 dark:text-zinc-50">{expiredMembersCount}</span>
+            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-orange-600 dark:text-orange-400 mt-1 truncate">
+              <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 truncate">
+                Needs renewal
               </span>
             </div>
           </div>
         </div>
 
         {/* Card 6: Equipment alerts */}
-        <div className="glass-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer" onClick={() => navigate('/inventory')}>
+        <div className="glass-card p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition hover:shadow-md" onClick={() => navigate('/inventory')}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">Equipment Alerts</span>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-600 to-red-600 text-white flex items-center justify-center shadow-md shadow-red-500/25">
-              <AlertTriangle className="w-5 h-5" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-zinc-400">Equipment</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-rose-600 to-red-600 text-white flex items-center justify-center shadow-md shadow-red-500/25 shrink-0">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900 dark:text-zinc-50">{equipmentAlertsCount}</span>
-            <div className="text-[11px] font-bold text-red-600 dark:text-red-400 mt-1">
-              <span className="px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50">
-                Needs service attention
+          <div className="mt-2 sm:mt-3">
+            <span className="text-lg sm:text-2xl font-black text-slate-900 dark:text-zinc-50">{equipmentAlertsCount}</span>
+            <div className="text-[10px] sm:text-[11px] font-bold text-red-600 dark:text-red-400 mt-1 truncate">
+              <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 truncate block">
+                Needs service
               </span>
             </div>
           </div>

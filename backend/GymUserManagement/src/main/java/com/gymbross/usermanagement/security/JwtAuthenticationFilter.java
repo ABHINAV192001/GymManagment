@@ -93,8 +93,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // Extract permissions early to use for branch override logic
                     List<String> permissions = jwtUtil.extractPermissions(accessToken);
                     
-                    // Allow branch override if caller holds BRANCHES:VIEW or has no fixed branch
-                    boolean canOverrideBranch = permissions.contains("BRANCHES:VIEW") || branchId == null;
+                    // Allow branch override if caller holds BRANCHES:VIEW, has wildcard permission, or has no fixed branch
+                    boolean canOverrideBranch = permissions.contains("*") || permissions.contains("BRANCHES:VIEW") 
+                            || "ORG_ADMIN".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role) || branchId == null;
 
                     if (canOverrideBranch) {
                         if (request.getCookies() != null) {

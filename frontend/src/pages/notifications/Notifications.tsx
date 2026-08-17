@@ -5,9 +5,11 @@ import { NotificationTemplate, NotificationLog, Member } from '../../types';
 import { getTemplates, createTemplate, updateTemplate, deleteTemplate, getNotificationLogs, sendNotification } from '../../lib/api/notifications';
 import { getUsers } from '../../lib/api/admin';
 import { getRoles } from '../../lib/api/rbac';
+import { usePermissions } from '../../lib/usePermissions';
 
 export const Notifications: React.FC = () => {
   const { triggerAnnouncement } = useOutletContext<{ triggerAnnouncement: (msg: string) => void }>();
+  const { canCreate, canEdit, canDelete, canSend } = usePermissions();
   
   const [activeTab, setActiveTab] = useState<'SEND' | 'TEMPLATES' | 'HISTORY'>('SEND');
   
@@ -240,13 +242,15 @@ export const Notifications: React.FC = () => {
                 </select>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Send className="w-4 h-4" /> {loading ? 'Dispatching...' : 'Dispatch Message'}
-              </button>
+              {canSend('notifications') && (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4" /> {loading ? 'Dispatching...' : 'Dispatch Message'}
+                </button>
+              )}
             </form>
           </div>
         )}
@@ -256,7 +260,7 @@ export const Notifications: React.FC = () => {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold">Message Templates</h2>
-              {!isEditingTemplate && (
+              {!isEditingTemplate && canCreate('notifications') && (
                 <button
                   onClick={() => setIsEditingTemplate(true)}
                   className="px-3 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-bold rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity"
@@ -314,12 +318,18 @@ export const Notifications: React.FC = () => {
                         <td className="py-3 font-bold">{t.name}</td>
                         <td className="py-3 text-zinc-600 dark:text-zinc-400 truncate max-w-xs">{t.content}</td>
                         <td className="py-3 text-right">
-                          <button onClick={() => { setTemplateForm(t); setIsEditingTemplate(true); }} className="p-1.5 text-zinc-400 hover:text-blue-500 transition-colors">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteTemplate(t.id)} className="p-1.5 text-zinc-400 hover:text-red-500 transition-colors ml-2">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {canEdit('notifications') && (
+                              <button onClick={() => { setTemplateForm(t); setIsEditingTemplate(true); }} className="p-1.5 text-zinc-400 hover:text-blue-500 transition-colors" title="Edit Template">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canDelete('notifications') && (
+                              <button onClick={() => handleDeleteTemplate(t.id)} className="p-1.5 text-zinc-400 hover:text-red-500 transition-colors" title="Delete Template">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

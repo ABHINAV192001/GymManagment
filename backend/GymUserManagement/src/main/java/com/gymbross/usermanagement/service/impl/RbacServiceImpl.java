@@ -165,21 +165,38 @@ public class RbacServiceImpl implements RbacService {
                 .map(Permission::getSubModule)
                 .collect(Collectors.toSet());
         
-        List<String> defaultMemberPortalPerms = List.of(
-            "MEMBER_PORTAL:VIEW",
-            "MEMBER_PORTAL:CREATE",
-            "MEMBER_PORTAL:EDIT",
-            "MEMBER_PORTAL:DELETE"
+        List<String> defaultAllModulePerms = List.of(
+            "DASHBOARD:VIEW", "DASHBOARD:EXPORT",
+            "MEMBER_PORTAL:VIEW", "MEMBER_PORTAL:CREATE", "MEMBER_PORTAL:EDIT", "MEMBER_PORTAL:DELETE", "MEMBER_PORTAL:EXPORT",
+            "BRANCHES:VIEW", "BRANCHES:CREATE", "BRANCHES:EDIT", "BRANCHES:DELETE", "BRANCHES:EXPORT",
+            "USERS:VIEW", "USERS:CREATE", "USERS:EDIT", "USERS:DELETE", "USERS:EXPORT",
+            "STAFF:VIEW", "STAFF:CREATE", "STAFF:EDIT", "STAFF:DELETE", "STAFF:EXPORT", "STAFF:ASSIGN",
+            "PLANS:VIEW", "PLANS:CREATE", "PLANS:EDIT", "PLANS:DELETE", "PLANS:EXPORT",
+            "ACCOUNTS:VIEW", "ACCOUNTS:CREATE", "ACCOUNTS:EDIT", "ACCOUNTS:DELETE", "ACCOUNTS:EXPORT",
+            "INVENTORY:VIEW", "INVENTORY:CREATE", "INVENTORY:EDIT", "INVENTORY:DELETE", "INVENTORY:EXPORT",
+            "ACTIVITY:VIEW", "ACTIVITY:CREATE", "ACTIVITY:EDIT", "ACTIVITY:DELETE", "ACTIVITY:EXPORT", "ACTIVITY:ASSIGN", "ACTIVITY:BOOKSPOT",
+            "WORKOUT:VIEW", "WORKOUT:CREATE", "WORKOUT:EDIT", "WORKOUT:DELETE", "WORKOUT:EXPORT", "WORKOUT:ASSIGN",
+            "DIET:VIEW", "DIET:CREATE", "DIET:EDIT", "DIET:DELETE", "DIET:EXPORT", "DIET:ASSIGN",
+            "ATTENDANCE:VIEW", "ATTENDANCE:CREATE", "ATTENDANCE:EDIT", "ATTENDANCE:DELETE", "ATTENDANCE:EXPORT",
+            "NOTIFICATIONS:VIEW", "NOTIFICATIONS:CREATE", "NOTIFICATIONS:EDIT", "NOTIFICATIONS:DELETE", "NOTIFICATIONS:EXPORT", "NOTIFICATIONS:SEND",
+            "CHAT:VIEW", "CHAT:CREATE", "CHAT:EDIT", "CHAT:DELETE", "CHAT:EXPORT", "CHAT:SEND",
+            "RBAC:VIEW", "RBAC:CREATE", "RBAC:EDIT", "RBAC:DELETE", "RBAC:EXPORT",
+            "SETTINGS:VIEW", "SETTINGS:CREATE", "SETTINGS:EDIT", "SETTINGS:DELETE", "SETTINGS:EXPORT",
+            "CRM:VIEW", "CRM:CREATE", "CRM:EDIT", "CRM:DELETE", "CRM:EXPORT", "CRM:ASSIGN",
+            "ROSTER:VIEW", "ROSTER:CREATE", "ROSTER:EDIT", "ROSTER:DELETE", "ROSTER:EXPORT", "ROSTER:ASSIGN",
+            "POS:VIEW", "POS:CREATE", "POS:EDIT", "POS:DELETE", "POS:EXPORT", "POS:CHECKOUT", "POS:REFUND"
         );
-        for (String subMod : defaultMemberPortalPerms) {
+
+        for (String subMod : defaultAllModulePerms) {
             if (!perms.contains(subMod)) {
                 perms.add(subMod);
                 if (permissionRepository.findBySubModuleIgnoreCase(subMod).isEmpty()) {
                     String[] parts = subMod.split(":");
+                    String desc = parts.length > 1 ? parts[1].substring(0, 1) + parts[1].substring(1).toLowerCase() : subMod;
                     permissionRepository.save(Permission.builder()
                             .module(parts[0])
                             .subModule(subMod)
-                            .description(parts[1].substring(0, 1) + parts[1].substring(1).toLowerCase())
+                            .description(desc)
                             .isActive(true)
                             .createDate(java.time.LocalDateTime.now())
                             .build());

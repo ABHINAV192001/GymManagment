@@ -151,51 +151,53 @@ export const Roster: React.FC = () => {
         </button>
       </div>
 
-      {/* Weekly Calendar Grid */}
+      {/* Weekly Calendar Grid (Horizontally scrollable on mobile, fluid on desktop) */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20 text-zinc-400">
           <RefreshCw className="w-6 h-6 animate-spin mr-2" /> Loading roster…
         </div>
       ) : (
-        <div className="grid grid-cols-7 gap-2">
-          {weekDates.map((date, di) => {
-            const isToday = date.toDateString() === todayLabel;
-            const dayShifts = shifts.filter(s => isSameDay(date, s.startTime));
-            return (
-              <div key={di} className={`rounded-2xl border-2 overflow-hidden min-h-[160px] ${isToday ? 'border-violet-500 shadow-lg shadow-violet-500/10' : 'border-zinc-200 dark:border-zinc-800'}`}>
-                {/* Day Header */}
-                <div className={`px-2 py-2 text-center border-b ${isToday ? 'bg-violet-600 text-white' : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800'}`}>
-                  <div className="text-[10px] font-black uppercase tracking-wider">{SHORT_DAYS[(di + 1) % 7]}</div>
-                  <div className={`text-lg font-black mt-0.5 ${isToday ? 'text-white' : 'text-zinc-900 dark:text-zinc-100'}`}>{date.getDate()}</div>
-                </div>
-                {/* Shifts */}
-                <div className="p-1.5 space-y-1 bg-white dark:bg-zinc-950">
-                  {dayShifts.length === 0 ? (
-                    <div className="text-center py-4 text-[10px] text-zinc-400">No shifts</div>
-                  ) : (
-                    dayShifts.map(shift => {
-                      const staffName = shift.staff?.name || 'Staff';
-                      const staffId = (shift.staff as any)?.id || '';
-                      const colorClass = staffColorMap[staffId] || TASK_COLORS[0];
-                      return (
-                        <div key={shift.id} className={`p-1.5 rounded-lg border text-[10px] font-semibold ${colorClass} relative group`}>
-                          <div className="font-black truncate">{staffName}</div>
-                          <div className="flex items-center gap-0.5 mt-0.5 opacity-80">
-                            <Clock className="w-2.5 h-2.5" />
-                            {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
+        <div className="overflow-x-auto pb-3 -mx-3 px-3 sm:mx-0 sm:px-0">
+          <div className="min-w-[700px] sm:min-w-0 grid grid-cols-7 gap-2">
+            {weekDates.map((date, di) => {
+              const isToday = date.toDateString() === todayLabel;
+              const dayShifts = shifts.filter(s => isSameDay(date, s.startTime));
+              return (
+                <div key={di} className={`rounded-2xl border-2 overflow-hidden min-h-[160px] ${isToday ? 'border-violet-500 shadow-lg shadow-violet-500/10' : 'border-zinc-200 dark:border-zinc-800'}`}>
+                  {/* Day Header */}
+                  <div className={`px-2 py-2 text-center border-b ${isToday ? 'bg-violet-600 text-white' : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800'}`}>
+                    <div className="text-[10px] font-black uppercase tracking-wider">{SHORT_DAYS[(di + 1) % 7]}</div>
+                    <div className={`text-lg font-black mt-0.5 ${isToday ? 'text-white' : 'text-zinc-900 dark:text-zinc-100'}`}>{date.getDate()}</div>
+                  </div>
+                  {/* Shifts */}
+                  <div className="p-1.5 space-y-1 bg-white dark:bg-zinc-950">
+                    {dayShifts.length === 0 ? (
+                      <div className="text-center py-4 text-[10px] text-zinc-400">No shifts</div>
+                    ) : (
+                      dayShifts.map(shift => {
+                        const staffName = shift.staff?.name || 'Staff';
+                        const staffId = (shift.staff as any)?.id || '';
+                        const colorClass = staffColorMap[staffId] || TASK_COLORS[0];
+                        return (
+                          <div key={shift.id} className={`p-1.5 rounded-lg border text-[10px] font-semibold ${colorClass} relative group`}>
+                            <div className="font-black truncate">{staffName}</div>
+                            <div className="flex items-center gap-0.5 mt-0.5 opacity-80">
+                              <Clock className="w-2.5 h-2.5" />
+                              {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
+                            </div>
+                            {shift.taskDescription && <div className="mt-0.5 truncate opacity-70">{shift.taskDescription}</div>}
+                            <button onClick={() => handleDelete(shift)} className="absolute top-1 right-1 hidden group-hover:block p-0.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-950 transition" title="Remove">
+                              <X className="w-2.5 h-2.5" />
+                            </button>
                           </div>
-                          {shift.taskDescription && <div className="mt-0.5 truncate opacity-70">{shift.taskDescription}</div>}
-                          <button onClick={() => handleDelete(shift)} className="absolute top-1 right-1 hidden group-hover:block p-0.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-950 transition" title="Remove">
-                            <X className="w-2.5 h-2.5" />
-                          </button>
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 

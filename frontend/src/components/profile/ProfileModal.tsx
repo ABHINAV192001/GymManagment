@@ -17,16 +17,19 @@ import {
   KeyRound,
   Camera,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  LogOut
 } from 'lucide-react';
 import { getUserProfile } from '../../lib/api/user';
 import { resendPasswordNotification } from '../../lib/api/admin';
+import { NotificationBundleSection } from './NotificationBundleSection';
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   userRole?: string;
   onAnnounce?: (msg: string) => void;
+  onLogout?: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -34,8 +37,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onClose,
   userRole = 'MEMBER',
   onAnnounce,
+  onLogout,
 }) => {
-  const [activeTab, setActiveTab] = useState<'PERSONAL' | 'MEMBERSHIP' | 'PREFERENCES' | 'SECURITY'>('PERSONAL');
+  const [activeTab, setActiveTab] = useState<'PERSONAL' | 'MEMBERSHIP' | 'NOTIFICATIONS' | 'PREFERENCES' | 'SECURITY'>('PERSONAL');
   
   // Profile State
   const [name, setName] = useState('Abhinav Admin');
@@ -109,7 +113,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200 text-xs">
-      <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[92vh]">
         
         {/* Modal Header */}
         <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-blue-950 via-zinc-900 to-indigo-950 text-white flex justify-between items-center">
@@ -137,11 +141,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         </div>
 
         {/* Modal Tabs */}
-        <div className="flex border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-[11px] font-bold">
+        <div className="flex border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-[11px] font-bold overflow-x-auto">
           {[
             { id: 'PERSONAL', label: 'Personal Details', icon: User },
             ...(userRole === 'MEMBER' ? [{ id: 'MEMBERSHIP', label: 'Membership Plan', icon: Award }] : []),
-            { id: 'PREFERENCES', label: 'Preferences', icon: Dumbbell },
+            { id: 'NOTIFICATIONS', label: 'Daily Routine Bundle', icon: Bell },
+            { id: 'PREFERENCES', label: 'Workout Defaults', icon: Dumbbell },
             { id: 'SECURITY', label: 'Security & Password', icon: KeyRound },
           ].map(tab => {
             const IconComp = tab.icon;
@@ -149,14 +154,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex-1 py-2.5 px-2 flex items-center justify-center gap-1.5 transition border-b-2 ${
+                className={`flex-1 py-2.5 px-3 flex items-center justify-center gap-1.5 transition border-b-2 whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-zinc-950 font-black'
                     : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
                 }`}
               >
                 <IconComp className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{tab.label}</span>
+                <span>{tab.label}</span>
               </button>
             );
           })}
@@ -309,7 +314,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: WORKOUT & NOTIFICATION PREFERENCES */}
+          {/* TAB 3: DAILY ROUTINE & NOTIFICATION BUNDLE */}
+          {activeTab === 'NOTIFICATIONS' && (
+            <NotificationBundleSection
+              userEmail={email}
+              userName={name}
+              onAnnounce={onAnnounce}
+            />
+          )}
+
+          {/* TAB 4: WORKOUT & APP DEFAULTS */}
           {activeTab === 'PREFERENCES' && (
             <div className="space-y-4">
               <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 space-y-3">
@@ -419,27 +433,63 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <KeyRound className="w-4 h-4" />
                 <span>{isSendingReset ? 'Sending Reset Verification Email...' : 'Send Password Reset Verification Link & OTP'}</span>
               </button>
+
+              {onLogout && (
+                <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onLogout();
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-bold hover:bg-red-100 dark:hover:bg-red-900/40 flex items-center justify-center gap-2 transition"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Log Out of Account</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Save Action Buttons */}
-          <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-bold transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold flex items-center gap-1.5 shadow transition disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Saving...' : 'Save Profile Changes'}</span>
-            </button>
-          </div>
+          {/* Save Action Buttons (shown for Personal, Membership, Workout, and Security tabs) */}
+          {activeTab !== 'NOTIFICATIONS' && (
+            <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex justify-between items-center gap-2">
+              <div>
+                {onLogout && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onLogout();
+                    }}
+                    className="px-3 py-2 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 font-bold text-xs flex items-center gap-1.5 transition"
+                    title="Log Out"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Log Out</span>
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold flex items-center gap-1.5 shadow transition disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{isSubmitting ? 'Saving...' : 'Save Profile Changes'}</span>
+                </button>
+              </div>
+            </div>
+          )}
 
         </form>
 

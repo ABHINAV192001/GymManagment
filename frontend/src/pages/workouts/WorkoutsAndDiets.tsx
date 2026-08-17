@@ -6,7 +6,6 @@ import {
   Plus,
   Trash,
   Check,
-  Sparkles,
   Calculator,
   Info,
   Flame,
@@ -25,17 +24,112 @@ import {
   CheckCircle2,
   Sliders,
   Play,
+  Edit2,
+  Save,
+  RotateCcw,
+  Calendar,
+  Clock,
+  Trash2,
+  Loader2,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
-import { Exercise, FoodItem } from '../../types';
+import { Exercise, FoodItem, WorkoutPlan } from '../../types';
 import { usePermissions } from '../../lib/usePermissions';
 import { HumanBodyMap, MuscleGroupKey } from '../../components/workouts/HumanBodyMap';
 import { ExerciseDetailModal } from '../../components/workouts/ExerciseDetailModal';
 import { WorkoutTimerModal } from '../../components/workouts/WorkoutTimerModal';
 import QrScannerTab from '../../components/workouts/QrScannerTab';
-import { getExercises, getWorkouts } from '../../lib/api/workouts';
+import { getExercises, getWorkouts, getMySplits, createWorkout, updateWorkout, deleteWorkout } from '../../lib/api/workouts';
 import { getFoods } from '../../lib/api/food';
 import { calculateHealthMetrics, HealthResponse } from '../../lib/api/health';
 import { PROGRAM_SPLITS_CONFIG, EXERCISES_CATALOG, getTodayWorkoutFocus } from '../member-portal/MemberDashboard';
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const DEFAULT_MACRO_FOODS: FoodItem[] = [
+  { id: 'f1', name: 'Raw Eggs (Whole)', category: 'Dairy & Eggs', caloriesPer100g: 143, proteinPer100g: 13, carbsPer100g: 1, fatPer100g: 10 },
+  { id: 'f2', name: 'Chicken Breast (Boneless, Skinless)', category: 'Poultry', caloriesPer100g: 165, proteinPer100g: 31, carbsPer100g: 0, fatPer100g: 3.6 },
+  { id: 'f3', name: 'Lean Ground Beef (93/7)', category: 'Meat', caloriesPer100g: 172, proteinPer100g: 24, carbsPer100g: 0, fatPer100g: 8 },
+  { id: 'f4', name: 'White Basmati Rice (Cooked)', category: 'Grains', caloriesPer100g: 130, proteinPer100g: 2.7, carbsPer100g: 28, fatPer100g: 0.3 },
+  { id: 'f5', name: 'Rolled Oats (Dry)', category: 'Grains', caloriesPer100g: 389, proteinPer100g: 16.9, carbsPer100g: 66, fatPer100g: 6.9 },
+  { id: 'f6', name: 'Whey Protein Isolate (Standard)', category: 'Supplements', caloriesPer100g: 370, proteinPer100g: 85, carbsPer100g: 3, fatPer100g: 1.5 },
+  { id: 'f7', name: 'Peanut Butter (Natural)', category: 'Nuts & Seeds', caloriesPer100g: 588, proteinPer100g: 25, carbsPer100g: 20, fatPer100g: 50 },
+  { id: 'f8', name: 'Greek Yogurt (Plain Nonfat)', category: 'Dairy', caloriesPer100g: 59, proteinPer100g: 10, carbsPer100g: 3.6, fatPer100g: 0.4 },
+];
+
+const ALL_CATALOG_EXERCISES: Exercise[] = [
+  // CHEST EXERCISES
+  { id: 'c1000000-0000-4000-8000-000000000101', name: 'Barbell Flat Bench Press', muscleGroup: 'CHEST', equipment: 'Barbell', description: 'Flat bench press targeting overall chest development.' },
+  { id: 'c1000000-0000-4000-8000-000000000102', name: 'Incline Dumbbell Press (Upper Chest)', muscleGroup: 'CHEST', equipment: 'Dumbbell', description: 'Incline dumbbell press isolating upper chest (clavicular head).' },
+  { id: 'c1000000-0000-4000-8000-000000000103', name: 'Incline Barbell Bench Press (Upper Chest)', muscleGroup: 'CHEST', equipment: 'Barbell', description: 'Incline barbell bench press targeting upper chest thickness.' },
+  { id: 'c1000000-0000-4000-8000-000000000104', name: 'Decline Barbell Bench Press (Lower Chest)', muscleGroup: 'CHEST', equipment: 'Barbell', description: 'Decline bench press isolating lower chest (sternal head).' },
+  { id: 'c1000000-0000-4000-8000-000000000105', name: 'Decline Dumbbell Bench Press (Lower Chest)', muscleGroup: 'CHEST', equipment: 'Dumbbell', description: 'Decline dumbbell press for lower chest stretch.' },
+  { id: 'c1000000-0000-4000-8000-000000000106', name: 'Flat Dumbbell Press', muscleGroup: 'CHEST', equipment: 'Dumbbell', description: 'Flat dumbbell press for chest hypertrophy and full motion.' },
+  { id: 'c1000000-0000-4000-8000-000000000107', name: 'Pec Deck Machine Fly', muscleGroup: 'CHEST', equipment: 'Machine', description: 'Machine chest flyes for peak contraction and isolation.' },
+  { id: 'c1000000-0000-4000-8000-000000000108', name: 'Cable Chest Flyes (Low-to-High Upper Chest)', muscleGroup: 'CHEST', equipment: 'Cable', description: 'Low-to-high cable flyes targeting upper inner chest.' },
+  { id: 'c1000000-0000-4000-8000-000000000109', name: 'Cable Chest Flyes (High-to-Low Lower Chest)', muscleGroup: 'CHEST', equipment: 'Cable', description: 'High-to-low cable crossover for lower chest definition.' },
+  { id: 'c1000000-0000-4000-8000-000000000110', name: 'Parallel Bar Chest Dips (Lower Chest)', muscleGroup: 'CHEST', equipment: 'Bodyweight', description: 'Forward-leaning dips isolating lower chest.' },
+  { id: 'c1000000-0000-4000-8000-000000000111', name: 'Dumbbell Chest Flyes', muscleGroup: 'CHEST', equipment: 'Dumbbell', description: 'Flat or incline dumbbell flyes for chest stretch.' },
+  { id: 'c1000000-0000-4000-8000-000000000112', name: 'Push-Ups (Decline / Incline / Standard)', muscleGroup: 'CHEST', equipment: 'Bodyweight', description: 'Classic chest bodyweight movement.' },
+
+  // BACK EXERCISES
+  { id: 'c1000000-0000-4000-8000-000000000201', name: 'Conventional Barbell Deadlift', muscleGroup: 'BACK', equipment: 'Barbell', description: 'Full posterior chain compound lift.' },
+  { id: 'c1000000-0000-4000-8000-000000000202', name: 'Lat Pulldown (Wide Grip)', muscleGroup: 'BACK', equipment: 'Cable', description: 'Wide grip pulldowns for lat width.' },
+  { id: 'c1000000-0000-4000-8000-000000000203', name: 'Bent-Over Barbell Row', muscleGroup: 'BACK', equipment: 'Barbell', description: 'Heavy row targeting mid-back thickness.' },
+  { id: 'c1000000-0000-4000-8000-000000000204', name: 'Seated Cable Rows', muscleGroup: 'BACK', equipment: 'Cable', description: 'Seated cable row for lat and rhomboid thickness.' },
+  { id: 'c1000000-0000-4000-8000-000000000205', name: 'Single-Arm Dumbbell Row', muscleGroup: 'BACK', equipment: 'Dumbbell', description: 'Unilateral row for lat symmetry.' },
+  { id: 'c1000000-0000-4000-8000-000000000206', name: 'Wide Grip Pull-Ups', muscleGroup: 'BACK', equipment: 'Bodyweight', description: 'Bodyweight pull-ups for lat width.' },
+  { id: 'c1000000-0000-4000-8000-000000000207', name: 'T-Bar Row', muscleGroup: 'BACK', equipment: 'Barbell', description: 'Heavy T-bar row for back thickness.' },
+  { id: 'c1000000-0000-4000-8000-000000000208', name: 'Chin-Ups (Underhand Grip)', muscleGroup: 'BACK', equipment: 'Bodyweight', description: 'Underhand grip chin-ups for lats and lower traps.' },
+  { id: 'c1000000-0000-4000-8000-000000000209', name: 'Hyperextensions (Lower Back)', muscleGroup: 'BACK', equipment: 'Bodyweight', description: 'Erector spinae lower back extension.' },
+  { id: 'c1000000-0000-4000-8000-000000000210', name: 'Lat Pulldown (Close-Grip V-Bar)', muscleGroup: 'BACK', equipment: 'Cable', description: 'Close-grip V-bar pulldown for lower lats.' },
+
+  // SHOULDERS EXERCISES
+  { id: 'c1000000-0000-4000-8000-000000000301', name: 'Standing Military Press (Overhead)', muscleGroup: 'SHOULDERS', equipment: 'Barbell', description: 'Strict overhead press for front and side delts.' },
+  { id: 'c1000000-0000-4000-8000-000000000302', name: 'Dumbbell Lateral Raises (Side Delts)', muscleGroup: 'SHOULDERS', equipment: 'Dumbbell', description: 'Lateral raises for shoulder width and side delts.' },
+  { id: 'c1000000-0000-4000-8000-000000000303', name: 'Seated Dumbbell Arnold Press', muscleGroup: 'SHOULDERS', equipment: 'Dumbbell', description: 'Rotational shoulder press targeting all 3 delt heads.' },
+  { id: 'c1000000-0000-4000-8000-000000000304', name: 'Face Pulls (Rear Delts & Traps)', muscleGroup: 'SHOULDERS', equipment: 'Cable', description: 'High cable face pulls for rear delts.' },
+  { id: 'c1000000-0000-4000-8000-000000000305', name: 'Seated Dumbbell Shoulder Press', muscleGroup: 'SHOULDERS', equipment: 'Dumbbell', description: 'Seated shoulder press for front delts.' },
+  { id: 'c1000000-0000-4000-8000-000000000306', name: 'Barbell Shrugs (Traps)', muscleGroup: 'SHOULDERS', equipment: 'Barbell', description: 'Trap isolation exercise.' },
+  { id: 'c1000000-0000-4000-8000-000000000307', name: 'Front Dumbbell Raises (Front Delts)', muscleGroup: 'SHOULDERS', equipment: 'Dumbbell', description: 'Front raise targeting anterior deltoids.' },
+  { id: 'c1000000-0000-4000-8000-000000000308', name: 'Cable Lateral Raises', muscleGroup: 'SHOULDERS', equipment: 'Cable', description: 'Constant-tension cable raises for side delts.' },
+  { id: 'c1000000-0000-4000-8000-000000000309', name: 'Reverse Pec Deck Fly (Rear Delts)', muscleGroup: 'SHOULDERS', equipment: 'Machine', description: 'Machine flyes targeting posterior deltoids.' },
+  { id: 'c1000000-0000-4000-8000-000000000310', name: 'Upright Barbell Rows', muscleGroup: 'SHOULDERS', equipment: 'Barbell', description: 'Upright row for side delts and upper traps.' },
+
+  // BICEPS EXERCISES
+  { id: 'c1000000-0000-4000-8000-000000000401', name: 'EZ-Bar Bicep Curls', muscleGroup: 'BICEPS', equipment: 'Barbell', description: 'Classic EZ-bar curls for bicep mass.' },
+  { id: 'c1000000-0000-4000-8000-000000000402', name: 'Dumbbell Hammer Curls', muscleGroup: 'BICEPS', equipment: 'Dumbbell', description: 'Neutral grip curls for brachialis and forearm strength.' },
+  { id: 'c1000000-0000-4000-8000-000000000403', name: 'Incline Dumbbell Bicep Curls', muscleGroup: 'BICEPS', equipment: 'Dumbbell', description: 'Seated incline curls for bicep long head stretch.' },
+  { id: 'c1000000-0000-4000-8000-000000000404', name: 'Preacher Bicep Curls', muscleGroup: 'BICEPS', equipment: 'EZ-Bar', description: 'Strict bicep isolation curls on preacher bench.' },
+  { id: 'c1000000-0000-4000-8000-000000000405', name: 'Concentration Curls', muscleGroup: 'BICEPS', equipment: 'Dumbbell', description: 'Isolated bicep peak contraction.' },
+  { id: 'c1000000-0000-4000-8000-000000000406', name: 'Standing Cable Bicep Curls', muscleGroup: 'BICEPS', equipment: 'Cable', description: 'Cable bicep curls with constant tension.' },
+
+  // TRICEPS EXERCISES
+  { id: 'c1000000-0000-4000-8000-000000000501', name: 'Tricep Rope Pushdowns', muscleGroup: 'TRICEPS', equipment: 'Cable', description: 'Cable pushdowns targeting lateral and medial heads.' },
+  { id: 'c1000000-0000-4000-8000-000000000502', name: 'Overhead Dumbbell Extension', muscleGroup: 'TRICEPS', equipment: 'Dumbbell', description: 'Overhead extension targeting long head of triceps.' },
+  { id: 'c1000000-0000-4000-8000-000000000503', name: 'Skullcrushers (Lying Tricep Ext)', muscleGroup: 'TRICEPS', equipment: 'EZ-Bar', description: 'Lying tricep extension for long and lateral heads.' },
+  { id: 'c1000000-0000-4000-8000-000000000504', name: 'Close-Grip Barbell Bench Press', muscleGroup: 'TRICEPS', equipment: 'Barbell', description: 'Compound tricep press.' },
+  { id: 'c1000000-0000-4000-8000-000000000505', name: 'Tricep Bench Dips', muscleGroup: 'TRICEPS', equipment: 'Bodyweight', description: 'Bodyweight tricep dips.' },
+  { id: 'c1000000-0000-4000-8000-000000000506', name: 'Single-Arm Cable Tricep Kickbacks', muscleGroup: 'TRICEPS', equipment: 'Cable', description: 'Isolated tricep extension kickbacks.' },
+
+  // LEGS EXERCISES
+  { id: 'c1000000-0000-4000-8000-000000000601', name: 'Barbell Back Squat', muscleGroup: 'LEGS', equipment: 'Barbell', description: 'Quad and glute compound movement.' },
+  { id: 'c1000000-0000-4000-8000-000000000602', name: 'Romanian Deadlift (RDL)', muscleGroup: 'LEGS', equipment: 'Barbell', description: 'Hip hinge targeting hamstrings and glutes.' },
+  { id: 'c1000000-0000-4000-8000-000000000603', name: '45-Degree Leg Press', muscleGroup: 'LEGS', equipment: 'Machine', description: 'Heavy leg press for quads and glutes.' },
+  { id: 'c1000000-0000-4000-8000-000000000604', name: 'Lying Hamstring Leg Curls', muscleGroup: 'LEGS', equipment: 'Machine', description: 'Machine leg curls for hamstring isolation.' },
+  { id: 'c1000000-0000-4000-8000-000000000605', name: 'Seated Leg Extensions', muscleGroup: 'LEGS', equipment: 'Machine', description: 'Quad isolation extensions.' },
+  { id: 'c1000000-0000-4000-8000-000000000606', name: 'Dumbbell Bulgarian Split Squats', muscleGroup: 'LEGS', equipment: 'Dumbbell', description: 'Unilateral leg squat for quads and glutes.' },
+  { id: 'c1000000-0000-4000-8000-000000000607', name: 'Standing Calf Raises', muscleGroup: 'LEGS', equipment: 'Machine', description: 'Calf raises for gastrocnemius.' },
+  { id: 'c1000000-0000-4000-8000-000000000608', name: 'Barbell Hip Thrusts', muscleGroup: 'LEGS', equipment: 'Barbell', description: 'Glute isolation thrusts.' },
+  { id: 'c1000000-0000-4000-8000-000000000609', name: 'Dumbbell Walking Lunges', muscleGroup: 'LEGS', equipment: 'Dumbbell', description: 'Walking lunges for quads and hamstrings.' },
+
+  // ABS EXERCISES
+  { id: 'c1000000-0000-4000-8000-000000000701', name: 'Hanging Leg Raises', muscleGroup: 'ABS', equipment: 'Bodyweight', description: 'Hanging raises targeting lower abs and core.' },
+  { id: 'c1000000-0000-4000-8000-000000000702', name: 'Ab Roller Wheel Rollouts', muscleGroup: 'ABS', equipment: 'Other', description: 'Core rollout for deep ab engagement.' },
+  { id: 'c1000000-0000-4000-8000-000000000703', name: 'Weighted Declined Ab Crunches', muscleGroup: 'ABS', equipment: 'Dumbbell', description: 'Declined crunch with added weight.' },
+  { id: 'c1000000-0000-4000-8000-000000000704', name: 'Planks & Cable Woodchoppers', muscleGroup: 'ABS', equipment: 'Cable', description: 'Core stability and oblique rotations.' },
+  { id: 'c1000000-0000-4000-8000-000000000705', name: 'Decline Bench Sit-Ups', muscleGroup: 'ABS', equipment: 'Bodyweight', description: 'Full range ab sit-ups on decline bench.' }
+];
 
 export type ActiveTab =
   | 'SCANNER'
@@ -79,6 +173,10 @@ export const WorkoutsAndDiets: React.FC = () => {
   useEffect(() => {
     if (tabParam) {
       setActiveTab(tabParam);
+      const mainContainer = document.querySelector('main');
+      if (mainContainer) {
+        mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   }, [tabParam]);
 
@@ -163,14 +261,32 @@ export const WorkoutsAndDiets: React.FC = () => {
   const [isTimerOpen, setIsTimerOpen] = useState(false);
 
   // Workout Builder state
+  const [mySplits, setMySplits] = useState<WorkoutPlan[]>([]);
+  const [editingSplitId, setEditingSplitId] = useState<string | null>(null);
+  const [isSavingSplit, setIsSavingSplit] = useState(false);
+  const [isDeletingSplit, setIsDeletingSplit] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+
   const [workoutName, setWorkoutName] = useState('My Custom Hypertrophy Routine');
-  const [workoutExercises, setWorkoutExercises] = useState<{ exerciseId: string; sets: number; reps: string }[]>([
-    { exerciseId: '11111111-1111-1111-1111-111111111101', sets: 4, reps: '8-10' },
-    { exerciseId: '11111111-1111-1111-1111-111111111102', sets: 4, reps: '10-12' },
+  const [workoutCategory, setWorkoutCategory] = useState('CUSTOM_SPLIT');
+  const [selectedDays, setSelectedDays] = useState<string[]>(DAYS_OF_WEEK);
+
+  const [selectedInserterMuscle, setSelectedInserterMuscle] = useState<string>('CHEST');
+  const [workoutExercises, setWorkoutExercises] = useState<{ exerciseId: string; sets: number; reps: string; targetDays: string[] }[]>([
+    { exerciseId: 'c1000000-0000-4000-8000-000000000101', sets: 4, reps: '8-10', targetDays: ['Monday', 'Wednesday', 'Friday'] },
+    { exerciseId: 'c1000000-0000-4000-8000-000000000102', sets: 4, reps: '10-12', targetDays: ['Monday', 'Thursday'] },
   ]);
+
   const [selectedExToAdd, setSelectedExToAdd] = useState('');
   const [addSets, setAddSets] = useState('4');
   const [addReps, setAddReps] = useState('8-12');
+  const [addExDays, setAddExDays] = useState<string[]>(DAYS_OF_WEEK);
+
+  // Exercise inline edit state
+  const [editingExIndex, setEditingExIndex] = useState<number | null>(null);
+  const [editExSets, setEditExSets] = useState('4');
+  const [editExReps, setEditExReps] = useState('8-12');
+  const [editExDays, setEditExDays] = useState<string[]>([]);
 
   // Diet / Macro Calculator state
   const [dietName, setDietName] = useState('High-Protein Muscle Building Diet');
@@ -216,24 +332,167 @@ export const WorkoutsAndDiets: React.FC = () => {
   }, [selectedMuscle]);
 
   // Fetch Foods & Preset Workout Splits from Backend Database
-  const [foodsList, setFoodsList] = useState<FoodItem[]>([]);
+  const [foodsList, setFoodsList] = useState<FoodItem[]>(DEFAULT_MACRO_FOODS);
   const [presetSplits, setPresetSplits] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadBackendData() {
       try {
-        const [foodsData, splitsData] = await Promise.all([
-          getFoods().catch(() => []),
-          getWorkouts().catch(() => [])
+        const [foodsData, splitsData, userSplits] = await Promise.all([
+          getFoods(0, 100).catch(() => ({ items: [] })),
+          getWorkouts().catch(() => []),
+          getMySplits().catch(() => []),
         ]);
-        setFoodsList(foodsData);
+        const items = Array.isArray(foodsData) ? foodsData : (foodsData?.items || []);
+        setFoodsList(items.length > 0 ? items : DEFAULT_MACRO_FOODS);
         setPresetSplits(Array.isArray(splitsData) ? splitsData : []);
+        setMySplits(Array.isArray(userSplits) ? userSplits : []);
       } catch (err) {
         console.error('Error fetching backend foods or splits from DB', err);
+        setFoodsList(DEFAULT_MACRO_FOODS);
       }
     }
     loadBackendData();
   }, []);
+
+  const inserterExercises = useMemo(() => {
+    const combinedMap = new Map<string, Exercise>();
+    
+    // 1. Catalog exercises
+    ALL_CATALOG_EXERCISES.forEach(e => combinedMap.set(e.id, e));
+    
+    // 2. Loaded backend exercises
+    exercises.forEach(e => combinedMap.set(e.id, e));
+    
+    const allList = Array.from(combinedMap.values());
+    
+    if (!selectedInserterMuscle || selectedInserterMuscle === 'ALL') {
+      return allList;
+    }
+
+    const filterKey = selectedInserterMuscle.toUpperCase();
+    return allList.filter(e => {
+      const name = (e.name || '').toUpperCase();
+      const mg = (e.muscleGroup || '').toUpperCase();
+
+      // STRICT EXCLUSION: If user selected non-chest, exclude explicit chest/bench press exercises
+      if (filterKey !== 'CHEST') {
+        if (mg.includes('CHEST') || name.includes('BENCH PRESS') || name.includes('PEC DECK') || name.includes('CHEST FLY') || name.includes('CHEST DIPS')) {
+          return false;
+        }
+      }
+
+      if (filterKey === 'CHEST') {
+        return (
+          mg.includes('CHEST') ||
+          mg.includes('PEC') ||
+          name.includes('BENCH PRESS') ||
+          name.includes('CHEST') ||
+          name.includes('PEC DECK') ||
+          name.includes('PUSH-UP') ||
+          name.includes('PUSHUP')
+        );
+      }
+
+      if (filterKey === 'BACK') {
+        return (
+          mg.includes('BACK') ||
+          mg.includes('LAT') ||
+          mg.includes('RHOMBOID') ||
+          name.includes('DEADLIFT') ||
+          name.includes('PULLDOWN') ||
+          name.includes('PULL-UP') ||
+          name.includes('CHIN-UP') ||
+          name.includes('ROW') ||
+          name.includes('HYPEREXTENSION')
+        );
+      }
+
+      if (filterKey === 'SHOULDERS') {
+        return (
+          mg.includes('SHOULDER') ||
+          mg.includes('DELT') ||
+          mg.includes('TRAP') ||
+          name.includes('MILITARY PRESS') ||
+          name.includes('SHOULDER PRESS') ||
+          name.includes('ARNOLD PRESS') ||
+          name.includes('LATERAL RAISE') ||
+          name.includes('FACE PULL') ||
+          name.includes('FRONT RAISE') ||
+          name.includes('REAR DELT') ||
+          name.includes('SHRUG') ||
+          name.includes('UPRIGHT ROW')
+        );
+      }
+
+      if (filterKey === 'BICEPS') {
+        return (
+          mg.includes('BICEP') ||
+          name.includes('BICEP') ||
+          name.includes('HAMMER CURL') ||
+          name.includes('PREACHER') ||
+          name.includes('CONCENTRATION CURL') ||
+          (name.includes('CURL') && !name.includes('LEG CURL'))
+        );
+      }
+
+      if (filterKey === 'TRICEPS') {
+        return (
+          mg.includes('TRICEP') ||
+          name.includes('TRICEP') ||
+          name.includes('SKULLCRUSHER') ||
+          name.includes('PUSHDOWN') ||
+          name.includes('CLOSE-GRIP')
+        );
+      }
+
+      if (filterKey === 'LEGS') {
+        return (
+          mg.includes('LEG') ||
+          mg.includes('QUAD') ||
+          mg.includes('HAMSTRING') ||
+          mg.includes('CALF') ||
+          mg.includes('GLUTE') ||
+          name.includes('SQUAT') ||
+          name.includes('LEG PRESS') ||
+          name.includes('LEG CURL') ||
+          name.includes('LEG EXTENSION') ||
+          name.includes('CALF') ||
+          name.includes('LUNGE') ||
+          name.includes('HIP THRUST') ||
+          name.includes('RDL')
+        );
+      }
+
+      if (filterKey === 'ABS') {
+        return (
+          mg.includes('AB') ||
+          mg.includes('CORE') ||
+          mg.includes('OBLIQUE') ||
+          name.includes('CRUNCH') ||
+          name.includes('PLANK') ||
+          name.includes('LEG RAISE') ||
+          name.includes('KNEE RAISE') ||
+          name.includes('AB ROLLER') ||
+          name.includes('WOODCHOPPER') ||
+          name.includes('SIT-UP')
+        );
+      }
+
+      return mg.includes(filterKey);
+    });
+  }, [exercises, selectedInserterMuscle]);
+
+  useEffect(() => {
+    if (inserterExercises.length > 0) {
+      const exists = inserterExercises.some(e => e.id === selectedExToAdd);
+      if (!exists) {
+        setSelectedExToAdd(inserterExercises[0].id);
+      }
+    } else {
+      setSelectedExToAdd('');
+    }
+  }, [inserterExercises, selectedExToAdd]);
 
   // Filter preset splits dynamically by difficulty level pill (ALL, BEGINNER, INTERMEDIATE, PRO)
   const filteredPresetSplits = useMemo(() => {
@@ -297,21 +556,198 @@ export const WorkoutsAndDiets: React.FC = () => {
 
 
 
+  const handleSelectSavedSplit = (split: WorkoutPlan) => {
+    setIsConfirmingDelete(false);
+    setEditingSplitId(split.id || null);
+    setWorkoutName(split.title || split.name || 'Custom Split');
+    setWorkoutCategory(split.category || 'CUSTOM_SPLIT');
+    if (split.targetDays) {
+      const parsed = split.targetDays.split(',').map(d => d.trim()).filter(Boolean);
+      setSelectedDays(parsed.length > 0 ? parsed : DAYS_OF_WEEK);
+    } else {
+      setSelectedDays(DAYS_OF_WEEK);
+    }
+
+    if (split.exercises && split.exercises.length > 0) {
+      setWorkoutExercises(
+        split.exercises.map(e => ({
+          id: e.id,
+          exerciseId: e.exerciseId,
+          sets: e.sets || 4,
+          reps: e.reps || '8-12',
+          targetDays: e.targetDays ? e.targetDays.split(',').map(d => d.trim()).filter(Boolean) : DAYS_OF_WEEK,
+        }))
+      );
+    } else {
+      setWorkoutExercises([]);
+    }
+    triggerAnnouncement(`Loaded routine ${split.title || split.name}`);
+  };
+
+  const handleResetDraft = () => {
+    setIsConfirmingDelete(false);
+    setEditingSplitId(null);
+    setWorkoutName('My Custom Hypertrophy Routine');
+    setWorkoutCategory('CUSTOM_SPLIT');
+    setSelectedDays(DAYS_OF_WEEK);
+    setWorkoutExercises([]);
+    setEditingExIndex(null);
+    triggerAnnouncement('Started new routine draft.');
+  };
+
+  const handleToggleGlobalDay = (day: string) => {
+    if (selectedDays.includes(day)) {
+      setSelectedDays(selectedDays.filter(d => d !== day));
+    } else {
+      setSelectedDays([...selectedDays, day]);
+    }
+  };
+
+  const handleToggleAddExDay = (day: string) => {
+    if (addExDays.includes(day)) {
+      setAddExDays(addExDays.filter(d => d !== day));
+    } else {
+      setAddExDays([...addExDays, day]);
+    }
+  };
+
+  const handleToggleEditExDay = (day: string) => {
+    if (editExDays.includes(day)) {
+      setEditExDays(editExDays.filter(d => d !== day));
+    } else {
+      setEditExDays([...editExDays, day]);
+    }
+  };
+
   const handleAddExercise = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedExToAdd) return;
     setWorkoutExercises([
       ...workoutExercises,
-      { exerciseId: selectedExToAdd, sets: Number(addSets), reps: addReps },
+      {
+        exerciseId: selectedExToAdd,
+        sets: Number(addSets) || 4,
+        reps: addReps || '8-12',
+        targetDays: addExDays.length > 0 ? [...addExDays] : [...selectedDays],
+      },
     ]);
     const name = exercises.find(ex => ex.id === selectedExToAdd)?.name || 'Exercise';
-    triggerAnnouncement(`Added ${name} to your custom split draft.`);
+    triggerAnnouncement(`Added ${name} to routine.`);
+  };
+
+  const handleStartEditExercise = (index: number) => {
+    const item = workoutExercises[index];
+    setEditingExIndex(index);
+    setEditExSets(String(item.sets));
+    setEditExReps(item.reps);
+    setEditExDays(item.targetDays || [...selectedDays]);
+  };
+
+  const handleSaveEditExercise = (index: number) => {
+    const updated = [...workoutExercises];
+    updated[index] = {
+      ...updated[index],
+      sets: Number(editExSets) || 4,
+      reps: editExReps || '8-12',
+      targetDays: editExDays.length > 0 ? [...editExDays] : [...selectedDays],
+    };
+    setWorkoutExercises(updated);
+    setEditingExIndex(null);
+    triggerAnnouncement('Updated exercise customization.');
+  };
+
+  const handleDeleteExercise = (index: number) => {
+    const exName = exercises.find(e => e.id === workoutExercises[index].exerciseId)?.name || 'Exercise';
+    setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
+    if (editingExIndex === index) setEditingExIndex(null);
+    triggerAnnouncement(`Removed ${exName} from routine.`);
+  };
+
+  const handleSaveRoutineToBackend = async () => {
+    if (!workoutName.trim()) {
+      alert('Please enter a routine name');
+      return;
+    }
+    if (workoutExercises.length === 0) {
+      alert('Please add at least one exercise to your routine');
+      return;
+    }
+
+    setIsSavingSplit(true);
+    try {
+      const payload: Partial<WorkoutPlan> = {
+        title: workoutName,
+        name: workoutName,
+        category: workoutCategory,
+        daysPerWeek: selectedDays.length,
+        targetDays: selectedDays.join(','),
+        exercises: workoutExercises.map(ex => {
+          const matchedCatalogEx = ALL_CATALOG_EXERCISES.find(c => c.id === ex.exerciseId) || exercises.find(c => c.id === ex.exerciseId);
+          return {
+            exerciseId: ex.exerciseId,
+            name: matchedCatalogEx?.name || 'Exercise',
+            muscleGroup: matchedCatalogEx?.muscleGroup || 'TARGET',
+            mechanics: matchedCatalogEx?.mechanics || 'COMPOUND',
+            description: matchedCatalogEx?.description || '',
+            sets: ex.sets,
+            reps: ex.reps,
+            targetDays: (ex.targetDays || []).join(','),
+          };
+        }),
+      };
+
+      let res: WorkoutPlan;
+      if (editingSplitId) {
+        res = await updateWorkout(editingSplitId, payload);
+        triggerAnnouncement(`Updated split routine "${workoutName}" successfully!`);
+      } else {
+        res = await createWorkout(payload);
+        triggerAnnouncement(`Created split routine "${workoutName}" successfully!`);
+      }
+
+      const refreshed = await getMySplits();
+      setMySplits(refreshed);
+      if (res && res.id) setEditingSplitId(res.id);
+    } catch (err) {
+      console.error('Failed to save workout split routine', err);
+      alert('Error saving split routine to server.');
+    } finally {
+      setIsSavingSplit(false);
+    }
+  };
+
+  const handleDeleteRoutineFromBackend = async () => {
+    if (!editingSplitId) {
+      alert('Please select a saved routine to delete.');
+      return;
+    }
+
+    if (!isConfirmingDelete) {
+      setIsConfirmingDelete(true);
+      return;
+    }
+
+    setIsDeletingSplit(true);
+    try {
+      await deleteWorkout(editingSplitId);
+      triggerAnnouncement(`Deleted routine "${workoutName}".`);
+      const refreshed = await getMySplits();
+      setMySplits(refreshed);
+      handleResetDraft();
+      setIsConfirmingDelete(false);
+    } catch (err) {
+      console.error('Failed to delete split routine', err);
+      alert('Error deleting split routine.');
+    } finally {
+      setIsDeletingSplit(false);
+    }
   };
 
   const handleAddFood = (e: React.FormEvent) => {
     e.preventDefault();
     setDietFoods([...dietFoods, { foodId: selectedFoodToAdd, quantityG: Number(addGrams) }]);
-    const name = foodsList.find(f => f.id === selectedFoodToAdd)?.name || 'Food';
+    const currentList = Array.isArray(foodsList) && foodsList.length > 0 ? foodsList : DEFAULT_MACRO_FOODS;
+    const name = currentList.find(f => f.id === selectedFoodToAdd)?.name || 'Food';
     triggerAnnouncement(`Added ${addGrams}g of ${name} to macro meal draft.`);
   };
 
@@ -322,14 +758,20 @@ export const WorkoutsAndDiets: React.FC = () => {
     let carbs = 0;
     let fat = 0;
 
+    const currentList = Array.isArray(foodsList) && foodsList.length > 0 ? foodsList : DEFAULT_MACRO_FOODS;
+
     dietFoods.forEach(item => {
-      const food = foodsList.find(f => f.id === item.foodId);
+      const food = currentList.find(f => f.id === item.foodId);
       if (!food) return;
       const factor = item.quantityG / 100;
-      calories += food.calories * factor;
-      protein += food.protein * factor;
-      carbs += food.carbs * factor;
-      fat += food.fats * factor;
+      const c = food.caloriesPer100g ?? (food as any).calories ?? 0;
+      const p = food.proteinPer100g ?? (food as any).protein ?? 0;
+      const cb = food.carbsPer100g ?? (food as any).carbohydrates ?? (food as any).carbs ?? 0;
+      const ft = food.fatPer100g ?? (food as any).fat ?? (food as any).fats ?? 0;
+      calories += c * factor;
+      protein += p * factor;
+      carbs += cb * factor;
+      fat += ft * factor;
     });
 
     return {
@@ -343,17 +785,19 @@ export const WorkoutsAndDiets: React.FC = () => {
   const macros = calculateTotalMacros();
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-4 sm:space-y-8 pb-12">
       {/* ── TOP BAR OPTION NAVIGATION (GYM COLOR PALETTE SYSTEM) ── */}
-      <div className="p-2 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] shadow-xl flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 overflow-x-auto">
-        <div className="flex items-center gap-1.5 min-w-max">
+      <div className="p-1.5 sm:p-2 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] shadow-xl">
+
+        {/* ── MOBILE: 2-column grid (hidden on sm+) ── */}
+        <div className="grid grid-cols-2 gap-1 sm:hidden">
           {[
-            { id: 'SCANNER', label: 'Muscle Target Scanner', icon: Activity, defaultBadge: true },
-            { id: 'SELECT_WORKOUT', label: 'Workout Routines', icon: Target },
-            { id: 'PRESET_SPLITS', label: 'Hypertrophy Splits', icon: Zap },
-            { id: 'CUSTOM_BUILDER', label: 'Split Builder', icon: Dumbbell },
-            { id: 'MACRO_METER', label: 'Macro Meter', icon: Apple },
-            { id: 'BMI_CALCULATOR', label: 'BMI & Health', icon: Scale },
+            { id: 'SCANNER',        label: 'Scanner',  icon: Activity },
+            { id: 'SELECT_WORKOUT', label: 'Routines', icon: Target   },
+            { id: 'PRESET_SPLITS',  label: 'Splits',   icon: Zap      },
+            { id: 'CUSTOM_BUILDER', label: 'Builder',  icon: Dumbbell },
+            { id: 'MACRO_METER',    label: 'Macros',   icon: Apple    },
+            { id: 'BMI_CALCULATOR', label: 'BMI',      icon: Scale    },
           ].map(tab => {
             const Icon = tab.icon;
             const isSelected = activeTab === tab.id;
@@ -362,37 +806,57 @@ export const WorkoutsAndDiets: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as ActiveTab)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 relative ${
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-black transition-all duration-200 ${
                   isSelected
-                    ? 'bg-[#E63946] text-white hover:bg-[#C92F3B] dark:bg-[#FF4D5A] dark:text-[#0B0D0F] dark:hover:bg-[#FF6670] shadow-md font-black scale-[1.02]'
-                    : 'text-[#626A73] dark:text-[#A7AFB8] hover:text-[#111418] dark:hover:text-[#F5F7FA] hover:bg-[#EEF0F3] dark:hover:bg-[#1C2024]'
+                    ? 'bg-[#E63946] text-white shadow-md'
+                    : 'text-[#626A73] dark:text-[#A7AFB8] hover:bg-[#EEF0F3] dark:hover:bg-[#1C2024]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isSelected ? 'text-white dark:text-[#0B0D0F]' : 'text-[#2563EB] dark:text-[#4D8DFF]'}`} />
-                <span className="whitespace-nowrap">{tab.label}</span>
-                {tab.defaultBadge && (
-                  <span className={`px-1.5 py-0.5 text-[8px] font-black uppercase rounded-md ${
-                    isSelected ? 'bg-white/20 text-white dark:bg-black/20 dark:text-[#0B0D0F]' : 'bg-[#E63946]/10 text-[#E63946] border border-[#E63946]/30 dark:bg-[#FF4D5A]/20 dark:text-[#FF4D5A]'
-                  }`}>
-                    DEFAULT
-                  </span>
-                )}
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-white' : 'text-[#2563EB] dark:text-[#4D8DFF]'}`} />
+                <span>{tab.label}</span>
               </button>
             );
           })}
         </div>
 
-        {selectedMuscle && (
-          <div className="px-3.5 py-1.5 rounded-xl bg-[#E63946]/10 dark:bg-[#FF4D5A]/15 border border-[#E63946]/30 dark:border-[#FF4D5A]/30 text-xs font-black text-[#E63946] dark:text-[#FF4D5A] flex items-center gap-2 whitespace-nowrap shadow-sm shrink-0">
-            <Sparkles className="w-3.5 h-3.5 text-[#E63946] dark:text-[#FF4D5A] animate-spin" style={{ animationDuration: '4s' }} />
-            <span>Target Locked: {selectedMuscle}</span>
+        {/* ── SM+: Horizontal scrollable pill row (hidden on mobile) ── */}
+        <div className="hidden sm:block overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1.5 min-w-max">
+            {[
+              { id: 'SCANNER',        labelFull: 'Muscle Target Scanner', icon: Activity },
+              { id: 'SELECT_WORKOUT', labelFull: 'Workout Routines',      icon: Target   },
+              { id: 'PRESET_SPLITS',  labelFull: 'Hypertrophy Splits',    icon: Zap      },
+              { id: 'CUSTOM_BUILDER', labelFull: 'Split Builder',         icon: Dumbbell },
+              { id: 'MACRO_METER',    labelFull: 'Macro Meter',           icon: Apple    },
+              { id: 'BMI_CALCULATOR', labelFull: 'BMI & Health',          icon: Scale    },
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isSelected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as ActiveTab)}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
+                    isSelected
+                      ? 'bg-[#E63946] text-white hover:bg-[#C92F3B] dark:bg-[#FF4D5A] dark:text-[#0B0D0F] shadow-md scale-[1.02]'
+                      : 'text-[#626A73] dark:text-[#A7AFB8] hover:text-[#111418] dark:hover:text-[#F5F7FA] hover:bg-[#EEF0F3] dark:hover:bg-[#1C2024]'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-white dark:text-[#0B0D0F]' : 'text-[#2563EB] dark:text-[#4D8DFF]'}`} />
+                  <span>{tab.labelFull}</span>
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
+
       </div>
+
 
       {/* ── TAB 1: 3D SCI-FI TARGET SCANNER (DEFAULT VIEW) ──────────────────── */}
       {activeTab === 'SCANNER' && (
-        <div className="space-y-8">
+        <div className="space-y-4 sm:space-y-8">
           <HumanBodyMap
             selectedMuscle={selectedMuscle}
             onSelectMuscle={handleSelectMuscle}
@@ -402,21 +866,21 @@ export const WorkoutsAndDiets: React.FC = () => {
           />
 
           {/* 10+ Exercises List for Selected Muscle */}
-          <div ref={exercisesSectionRef} className="p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-6 scroll-mt-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#DDE1E6] dark:border-[#292E34] pb-4">
-              <div>
+          <div ref={exercisesSectionRef} className="p-4 sm:p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 sm:space-y-6 scroll-mt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <Dumbbell className="w-5 h-5 text-[#E63946] dark:text-[#FF4D5A]" />
-                  <h2 className="text-base font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wide">
-                    Workouts for {selectedMuscle || 'All Muscle Groups'}
+                  <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5 text-[#E63946] dark:text-[#FF4D5A] shrink-0" />
+                  <h2 className="text-sm sm:text-base font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wide truncate">
+                    {selectedMuscle || 'All Muscle Groups'}
                   </h2>
                 </div>
-                <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5">
+                <p className="text-[11px] sm:text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5 hidden sm:block">
                   10+ exercise plans with step-by-step form execution guides, bench angles, & safety cues.
                 </p>
               </div>
-              <div className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-mono">
-                Displaying <span className="text-[#E63946] dark:text-[#FF4D5A] font-black">{filteredExercises.length}</span> exercises
+              <div className="text-[11px] sm:text-xs text-[#626A73] dark:text-[#A7AFB8] font-mono shrink-0">
+                <span className="text-[#E63946] dark:text-[#FF4D5A] font-black">{filteredExercises.length}</span> exercises
               </div>
             </div>
 
@@ -427,33 +891,19 @@ export const WorkoutsAndDiets: React.FC = () => {
                 No exercises found for this filter. Select another muscle group.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                 {filteredExercises.map(ex => {
                   return (
                     <div
                       key={ex.id}
                       onClick={() => setInspectingExercise(ex)}
-                      className="group cursor-pointer rounded-2xl bg-white dark:bg-[#14171A] border border-slate-200 dark:border-[#292E34] hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-200 p-4 flex flex-col justify-between shadow-sm hover:shadow-md relative"
+                      className="group cursor-pointer rounded-2xl bg-white dark:bg-[#14171A] border border-slate-200 dark:border-[#292E34] hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-200 p-3.5 sm:p-4 flex flex-col justify-between shadow-sm hover:shadow-md relative"
                     >
                       {/* Top Row: Tags & Info Icon */}
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                           <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
                             {ex.muscleGroup}
-                          </span>
-                          <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700/50">
-                            {ex.equipment || 'Bodyweight'}
-                          </span>
-                          <span
-                            className={`px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full border ${
-                              (ex.difficultyLevel || 'INTERMEDIATE') === 'PRO'
-                                ? 'bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/60'
-                                : (ex.difficultyLevel || 'INTERMEDIATE') === 'INTERMEDIATE'
-                                ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800/60'
-                                : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60'
-                            }`}
-                          >
-                            {ex.difficultyLevel || 'INTERMEDIATE'}
                           </span>
                         </div>
 
@@ -506,36 +956,36 @@ export const WorkoutsAndDiets: React.FC = () => {
 
       {/* ── TAB: SELECT WORKOUT PROGRAM SPLIT & CUSTOMIZE EXERCISES ─────────── */}
       {activeTab === 'SELECT_WORKOUT' && (
-        <div className="p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-6 shadow-xl">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#DDE1E6] dark:border-[#292E34] pb-4">
-            <div>
+        <div className="p-4 sm:p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 sm:space-y-6 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3 border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-[#E63946] dark:text-[#FF4D5A]" />
-                <h2 className="text-base font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wide">
-                  Select Your Workout Program & Customize Exercises
+                <Target className="w-4 h-4 sm:w-5 sm:h-5 text-[#E63946] dark:text-[#FF4D5A] shrink-0" />
+                <h2 className="text-sm sm:text-base font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wide leading-tight">
+                  Workout Programs
                 </h2>
               </div>
-              <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5">
-                Select your overall workout program split below (PPL, Upper/Lower, Full Body). Each focus offers 10 exercises — select which ones you want to perform in your routine.
+              <p className="text-[11px] sm:text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5 hidden sm:block">
+                Select your overall workout program split (PPL, Upper/Lower, Full Body). Each focus offers 10 exercises.
               </p>
             </div>
 
             {selectedProgramKey && PROGRAM_SPLITS_CONFIG[selectedProgramKey] && (
-              <div className="px-3.5 py-2 rounded-xl bg-[#16A34A]/10 border border-[#16A34A]/30 text-xs font-black text-[#16A34A] dark:bg-[#16A34A]/20 dark:border-[#16A34A]/50 flex items-center gap-2 shadow-sm">
-                <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
-                <span>Current Active Program: <strong>{PROGRAM_SPLITS_CONFIG[selectedProgramKey].title}</strong></span>
+              <div className="px-3 py-1.5 rounded-xl bg-[#16A34A]/10 border border-[#16A34A]/30 text-xs font-black text-[#16A34A] dark:bg-[#16A34A]/20 dark:border-[#16A34A]/50 flex items-center gap-2 shadow-sm">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />
+                <span className="truncate">Active: <strong>{PROGRAM_SPLITS_CONFIG[selectedProgramKey].title}</strong></span>
               </div>
             )}
           </div>
 
           {/* Program Cards Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {Object.values(PROGRAM_SPLITS_CONFIG).map((prog) => {
               const isSelected = selectedProgramKey === prog.key;
               return (
                 <div
                   key={prog.key}
-                  className={`p-6 rounded-2xl border transition-all flex flex-col justify-between space-y-5 shadow-lg ${
+                  className={`p-4 sm:p-6 rounded-2xl border transition-all flex flex-col justify-between space-y-4 sm:space-y-5 shadow-lg ${
                     isSelected
                       ? 'bg-[#EEF0F3] dark:bg-[#1C2024] border-[#E63946] dark:border-[#FF4D5A] ring-2 ring-[#E63946]/50 dark:ring-[#FF4D5A]/50 text-[#111418] dark:text-[#F5F7FA]'
                       : 'bg-[#FFFFFF] dark:bg-[#14171A] border-[#DDE1E6] dark:border-[#292E34] text-[#111418] dark:text-[#F5F7FA] hover:border-[#E63946]/50 dark:hover:border-[#FF4D5A]/50'
@@ -643,25 +1093,26 @@ export const WorkoutsAndDiets: React.FC = () => {
 
       {/* ── TAB 2: TOP-RATED HYPERTROPHY WORKOUT SPLITS ──────────────────────── */}
       {activeTab === 'PRESET_SPLITS' && (
-        <div className="p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-6 shadow-xl">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#DDE1E6] dark:border-[#292E34] pb-4">
-            <div>
+        <div className="p-4 sm:p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 sm:space-y-6 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3 border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-[#F59E0B]" />
-                <h2 className="text-base font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wide">
-                  Top-Rated Hypertrophy Workout Splits
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-[#F59E0B] shrink-0" />
+                <h2 className="text-sm sm:text-base font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wide">
+                  Hypertrophy Splits
                 </h2>
               </div>
-              <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5">
+              <p className="text-[11px] sm:text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5 hidden sm:block">
                 Curated periodized splits for Beginners, Intermediate, & Advanced athletes.
               </p>
             </div>
-            <div className="flex gap-2">
+            {/* Difficulty filter pills */}
+            <div className="flex gap-1.5 sm:gap-2 flex-wrap">
               {(['ALL', 'BEGINNER', 'INTERMEDIATE', 'PRO'] as const).map(lvl => (
                 <button
                   key={lvl}
                   onClick={() => setSelectedDifficulty(lvl)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                  className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-black transition-all ${
                     selectedDifficulty === lvl
                       ? 'bg-[#E63946] text-white dark:bg-[#FF4D5A] dark:text-[#0B0D0F] shadow-md'
                       : 'bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] text-[#626A73] dark:text-[#A7AFB8] hover:text-[#111418] dark:hover:text-[#F5F7FA]'
@@ -673,7 +1124,8 @@ export const WorkoutsAndDiets: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
+          {/* 2-col on mobile, 3-col on md, 5-col on xl */}
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-4">
             {filteredPresetSplits.map(split => (
               <button
                 key={split.id}
@@ -704,17 +1156,17 @@ export const WorkoutsAndDiets: React.FC = () => {
             ))}
           </div>
 
-          <div ref={activeSplitSectionRef} className="space-y-6 pt-2">
+          <div ref={activeSplitSectionRef} className="space-y-4 sm:space-y-6 pt-2">
             {activeSplit && Array.isArray(activeSplit.splitDays) && activeSplit.splitDays.length > 0 && (
-              <div className="p-5 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 shadow-xl">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 shadow-xl">
                 <div className="flex items-center justify-between border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
-                  <h4 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-[#F59E0B]" />
-                    {activeSplit.name || activeSplit.title} — Schedule & Muscle Targets
+                  <h4 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2 min-w-0">
+                    <Zap className="w-4 h-4 text-[#F59E0B] shrink-0" />
+                    <span className="truncate">{activeSplit.name || activeSplit.title}</span>
                   </h4>
-                  <span className="text-xs text-[#F59E0B] font-mono font-black">Level: {activeSplit.level || 'INTERMEDIATE'}</span>
+                  <span className="text-xs text-[#F59E0B] font-mono font-black shrink-0 ml-2">{activeSplit.level || 'INTERMEDIATE'}</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
                   {activeSplit.splitDays.map((day: any, idx: number) => (
                     <div key={idx} className="p-3.5 rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] space-y-1">
                       <div className="flex items-center justify-between text-[11px] font-black text-[#111418] dark:text-[#F5F7FA]">
@@ -729,23 +1181,23 @@ export const WorkoutsAndDiets: React.FC = () => {
             )}
 
           {activeSplit && Array.isArray(activeSplit.exercises) && activeSplit.exercises.length > 0 && (
-            <div className="p-5 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 shadow-xl">
-              <div className="flex items-center justify-between border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
-                <h4 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2">
-                  <Dumbbell className="w-4 h-4 text-[#E63946] dark:text-[#FF4D5A]" />
-                  {activeSplit.title || activeSplit.name} — Routine Movements
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 shadow-xl">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
+                <h4 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2 min-w-0">
+                  <Dumbbell className="w-4 h-4 text-[#E63946] dark:text-[#FF4D5A] shrink-0" />
+                  <span className="truncate">{activeSplit.title || activeSplit.name}</span>
                 </h4>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-[#2563EB] dark:text-[#4D8DFF] font-mono font-black">{activeSplit.category || 'Hypertrophy'}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-[#2563EB] dark:text-[#4D8DFF] font-mono font-black hidden sm:inline">{activeSplit.category || 'Hypertrophy'}</span>
                   <button 
                     onClick={() => setIsTimerOpen(true)}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition shadow flex items-center gap-1.5"
+                    className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition shadow flex items-center gap-1.5"
                   >
-                    <Play className="w-3.5 h-3.5" fill="currentColor" /> Start Routine
+                    <Play className="w-3.5 h-3.5" fill="currentColor" /> <span>Start</span>
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 sm:gap-3">
                 {activeSplit.exercises.map((ex: any, idx: number) => {
                   const exName = ex.name || ex.exerciseName || ex.exercise?.name || `Workout Movement ${idx + 1}`;
                   const exDesc = ex.description || ex.exercise?.description || 'Hypertrophy execution with strict tempo control.';
@@ -808,111 +1260,450 @@ export const WorkoutsAndDiets: React.FC = () => {
         </div>
       )}
 
-      {/* ── TAB 3: CUSTOM HYPERTROPHY SPLIT DRAFT ───────────────────────────── */}
+      {/* ── TAB 3: CUSTOM HYPERTROPHY SPLIT BUILDER ───────────────────────────── */}
       {activeTab === 'CUSTOM_BUILDER' && (
-        <div className="p-6 rounded-2xl border border-[#DDE1E6] dark:border-[#292E34] bg-[#FFFFFF] dark:bg-[#14171A] shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Dumbbell className="w-5 h-5 text-[#E63946] dark:text-[#FF4D5A]" />
-              <h3 className="font-black text-[#111418] dark:text-[#F5F7FA] text-sm">Custom Hypertrophy Split Draft</h3>
+        <div className="space-y-4 sm:space-y-6">
+          {/* Saved Splits Bar */}
+          <div className="p-3.5 sm:p-4 rounded-2xl border border-[#DDE1E6] dark:border-[#292E34] bg-[#FFFFFF] dark:bg-[#14171A] shadow-xl space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2 min-w-0">
+                <Layers className="w-4 h-4 text-[#2563EB] dark:text-[#4D8DFF] shrink-0" />
+                <span className="truncate">Saved Splits ({mySplits.length})</span>
+              </h4>
+              <button
+                type="button"
+                onClick={handleResetDraft}
+                className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#E63946] hover:bg-[#D62839] text-white text-xs font-black transition flex items-center gap-1.5 shadow shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">New Routine</span><span className="sm:hidden">New</span>
+              </button>
             </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {mySplits.length === 0 ? (
+                <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] italic">No saved custom splits found. Create one below!</p>
+              ) : (
+                mySplits.map(split => {
+                  const isActive = editingSplitId === split.id;
+                  return (
+                    <button
+                      key={split.id}
+                      type="button"
+                      onClick={() => handleSelectSavedSplit(split)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border flex items-center gap-2 ${
+                        isActive
+                          ? 'bg-[#E63946] text-white border-[#E63946] shadow-lg scale-[1.02]'
+                          : 'bg-[#EEF0F3] dark:bg-[#1C2024] text-[#111418] dark:text-[#F5F7FA] border-[#DDE1E6] dark:border-[#292E34] hover:border-[#E63946]'
+                      }`}
+                    >
+                      <Dumbbell className="w-3.5 h-3.5" />
+                      <span>{split.title || split.name}</span>
+                      <span className="text-[10px] opacity-80 font-mono">({split.exercises?.length || 0} ex)</span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase mb-1">Routine Name</label>
-                <input
-                  type="text"
-                  value={workoutName}
-                  onChange={e => setWorkoutName(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#DDE1E6] dark:border-[#292E34] bg-[#EEF0F3] dark:bg-[#1C2024] rounded-lg text-[#111418] dark:text-[#F5F7FA] font-bold text-xs"
-                />
+          {/* Main Routine Builder Panel */}
+          <div className="p-4 sm:p-6 rounded-2xl border border-[#DDE1E6] dark:border-[#292E34] bg-[#FFFFFF] dark:bg-[#14171A] shadow-xl space-y-4 sm:space-y-6">
+            {/* Header / Meta Settings */}
+            <div className="space-y-3 sm:space-y-4 border-b border-[#DDE1E6] dark:border-[#292E34] pb-4 sm:pb-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Dumbbell className="w-5 h-5 text-[#E63946] dark:text-[#FF4D5A]" />
+                  <h3 className="font-black text-[#111418] dark:text-[#F5F7FA] text-base">
+                    {editingSplitId ? 'Edit Split Routine' : 'Create Custom Split Routine'}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  {editingSplitId && permissions.canDelete('workout') && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteRoutineFromBackend}
+                      disabled={isDeletingSplit}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow ${
+                        isConfirmingDelete
+                          ? 'bg-rose-700 hover:bg-rose-800 text-white ring-2 ring-rose-400 animate-pulse'
+                          : 'bg-rose-600 hover:bg-rose-700 text-white'
+                      } disabled:opacity-50`}
+                    >
+                      {isDeletingSplit ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                      {isConfirmingDelete ? 'Confirm Delete Routine?' : 'Delete Routine'}
+                    </button>
+                  )}
+                  {(editingSplitId ? permissions.canEdit('workout') : permissions.canCreate('workout')) && (
+                    <button
+                      type="button"
+                      onClick={handleSaveRoutineToBackend}
+                      disabled={isSavingSplit}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg disabled:opacity-50"
+                    >
+                      {isSavingSplit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      {editingSplitId ? 'Update Routine' : 'Save Routine'}
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <span className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase">Selected Exercises</span>
-                <div className="space-y-2">
-                  {workoutExercises.map((we, i) => {
-                    const ex = exercises.find(e => e.id === we.exerciseId);
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase tracking-wider mb-1">
+                    Routine Title / Name
+                  </label>
+                  <input
+                    type="text"
+                    value={workoutName}
+                    onChange={e => setWorkoutName(e.target.value)}
+                    placeholder="e.g. 5-Day Push Pull Legs Hypertrophy"
+                    className="w-full px-3.5 py-2 border border-[#DDE1E6] dark:border-[#292E34] bg-[#EEF0F3] dark:bg-[#1C2024] rounded-xl text-[#111418] dark:text-[#F5F7FA] font-bold text-xs focus:ring-2 focus:ring-[#E63946] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase tracking-wider mb-1">
+                    Split Category / Type
+                  </label>
+                  <select
+                    value={workoutCategory}
+                    onChange={e => setWorkoutCategory(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-[#DDE1E6] dark:border-[#292E34] bg-[#EEF0F3] dark:bg-[#1C2024] rounded-xl text-[#111418] dark:text-[#F5F7FA] font-bold text-xs outline-none"
+                  >
+                    <option value="CUSTOM_SPLIT">Custom Split</option>
+                    <option value="Hypertrophy">Hypertrophy (Muscle Building)</option>
+                    <option value="Strength">Strength & Power</option>
+                    <option value="PPL">Push Pull Legs (PPL)</option>
+                    <option value="Upper / Lower">Upper / Lower Split</option>
+                    <option value="Full Body">Full Body Routine</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Day of Week Selector */}
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase tracking-wider flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#E63946]" /> Routine Active Days ({selectedDays.length} / 7 days selected)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDays([...DAYS_OF_WEEK])}
+                      className="text-[10px] font-black text-[#2563EB] dark:text-[#4D8DFF] hover:underline"
+                    >
+                      Select All Days
+                    </button>
+                    <span className="text-[#626A73]">•</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDays([])}
+                      className="text-[10px] font-black text-rose-500 hover:underline"
+                    >
+                      Clear Days
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS_OF_WEEK.map(day => {
+                    const isSelected = selectedDays.includes(day);
                     return (
-                      <div
-                        key={i}
-                        className="p-3 rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] flex justify-between items-center text-xs"
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleToggleGlobalDay(day)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-[#2563EB] text-white border-[#2563EB] shadow'
+                            : 'bg-[#EEF0F3] dark:bg-[#1C2024] text-[#626A73] dark:text-[#A7AFB8] border-[#DDE1E6] dark:border-[#292E34] hover:border-[#2563EB]'
+                        }`}
                       >
-                        <div>
-                          <h4 className="font-black text-[#111418] dark:text-[#F5F7FA]">{ex?.name || 'Exercise'}</h4>
-                          <p className="text-[10px] text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5">
-                            Target: {ex?.muscleGroup || 'CHEST'} | Gear: {ex?.equipment || 'Barbell'}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-mono font-black text-[#2563EB] dark:text-[#4D8DFF]">
-                            {we.sets} sets x {we.reps} reps
-                          </span>
-                        </div>
-                      </div>
+                        {isSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                        {day}
+                      </button>
                     );
                   })}
                 </div>
               </div>
             </div>
-          </div>
 
+            {/* Selected Exercises Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2">
+                  <Target className="w-4 h-4 text-[#E63946]" /> Selected Routine Exercises ({workoutExercises.length})
+                </h4>
+              </div>
 
-          {canCreate('workout') && (
+              {workoutExercises.length === 0 ? (
+                <div className="p-8 text-center rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-dashed border-[#DDE1E6] dark:border-[#292E34] space-y-2">
+                  <Dumbbell className="w-8 h-8 text-[#626A73] dark:text-[#A7AFB8] mx-auto opacity-50" />
+                  <p className="text-xs font-bold text-[#626A73] dark:text-[#A7AFB8]">No exercises added to this routine yet.</p>
+                  <p className="text-[10px] text-[#626A73] dark:text-[#A7AFB8]">Use the form below to insert exercises into your custom split.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {workoutExercises.map((we, index) => {
+                    const ex = ALL_CATALOG_EXERCISES.find(e => e.id === we.exerciseId) || exercises.find(e => e.id === we.exerciseId);
+                    const isEditingThis = editingExIndex === index;
+
+                    if (isEditingThis) {
+                      return (
+                        <div
+                          key={index}
+                          className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 space-y-3 text-xs"
+                        >
+                          <div className="flex items-center justify-between font-black text-amber-600 dark:text-amber-400">
+                            <span>Editing: {ex?.name || 'Exercise'}</span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingExIndex(null)}
+                              className="text-[10px] underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-zinc-500 mb-1">Sets</label>
+                              <input
+                                type="number"
+                                value={editExSets}
+                                onChange={e => setEditExSets(e.target.value)}
+                                className="w-full px-2.5 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg font-mono font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-zinc-500 mb-1">Reps</label>
+                              <input
+                                type="text"
+                                value={editExReps}
+                                onChange={e => setEditExReps(e.target.value)}
+                                className="w-full px-2.5 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg font-mono font-bold"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-zinc-500 mb-1">Assigned Days for Exercise</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {DAYS_OF_WEEK.map(d => {
+                                const active = editExDays.includes(d);
+                                return (
+                                  <button
+                                    key={d}
+                                    type="button"
+                                    onClick={() => handleToggleEditExDay(d)}
+                                    className={`px-2 py-1 rounded text-[10px] font-bold border ${
+                                      active ? 'bg-amber-600 text-white border-amber-600' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700'
+                                    }`}
+                                  >
+                                    {d.slice(0, 3)}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEditExercise(index)}
+                            className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition text-xs flex items-center justify-center gap-1.5"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Save Exercise Changes
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={index}
+                        className="p-4 rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] flex flex-wrap lg:flex-nowrap justify-between items-center gap-3 text-xs hover:border-[#E63946] transition-all"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-[#E63946]/10 text-[#E63946] font-mono text-[10px] font-black">
+                              #{index + 1}
+                            </span>
+                            <h4 className="font-black text-[#111418] dark:text-[#F5F7FA] text-sm">{ex?.name || 'Exercise'}</h4>
+                          </div>
+                          <p className="text-[10px] text-[#626A73] dark:text-[#A7AFB8] font-medium">
+                            Target: <span className="font-bold text-[#111418] dark:text-[#F5F7FA]">{ex?.muscleGroup || 'TARGET'}</span> | Gear: {ex?.equipment || 'Barbell'}
+                          </p>
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {(we.targetDays && we.targetDays.length > 0 ? we.targetDays : selectedDays).map(d => (
+                              <span
+                                key={d}
+                                className="px-2 py-0.5 rounded-full text-[9px] font-black bg-[#2563EB]/15 text-[#2563EB] dark:text-[#4D8DFF] border border-[#2563EB]/30"
+                              >
+                                {d.slice(0, 3)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 min-w-max">
+                          <div className="text-right">
+                            <span className="font-mono font-black text-sm text-[#2563EB] dark:text-[#4D8DFF] block">
+                              {we.sets} sets × {we.reps} reps
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditExercise(index)}
+                              title="Edit exercise sets/reps/days"
+                              className="p-2 rounded-lg bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] text-amber-500 hover:bg-amber-500 hover:text-white transition shadow-sm"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteExercise(index)}
+                              title="Delete exercise from routine"
+                              className="p-2 rounded-lg bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] text-rose-500 hover:bg-rose-500 hover:text-white transition shadow-sm"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Inserter Form */}
             <form
               onSubmit={handleAddExercise}
-              className="mt-6 p-4 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 space-y-3 text-xs"
+              className="mt-4 sm:mt-6 p-3.5 sm:p-4 rounded-xl border border-dashed border-[#2563EB]/40 bg-[#2563EB]/5 space-y-3 sm:space-y-4 text-xs"
             >
-              <h4 className="font-bold text-zinc-700 dark:text-zinc-200 flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-blue-500" /> Insert Exercise into Routine
-              </h4>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-1">
-                  <label className="block text-[10px] text-zinc-500 dark:text-zinc-400 mb-1">Sets</label>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-black text-[#111418] dark:text-[#F5F7FA] flex items-center gap-1.5 text-xs">
+                  <Plus className="w-4 h-4 text-[#2563EB] shrink-0" /> Add Exercise
+                </h4>
+                <span className="text-[10px] text-[#2563EB] font-bold">{inserterExercises.length} available</span>
+              </div>
+              
+              {/* Step 1: Body Part / Target Muscle Group Selector */}
+              <div>
+                <label className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase mb-1.5">
+                  1. Target Muscle Group
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { key: 'CHEST', label: 'Chest (Upper/Lower/Bench)' },
+                    { key: 'BACK', label: 'Back & Lats' },
+                    { key: 'SHOULDERS', label: 'Shoulders & Delts' },
+                    { key: 'BICEPS', label: 'Biceps' },
+                    { key: 'TRICEPS', label: 'Triceps' },
+                    { key: 'LEGS', label: 'Legs (Quads/Hams/Calves)' },
+                    { key: 'ABS', label: 'Abs & Core' },
+                    { key: 'ALL', label: 'All Body Parts' },
+                  ].map(item => {
+                    const isActive = selectedInserterMuscle === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setSelectedInserterMuscle(item.key)}
+                        className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition border shadow-xs flex items-center gap-1 ${
+                          isActive
+                            ? 'bg-[#2563EB] text-white border-[#2563EB] ring-2 ring-[#2563EB]/30'
+                            : 'bg-[#FFFFFF] dark:bg-[#14171A] text-[#626A73] dark:text-[#A7AFB8] border-[#DDE1E6] dark:border-[#292E34] hover:border-[#2563EB]'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Step 2: Select Exercise & Sets / Reps */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                <div className="md:col-span-1">
+                  <label className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase mb-1">
+                    2. Select Workout ({selectedInserterMuscle})
+                  </label>
+                  <select
+                    value={selectedExToAdd}
+                    onChange={e => setSelectedExToAdd(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#DDE1E6] dark:border-[#292E34] bg-[#FFFFFF] dark:bg-[#14171A] rounded-xl text-[#111418] dark:text-[#F5F7FA] font-bold text-xs outline-none focus:ring-2 focus:ring-[#2563EB]"
+                  >
+                    {inserterExercises.length === 0 ? (
+                      <option value="">No exercises found for {selectedInserterMuscle}</option>
+                    ) : (
+                      inserterExercises.map(ex => (
+                        <option key={ex.id} value={ex.id}>
+                          {ex.name} ({ex.muscleGroup} • {ex.equipment})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase mb-1">Sets</label>
                   <input
                     type="number"
                     value={addSets}
                     onChange={e => setAddSets(e.target.value)}
-                    className="w-full px-2 py-1 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-md text-zinc-900 dark:text-zinc-100 text-center font-mono"
+                    className="w-full px-3 py-2 border border-[#DDE1E6] dark:border-[#292E34] bg-[#FFFFFF] dark:bg-[#14171A] rounded-xl text-[#111418] dark:text-[#F5F7FA] font-mono font-bold text-xs text-center outline-none focus:ring-2 focus:ring-[#2563EB]"
                   />
                 </div>
-                <div className="col-span-1">
-                  <label className="block text-[10px] text-zinc-500 dark:text-zinc-400 mb-1">Reps</label>
+                <div>
+                  <label className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase mb-1">Reps</label>
                   <input
                     type="text"
                     value={addReps}
                     onChange={e => setAddReps(e.target.value)}
-                    className="w-full px-2 py-1 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-md text-zinc-900 dark:text-zinc-100 text-center font-mono"
+                    placeholder="e.g. 8-12"
+                    className="w-full px-3 py-2 border border-[#DDE1E6] dark:border-[#292E34] bg-[#FFFFFF] dark:bg-[#14171A] rounded-xl text-[#111418] dark:text-[#F5F7FA] font-mono font-bold text-xs text-center outline-none focus:ring-2 focus:ring-[#2563EB]"
                   />
                 </div>
-                <div className="col-span-1 flex items-end">
-                  <button type="submit" className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-zinc-900 dark:text-white font-bold rounded-md">
-                    Add
-                  </button>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-[#626A73] dark:text-[#A7AFB8] uppercase mb-1.5">
+                  Exercise Day Assignment
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DAYS_OF_WEEK.map(d => {
+                    const isSel = addExDays.includes(d);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => handleToggleAddExDay(d)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition ${
+                          isSel
+                            ? 'bg-[#2563EB] text-white border-[#2563EB]'
+                            : 'bg-[#FFFFFF] dark:bg-[#14171A] text-[#626A73] dark:text-[#A7AFB8] border-[#DDE1E6] dark:border-[#292E34]'
+                        }`}
+                      >
+                        {d.slice(0, 3)}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <div>
-                <label className="block text-[10px] text-zinc-500 dark:text-zinc-400 mb-1">Select Exercise</label>
-                <select
-                  value={selectedExToAdd}
-                  onChange={e => setSelectedExToAdd(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-md text-zinc-900 dark:text-zinc-100 font-bold"
-                >
-                  {exercises.map(ex => (
-                    <option key={ex.id} value={ex.id}>
-                      {ex.name} ({ex.muscleGroup})
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-[#2563EB] hover:bg-blue-600 text-white font-black rounded-xl transition text-xs flex items-center justify-center gap-2 shadow"
+              >
+                <Plus className="w-4 h-4" /> Add Exercise to Routine
+              </button>
             </form>
-          )}
+          </div>
         </div>
       )}
 
       {/* ── TAB 4: DYNAMIC NUTRITION MACRO METER ───────────────────────────── */}
       {activeTab === 'MACRO_METER' && (
-        <div className="p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex flex-col justify-between space-y-6">
+        <div className="p-4 sm:p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex flex-col justify-between space-y-4 sm:space-y-6">
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Apple className="w-5 h-5 text-emerald-500" />
@@ -934,16 +1725,19 @@ export const WorkoutsAndDiets: React.FC = () => {
                 <span className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase">Selected Plate Foods</span>
                 <div className="space-y-1.5">
                   {dietFoods.map((df, i) => {
-                    const food = foodsList.find(f => f.id === df.foodId);
+                    const currentList = Array.isArray(foodsList) && foodsList.length > 0 ? foodsList : DEFAULT_MACRO_FOODS;
+                    const food = currentList.find(f => f.id === df.foodId);
+                    const p = food?.proteinPer100g ?? (food as any)?.protein ?? 0;
+                    const c = food?.carbsPer100g ?? (food as any)?.carbohydrates ?? (food as any)?.carbs ?? 0;
                     return (
                       <div key={i} className="flex justify-between items-center py-1.5 border-b border-zinc-200 dark:border-zinc-800">
                         <div>
-                          <span className="font-bold text-zinc-700 dark:text-zinc-200">{food?.name}</span>
+                          <span className="font-bold text-zinc-700 dark:text-zinc-200">{food?.name || 'Food Item'}</span>
                           <span className="text-[10px] text-zinc-500 dark:text-zinc-400 ml-1">({df.quantityG}g portion)</span>
                         </div>
                         <span className="font-mono text-zinc-500 dark:text-zinc-400">
-                          P: {Math.round((food?.protein || 0) * (df.quantityG / 100))}g | C:{' '}
-                          {Math.round((food?.carbs || 0) * (df.quantityG / 100))}g
+                          P: {Math.round(p * (df.quantityG / 100))}g | C:{' '}
+                          {Math.round(c * (df.quantityG / 100))}g
                         </span>
                       </div>
                     );
@@ -1008,7 +1802,7 @@ export const WorkoutsAndDiets: React.FC = () => {
                   onChange={e => setSelectedFoodToAdd(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-md text-zinc-900 dark:text-zinc-100 font-bold"
                 >
-                  {foodsList.map(f => (
+                  {(Array.isArray(foodsList) && foodsList.length > 0 ? foodsList : DEFAULT_MACRO_FOODS).map(f => (
                     <option key={f.id} value={f.id}>
                       {f.name}
                     </option>
@@ -1022,22 +1816,22 @@ export const WorkoutsAndDiets: React.FC = () => {
 
       {/* ── TAB 5: BMI & COMPLETE HEALTH CALCULATOR ──────────────────────────── */}
       {activeTab === 'BMI_CALCULATOR' && (
-        <div className="p-6 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-6">
-          <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800/80 pb-4">
-            <Scale className="w-5 h-5 text-cyan-400" />
-            <div>
-              <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wide">
-                BMI & Complete Health Target Calculator
+        <div className="p-4 sm:p-6 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-4 sm:space-y-6">
+          <div className="flex items-start gap-2 border-b border-zinc-200 dark:border-zinc-800/80 pb-3">
+            <Scale className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wide leading-tight">
+                BMI & Health Calculator
               </h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 hidden sm:block">
                 Calculate Body Mass Index, BMR, Caloric Targets, Daily Fiber (g), and Hydration Water goals.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
             {/* Input Form */}
-            <div className="xl:col-span-5 space-y-4 p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 text-xs">
+            <div className="lg:col-span-5 space-y-4 p-4 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 text-xs">
               <h3 className="font-bold text-zinc-700 dark:text-zinc-200 uppercase tracking-wider mb-2">Personal Parameters</h3>
 
               <div className="space-y-4">
@@ -1197,90 +1991,94 @@ export const WorkoutsAndDiets: React.FC = () => {
             </div>
 
             {/* Results Grid */}
-            <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="lg:col-span-7 grid grid-cols-2 gap-2.5 sm:gap-4">
               {/* BMI Card */}
-              <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 space-y-2">
-                <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                  <Scale className="w-3.5 h-3.5 text-cyan-400" /> Body Mass Index (BMI)
-                </span>
-                <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-black text-zinc-900 dark:text-white font-mono">{healthMetrics ? healthMetrics.bmi : '--'}</span>
-                  <span className={`text-xs font-bold ${healthMetrics ? healthMetrics.bmiColor : 'text-zinc-500'}`}>{healthMetrics ? healthMetrics.bmiStatus : 'Calculating...'}</span>
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                    <Scale className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> <span className="truncate">BMI Index</span>
+                  </span>
+                  <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 mt-1">
+                    <span className="text-xl sm:text-3xl font-black text-zinc-900 dark:text-white font-mono">{healthMetrics ? healthMetrics.bmi : '--'}</span>
+                    <span className={`text-[10px] sm:text-xs font-bold truncate ${healthMetrics ? healthMetrics.bmiColor : 'text-zinc-500'}`}>{healthMetrics ? healthMetrics.bmiStatus : 'Calculating...'}</span>
+                  </div>
                 </div>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Ideal healthy adult BMI range is 18.5 – 24.9 kg/m².
+                <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 mt-2">
+                  Target: 18.5 – 24.9 kg/m²
                 </p>
               </div>
 
               {/* BMR & Maintenance */}
-              <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 space-y-2">
-                <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                  <Flame className="w-3.5 h-3.5 text-amber-400" /> Basal Metabolic Rate (BMR)
-                </span>
-                <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-black text-amber-400 font-mono">{healthMetrics ? healthMetrics.bmr : '--'}</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">kcal/day at rest</span>
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                    <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" /> <span className="truncate">BMR Resting</span>
+                  </span>
+                  <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 mt-1">
+                    <span className="text-xl sm:text-3xl font-black text-amber-400 font-mono">{healthMetrics ? healthMetrics.bmr : '--'}</span>
+                    <span className="text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400">kcal/day</span>
+                  </div>
                 </div>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Maintenance TDEE: <span className="text-zinc-700 dark:text-zinc-200 font-bold">{healthMetrics ? healthMetrics.tdee : '--'} kcal</span>
+                <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 mt-2 truncate">
+                  TDEE: <span className="text-zinc-700 dark:text-zinc-200 font-bold">{healthMetrics ? healthMetrics.tdee : '--'} kcal</span>
                 </p>
               </div>
 
               {/* Goal Targets (Bulk / Cut) */}
-              <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 space-y-2">
-                <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                  <Zap className="w-3.5 h-3.5 text-blue-400" /> Caloric Goal Targets
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 space-y-2">
+                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                  <Zap className="w-3.5 h-3.5 text-blue-400 shrink-0" /> <span className="truncate">Caloric Targets</span>
                 </span>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500 dark:text-zinc-400">Hypertrophy Bulk (+350):</span>
-                    <span className="font-mono font-bold text-emerald-400">{healthMetrics ? healthMetrics.bulkCals : '--'} kcal</span>
+                <div className="space-y-1 text-[11px] sm:text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500 dark:text-zinc-400 truncate">Bulk (+350):</span>
+                    <span className="font-mono font-bold text-emerald-400 shrink-0">{healthMetrics ? healthMetrics.bulkCals : '--'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500 dark:text-zinc-400">Fat Loss Cut (-450):</span>
-                    <span className="font-mono font-bold text-amber-400">{healthMetrics ? healthMetrics.cutCals : '--'} kcal</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500 dark:text-zinc-400 truncate">Cut (-450):</span>
+                    <span className="font-mono font-bold text-amber-400 shrink-0">{healthMetrics ? healthMetrics.cutCals : '--'}</span>
                   </div>
                 </div>
               </div>
 
               {/* Fiber & Water Hydration */}
-              <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 space-y-2">
-                <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                  <Droplets className="w-3.5 h-3.5 text-emerald-400" /> Daily Fiber & Hydration
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 space-y-2">
+                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                  <Droplets className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> <span className="truncate">Fiber & Water</span>
                 </span>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500 dark:text-zinc-400">Dietary Fiber Target:</span>
-                    <span className="font-mono font-bold text-emerald-400">{healthMetrics ? healthMetrics.fiberGrams : '--'}g / day</span>
+                <div className="space-y-1 text-[11px] sm:text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500 dark:text-zinc-400 truncate">Fiber:</span>
+                    <span className="font-mono font-bold text-emerald-400 shrink-0">{healthMetrics ? healthMetrics.fiberGrams : '--'}g/d</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500 dark:text-zinc-400">Hydration Water Target:</span>
-                    <span className="font-mono font-bold text-blue-400">{healthMetrics ? healthMetrics.waterLiters : '--'} Liters</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500 dark:text-zinc-400 truncate">Water:</span>
+                    <span className="font-mono font-bold text-blue-400 shrink-0">{healthMetrics ? healthMetrics.waterLiters : '--'}L</span>
                   </div>
                 </div>
               </div>
 
               {/* Dynamic Unit Conversion Telemetry */}
-              <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 space-y-2 sm:col-span-2">
-                <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                  <Activity className="w-3.5 h-3.5 text-cyan-400" /> Real-time Unit Conversions
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 space-y-2 col-span-2">
+                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                  <Activity className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> Real-time Unit Conversions
                 </span>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 text-center font-mono text-xs">
-                  <div className="p-2 rounded bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
+                  <div className="p-2 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
                     <span className="text-cyan-400 font-bold block">{healthMetrics ? healthMetrics.normalizedHeightCm : '--'} cm</span>
                     <span className="text-[9px] text-zinc-500 font-sans">Centimeters</span>
                   </div>
-                  <div className="p-2 rounded bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
+                  <div className="p-2 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
                     <span className="text-cyan-400 font-bold block">{healthMetrics ? healthMetrics.normalizedHeightM : '--'} m</span>
                     <span className="text-[9px] text-zinc-500 font-sans">Meters</span>
                   </div>
-                  <div className="p-2 rounded bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
+                  <div className="p-2 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
                     <span className="text-cyan-400 font-bold block">{healthMetrics ? healthMetrics.heightFtInDisplay : '--'}</span>
                     <span className="text-[9px] text-zinc-500 font-sans font-medium">Feet & Inches</span>
                   </div>
-                  <div className="p-2 rounded bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
-                    <span className="text-amber-400 font-bold block">{healthMetrics ? `${healthMetrics.normalizedWeightKg} kg / ${healthMetrics.normalizedWeightLbs} lbs` : '-- kg / -- lbs'}</span>
-                    <span className="text-[9px] text-zinc-500 font-sans">Weight Equivalent</span>
+                  <div className="p-2 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
+                    <span className="text-amber-400 font-bold block">{healthMetrics ? `${healthMetrics.normalizedWeightKg}kg / ${healthMetrics.normalizedWeightLbs}lbs` : '-- kg / -- lbs'}</span>
+                    <span className="text-[9px] text-zinc-500 font-sans">Weight Eq.</span>
                   </div>
                 </div>
               </div>
@@ -1296,7 +2094,26 @@ export const WorkoutsAndDiets: React.FC = () => {
       <WorkoutTimerModal 
         isOpen={isTimerOpen} 
         onClose={() => setIsTimerOpen(false)} 
-        exercises={activeSplit?.exercises || []} 
+        exercises={(activeSplit?.exercises || []).map((ex: any, idx: number) => {
+          const exName = ex.name || ex.exerciseName || ex.exercise?.name || `Workout Movement ${idx + 1}`;
+          const exDesc = ex.description || ex.exercise?.description || 'Hypertrophy execution with strict tempo control.';
+          const mechanics = ex.mechanics || ex.exercise?.mechanics || 'COMPOUND';
+          const muscle = ex.muscleGroup || ex.exercise?.muscleGroup || 'TARGET';
+          
+          const fullExercise = exercises.find(e => e.id === ex.exerciseId) || {
+            id: ex.exerciseId || `temp-${idx}`,
+            name: exName,
+            description: exDesc,
+            muscleGroup: muscle,
+            mechanics: mechanics,
+            equipment: 'Various',
+            recommendedSets: ex.sets || 4,
+            recommendedReps: ex.reps ? String(ex.reps) : '8-12',
+            executionSteps: ex.stepOneDescription ? `${ex.stepOneDescription}\n${ex.stepTwoDescription || ''}` : undefined
+          } as Exercise;
+
+          return { ...ex, fullExercise };
+        })} 
       />
     </div>
   );

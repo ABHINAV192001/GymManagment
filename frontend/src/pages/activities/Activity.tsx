@@ -10,7 +10,7 @@ import { usePermissions } from '../../lib/usePermissions';
 
 export const Activities: React.FC = () => {
   const { triggerAnnouncement, selectedBranchId } = useOutletContext<{ selectedBranchId: string; triggerAnnouncement: (msg: string) => void }>();
-  const { canCreate, canDelete, canBookSpot } = usePermissions();
+  const { canCreate, canEdit, canDelete, canBookSpot } = usePermissions();
   
   const [activities, setActivities] = useState<Activity[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -332,28 +332,32 @@ export const Activities: React.FC = () => {
 
                       {/* Edit / Delete Action Buttons */}
                       <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenEdit(gs);
-                          }}
-                          className="p-1.5 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition"
-                          title="Edit Activity"
-                        >
-                          <Edit3 className="w-4 h-4 text-blue-500" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSoftDelete(gs.id, gs.title);
-                          }}
-                          className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition"
-                          title="Delete Activity"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </button>
+                        {canEdit('activity') && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEdit(gs);
+                            }}
+                            className="p-1.5 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition"
+                            title="Edit Activity"
+                          >
+                            <Edit3 className="w-4 h-4 text-blue-500" />
+                          </button>
+                        )}
+                        {canDelete('activity') && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSoftDelete(gs.id, gs.title);
+                            }}
+                            className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition"
+                            title="Delete Activity"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

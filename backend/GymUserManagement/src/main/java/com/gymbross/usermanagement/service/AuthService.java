@@ -14,6 +14,7 @@ import com.gymbross.usermanagement.dto.RegisterStaffDto;
 import com.gymbross.usermanagement.dto.RegisterTrainerDto;
 import com.gymbross.usermanagement.dto.RegisterUserDto;
 import com.gymbross.usermanagement.entity.RefreshToken;
+import com.Gym.GymCommonServices.exception.DuplicateResourceException;
 import com.Gym.GymCommonServices.exception.ResourceNotFoundException;
 import com.Gym.GymCommonServices.exception.UnauthorizedException;
 import com.gymbross.usermanagement.repository.*;
@@ -62,7 +63,7 @@ public class AuthService {
         String orgUsername = UsernameGenerator.generateOrganizationUsername(request.getName());
 
         if (organizationRepository.existsByOwnerEmail(request.getOwnerEmail())) {
-            throw new RuntimeException("Organization with this email already exists");
+            throw new DuplicateResourceException("Organization with this email already exists");
         }
 
         Organization organization = Organization.builder()
@@ -237,7 +238,7 @@ public class AuthService {
     @Transactional
     public String registerUser(RegisterUserDto request) {
         if (userRepository.existsByEmailIgnoreCase(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new DuplicateResourceException("Email already exists");
         }
         Organization org = organizationRepository.findById(request.getOrgId()).orElseThrow(() -> new ResourceNotFoundException("Org not found"));
         Branch branch = branchRepository.findById(request.getBranchId()).orElseThrow(() -> new ResourceNotFoundException("Branch not found"));
@@ -259,7 +260,7 @@ public class AuthService {
 
     @Transactional
     public String registerTrainer(RegisterTrainerDto request) {
-        if (userRepository.existsByEmailIgnoreCase(request.getEmail())) throw new RuntimeException("Email already exists");
+        if (userRepository.existsByEmailIgnoreCase(request.getEmail())) throw new DuplicateResourceException("Email already exists");
         Organization org = organizationRepository.findById(request.getOrgId()).orElseThrow(() -> new ResourceNotFoundException("Org not found"));
         Branch branch = branchRepository.findById(request.getBranchId()).orElseThrow(() -> new ResourceNotFoundException("Branch not found"));
 
@@ -287,7 +288,7 @@ public class AuthService {
 
     @Transactional
     public String registerStaff(RegisterStaffDto request) {
-        if (userRepository.existsByEmailIgnoreCase(request.getEmail())) throw new RuntimeException("Email already exists");
+        if (userRepository.existsByEmailIgnoreCase(request.getEmail())) throw new DuplicateResourceException("Email already exists");
         Organization org = organizationRepository.findById(request.getOrgId()).orElseThrow(() -> new ResourceNotFoundException("Org not found"));
         Branch branch = branchRepository.findById(request.getBranchId()).orElseThrow(() -> new ResourceNotFoundException("Branch not found"));
 
@@ -314,7 +315,7 @@ public class AuthService {
 
     @Transactional
     public String registerPremiumUser(RegisterPremiumUserDto request) {
-        if (userRepository.existsByEmailIgnoreCase(request.getEmail())) throw new RuntimeException("Email already exists");
+        if (userRepository.existsByEmailIgnoreCase(request.getEmail())) throw new DuplicateResourceException("Email already exists");
         Organization org = organizationRepository.findById(request.getOrgId()).orElseThrow(() -> new ResourceNotFoundException("Org not found"));
         Branch branch = branchRepository.findById(request.getBranchId()).orElseThrow(() -> new ResourceNotFoundException("Branch not found"));
 
@@ -343,7 +344,22 @@ public class AuthService {
     public String completeRegistration(CompleteRegistrationRequest request) {
         validatePasswordStrength(request.getPassword());
         String encodedPassword = passwordEncoder.encode(request.getPassword());
-        User user = userRepository.findByUserCode(request.getUserCode()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        User user = null;
+        if (request.getUserCode() != null && !request.getUserCode().trim().isEmpty()) {
+            user = userRepository.findByUserCode(request.getUserCode().trim()).orElse(null);
+        }
+        if (user == null && request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+            user = userRepository.findTopByEmail(request.getEmail().trim()).orElse(null);
+        }
+        if (user == null && request.getUserCode() != null && request.getUserCode().contains("@")) {
+            user = userRepository.findTopByEmail(request.getUserCode().trim()).orElse(null);
+        }
+
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found for registration verification");
+        }
+
         otpService.verifyOtp(user.getEmail(), request.getOtp(), "REGISTER");
         user.setPasswordHash(encodedPassword);
         user.setIsActive(true);
@@ -438,13 +454,16 @@ public class AuthService {
 
         // Load permissions
         Set<String> permissions = new HashSet<>();
-        if (userDetails instanceof User) {
-            User user = (User) userDetails;
+        if ("ORG_ADMIN".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role) || "SUPER_ADMIN".equalsIgnoreCase(role)) {
+            permissions.add("*");
+        } else if (userDetails instanceof User user) {
             if (user.getRoles() != null) {
                 for (RbacRole r : user.getRoles()) {
                     if (r.getPermissions() != null) {
                         for (RbacPermission p : r.getPermissions()) {
-                            permissions.add(p.getSubModule());
+                            if (p.getSubModule() != null) {
+                                permissions.add(p.getSubModule());
+                            }
                         }
                     }
                 }

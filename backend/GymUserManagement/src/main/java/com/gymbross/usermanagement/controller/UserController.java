@@ -2,6 +2,8 @@ package com.gymbross.usermanagement.controller;
 
 import com.Gym.GymCommonServices.dto.ApiResponse;
 import com.gymbross.usermanagement.dto.UserProfileDto;
+import com.gymbross.usermanagement.dto.NotificationBundleDto;
+import com.gymbross.usermanagement.service.NotificationBundleService;
 import com.gymbross.usermanagement.service.strategy.UserProfileFacade;
 import com.gymbross.usermanagement.dto.WaterLogRequestDto;
 import com.gymbross.usermanagement.service.UserService;
@@ -24,6 +26,30 @@ public class UserController {
 
     private final UserService userService;
     private final UserProfileFacade userProfileFacade;
+    private final NotificationBundleService notificationBundleService;
+
+    @GetMapping("/notification-bundle")
+    public ResponseEntity<ApiResponse<NotificationBundleDto>> getNotificationBundle(Principal principal) {
+        return ResponseEntity.ok(ApiResponse.success(notificationBundleService.getNotificationBundle(principal.getName())));
+    }
+
+    @PutMapping("/notification-bundle")
+    public ResponseEntity<ApiResponse<NotificationBundleDto>> saveNotificationBundle(
+            Principal principal,
+            @RequestBody NotificationBundleDto dto) {
+        return ResponseEntity.ok(ApiResponse.success(
+                notificationBundleService.saveNotificationBundle(principal.getName(), dto),
+                "Notification Routine Bundle saved successfully"
+        ));
+    }
+
+    @PostMapping("/notification-bundle/send-email")
+    public ResponseEntity<ApiResponse<Void>> sendNotificationBundleEmail(
+            Principal principal,
+            @RequestBody NotificationBundleDto dto) {
+        notificationBundleService.sendNotificationBundleEmail(principal.getName(), dto);
+        return ResponseEntity.ok(ApiResponse.success(null, "Daily Routine Notification Bundle sent to your email successfully!"));
+    }
 
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<UserProfileDto>> getProfile(Principal principal) {

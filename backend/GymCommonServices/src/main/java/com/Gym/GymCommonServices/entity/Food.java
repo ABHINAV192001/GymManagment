@@ -46,6 +46,24 @@ public class Food extends com.Gym.GymCommonServices.common.BaseEntity {
     private Double iron;
     private Double cholesterol;
     private Double sodium;
+    private Double magnesium;
+    private Double potassium;
+
+    @Column(name = "vitamin_c")
+    private Double vitaminC;
+
+    @Column(name = "vitamin_d")
+    private Double vitaminD;
+
+    // Recipe fields
+    @Column(name = "is_recipe")
+    private Boolean isRecipe;
+
+    @Column(name = "recipe_ingredients", columnDefinition = "TEXT")
+    private String recipeIngredients;
+
+    @Column(name = "recipe_instructions", columnDefinition = "TEXT")
+    private String recipeInstructions;
 
     // Attributes
     @Column(name = "cooking_time")
@@ -76,4 +94,8 @@ public class Food extends com.Gym.GymCommonServices.common.BaseEntity {
 
     @Column(name = "high_fiber")
     private Boolean highFiber;
+
+    @Column(name = "magnesium_rich")
+    private Boolean magnesiumRich;
 }
+

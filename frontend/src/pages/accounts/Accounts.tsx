@@ -162,46 +162,46 @@ export const Accounts: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Financial Overview Strip (0 Hardcoded Values) */}
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-4" aria-label="Financial summaries">
-        <div className="p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Gross Income</span>
-            <h4 className="text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-1 font-mono">₹{totalIncome.toLocaleString()}</h4>
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4" aria-label="Financial summaries">
+        <div className="p-3.5 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex items-center justify-between">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 uppercase tracking-wider truncate block">Gross Income</span>
+            <h4 className="text-base sm:text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-0.5 font-mono truncate">₹{totalIncome.toLocaleString()}</h4>
           </div>
-          <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
-            <ArrowUpRight className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Expenditures</span>
-            <h4 className="text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-1 font-mono">₹{totalExpense.toLocaleString()}</h4>
-          </div>
-          <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400">
-            <ArrowDownRight className="w-5 h-5" />
+          <div className="p-2 sm:p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+            <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Net Surplus / Profit</span>
-            <h4 className={`text-2xl font-black mt-1 font-mono ${netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
+        <div className="p-3.5 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex items-center justify-between">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 uppercase tracking-wider truncate block">Expenditures</span>
+            <h4 className="text-base sm:text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-0.5 font-mono truncate">₹{totalExpense.toLocaleString()}</h4>
+          </div>
+          <div className="p-2 sm:p-3 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 shrink-0">
+            <ArrowDownRight className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+        </div>
+
+        <div className="p-3.5 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex items-center justify-between">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 uppercase tracking-wider truncate block">Net Profit</span>
+            <h4 className={`text-base sm:text-2xl font-black mt-0.5 font-mono truncate ${netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
               ₹{netProfit.toLocaleString()}
             </h4>
           </div>
-          <div className={`p-3 rounded-xl ${netProfit >= 0 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30' : 'bg-red-50 text-red-600'}`}>
-            <DollarSign className="w-5 h-5" />
+          <div className={`p-2 sm:p-3 rounded-xl shrink-0 ${netProfit >= 0 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30' : 'bg-red-50 text-red-600'}`}>
+            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Operating Profit Margin</span>
-            <h4 className="text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-1 font-mono">{profitMarginPercent}%</h4>
+        <div className="p-3.5 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm flex items-center justify-between">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 uppercase tracking-wider truncate block">Profit Margin</span>
+            <h4 className="text-base sm:text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-0.5 font-mono truncate">{profitMarginPercent}%</h4>
           </div>
-          <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400">
-            <Percent className="w-5 h-5" />
+          <div className="p-2 sm:p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 shrink-0">
+            <Percent className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
       </section>

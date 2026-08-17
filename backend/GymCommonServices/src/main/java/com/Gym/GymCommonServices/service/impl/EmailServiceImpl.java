@@ -32,7 +32,6 @@ public class EmailServiceImpl implements EmailService {
             System.out.println("Email Sent Successfully to: " + to + " (From: " + fromEmail + ")");
         } catch (Exception e) {
             System.err.println("FAILED TO SEND EMAIL to " + to + ": " + e.getMessage());
-            e.printStackTrace();
         }
     }
 }

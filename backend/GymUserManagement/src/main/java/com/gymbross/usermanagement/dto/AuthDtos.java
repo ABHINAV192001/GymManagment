@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -47,6 +48,7 @@ public class AuthDtos {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RegisterRequest {
         @JsonProperty("Gymname")
+        @JsonAlias({"name", "gymName"})
         @NotBlank(message = "Gym name is required")
         private String name; // Organization name
 
@@ -84,6 +86,7 @@ public class AuthDtos {
         private String pan;
 
         @JsonProperty("Phone")
+        @JsonAlias({"phone"})
         @NotBlank(message = "Phone number is required")
         @Pattern(regexp = "^\\d{10}$", message = "Phone number must be exactly 10 digits")
         private String phone;
@@ -153,13 +156,9 @@ public class AuthDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CompleteRegistrationRequest {
-        @NotBlank(message = "User Code is required")
         private String userCode;
-
-        @NotBlank(message = "User Code is required")
+        private String email;
         private String adminCode;
-
-        @NotBlank(message = "String is required")
         private String role;
 
         @NotBlank(message = "Password is required")

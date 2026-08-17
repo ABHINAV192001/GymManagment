@@ -71,13 +71,15 @@ public class AdminServiceImpl implements AdminService {
                         String startDateTo) {
                 List<User> users;
                 
-                // 1. Resolve Organization ID if null from Security Context
+                // 1. Resolve Organization ID and currentUserId from Security Context
                 java.util.UUID targetOrgId = organizationId;
-                if (targetOrgId == null) {
-                        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-                        if (auth != null && auth.getPrincipal() instanceof User currentUser && currentUser.getOrganization() != null) {
+                java.util.UUID currentUserId = null;
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof User currentUser) {
+                        if (targetOrgId == null && currentUser.getOrganization() != null) {
                                 targetOrgId = currentUser.getOrganization().getId();
                         }
+                        currentUserId = currentUser.getId();
                 }
 
                 // 2. Fetch Users based on Explicit Branch Filter or Organization ID
@@ -91,8 +93,10 @@ public class AdminServiceImpl implements AdminService {
                         users = userRepository.findAll();
                 }
 
+                final java.util.UUID loggedInId = currentUserId;
                 return users.stream()
                                 .filter(user -> !Boolean.TRUE.equals(user.getIsDeleted()))
+                                .filter(user -> loggedInId == null || !user.getId().equals(loggedInId))
                                 .filter(user -> user.getRoles() == null
                                                 || user.getRoles().stream().noneMatch(r -> "ORG_ADMIN".equalsIgnoreCase(r.getName())))
                                 // 1. Search Query (Name, Phone, Email, UserCode)
@@ -494,8 +498,8 @@ public class AdminServiceImpl implements AdminService {
                                         .collect(Collectors.joining(",", "[", "]"));
                         user.setAccessibleBranchIds(jsonBranchIds);
                 }
-                if (userDto.getRole() != null) {
-                        String reqRole = userDto.getRole();
+                if (userDto.getRole() != null && !userDto.getRole().trim().isEmpty()) {
+                        String reqRole = userDto.getRole().trim();
                         if ("ORG_ADMIN".equalsIgnoreCase(reqRole) || "ADMIN".equalsIgnoreCase(reqRole)) {
                                 String uEmail = user.getEmail() != null ? user.getEmail() : (userDto.getEmail() != null ? userDto.getEmail() : "");
                                 String oEmail = user.getOrganization() != null ? user.getOrganization().getOwnerEmail() : "";
@@ -503,7 +507,37 @@ public class AdminServiceImpl implements AdminService {
                                         throw new IllegalArgumentException("The ORG_ADMIN role is strictly reserved for the registered organization owner email (" + oEmail + ").");
                                 }
                         }
-                        user.setRole(reqRole);
+                        
+                        final String finalRole = reqRole;
+                        java.util.UUID orgId = user.getOrganization() != null ? user.getOrganization().getId() : null;
+                        com.gymbross.usermanagement.entity.RbacRole rbacRole = rbacRoleRepository
+                                .findByNameAndOrgId(finalRole, orgId)
+                                .or(() -> rbacRoleRepository.findByNameAndOrgIdIsNull(finalRole))
+                                .orElseGet(() -> {
+                                        return rbacRoleRepository.save(com.gymbross.usermanagement.entity.RbacRole.builder()
+                                                .name(finalRole)
+                                                .orgId(orgId)
+                                                .isActive(true)
+                                                .isDeleted(false)
+                                                .build());
+                                });
+
+                        // Native SQL: reliably swap the role in user_roles join table.
+                        // (Hibernate collection ops are unreliable here because the two
+                        //  RbacRole entity classes have different equals/hashCode.)
+                        entityManager.createNativeQuery(
+                                "DELETE FROM user_roles WHERE user_id = :uid")
+                                .setParameter("uid", user.getId())
+                                .executeUpdate();
+                        entityManager.createNativeQuery(
+                                "INSERT INTO user_roles (user_id, role_id, assigned_at, created_at) " +
+                                "VALUES (:uid, :rid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
+                                .setParameter("uid", user.getId())
+                                .setParameter("rid", rbacRole.getId())
+                                .executeUpdate();
+                        // Refresh so the in-memory roles Set reflects the DB change
+                        entityManager.flush();
+                        entityManager.refresh(user);
                 }
 
                 // User Lookup: Prefer Code, then Name
@@ -582,6 +616,20 @@ public class AdminServiceImpl implements AdminService {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 assertCallerCanAccessUser(user);
+                
+                // Prevent user from deleting their own account
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null) {
+                    if (auth.getPrincipal() instanceof User currentLoggedIn) {
+                        if (currentLoggedIn.getId().equals(user.getId())) {
+                            throw new IllegalArgumentException("You cannot delete your own user account.");
+                        }
+                    } else if (auth.getName() != null) {
+                        if (auth.getName().equalsIgnoreCase(user.getEmail()) || auth.getName().equalsIgnoreCase(user.getUsername())) {
+                            throw new IllegalArgumentException("You cannot delete your own user account.");
+                        }
+                    }
+                }
                 
                 if (user.getStaffProfile() != null) {
                     staffProfileRepository.delete(user.getStaffProfile());

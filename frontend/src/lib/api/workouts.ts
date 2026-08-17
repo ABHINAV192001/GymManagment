@@ -10,6 +10,11 @@ export async function getWorkouts(): Promise<WorkoutPlan[]> {
   return response.data || [];
 }
 
+export async function getMySplits(): Promise<WorkoutPlan[]> {
+  const response = await fetchWithAuth(`${BASE_URL}/my-splits`);
+  return response.data || [];
+}
+
 export async function createWorkout(workout: Partial<WorkoutPlan>): Promise<WorkoutPlan> {
   const response = await fetchWithAuth(BASE_URL, {
     method: 'POST',

@@ -34,14 +34,35 @@ interface FloatingChatWidgetProps {
   currentUserRole?: string;
   currentUserId?: string;
   onAnnounce?: (msg: string) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  showFloatingButton?: boolean;
 }
 
 export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
   currentUserRole = 'MEMBER',
   currentUserId = 'current-user-1',
   onAnnounce,
+  isOpen: externalIsOpen,
+  onClose: externalOnClose,
+  showFloatingButton = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+  
+  const handleClose = () => {
+    if (externalOnClose) externalOnClose();
+    setInternalIsOpen(false);
+  };
+  
+  const toggleWidget = () => {
+    if (externalIsOpen !== undefined) {
+      if (externalIsOpen && externalOnClose) externalOnClose();
+    } else {
+      setInternalIsOpen(prev => !prev);
+    }
+  };
+
   const [activeContact, setActiveContact] = useState<DynamicContact | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [typedMessage, setTypedMessage] = useState('');
@@ -262,45 +283,46 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     }
   };
 
-  const toggleWidget = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) {
+  useEffect(() => {
+    if (isOpen) {
       setUnreadCount(0);
       loadRealDirectory();
     }
-  };
+  }, [isOpen]);
 
   return (
     <>
-      {/* Floating Chat Trigger Button - Fixed Bottom Right */}
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
-        <button
-          onClick={toggleWidget}
-          aria-label={isOpen ? 'Close Chat Window' : 'Open WhatsApp Style Live Chat'}
-          className={`group relative p-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center ${
-            isOpen
-              ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 ring-4 ring-zinc-400/30'
-              : 'bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-600 text-white ring-4 ring-emerald-500/30 hover:shadow-emerald-500/40'
-          }`}
-        >
-          {isOpen ? (
-            <X className="w-6 h-6 transition-transform duration-200 rotate-0 group-hover:rotate-90" />
-          ) : (
-            <>
-              <MessageCircle className="w-6 h-6 animate-pulse" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center ring-2 ring-white dark:ring-zinc-900 animate-bounce">
-                  {unreadCount}
-                </span>
-              )}
-            </>
-          )}
-        </button>
-      </div>
+      {/* Floating Chat Trigger Button - Only rendered if showFloatingButton is true */}
+      {showFloatingButton && (
+        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 flex items-center gap-2">
+          <button
+            onClick={toggleWidget}
+            aria-label={isOpen ? 'Close Chat Window' : 'Open WhatsApp Style Live Chat'}
+            className={`group relative p-3.5 md:p-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center ${
+              isOpen
+                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 ring-4 ring-zinc-400/30'
+                : 'bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-600 text-white ring-4 ring-emerald-500/30 hover:shadow-emerald-500/40'
+            }`}
+          >
+            {isOpen ? (
+              <X className="w-5 h-5 md:w-6 md:h-6 transition-transform duration-200 rotate-0 group-hover:rotate-90" />
+            ) : (
+              <>
+                <MessageCircle className="w-5 h-5 md:w-6 md:h-6 animate-pulse" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center ring-2 ring-white dark:ring-zinc-900 animate-bounce">
+                    {unreadCount}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Floating Chat Widget Popup Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 max-w-[calc(100vw-2rem)] h-[570px] max-h-[calc(100vh-7rem)] z-50 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200 text-xs">
+        <div className="fixed bottom-20 md:bottom-6 right-2 sm:right-6 w-96 max-w-[calc(100vw-1rem)] h-[570px] max-h-[calc(100vh-6rem)] z-50 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200 text-xs">
           
           {/* Header */}
           <div className="bg-gradient-to-r from-emerald-950 via-zinc-900 to-teal-950 p-3.5 text-white flex items-center justify-between shadow-md">
@@ -332,9 +354,9 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
             </div>
 
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={handleClose}
               className="p-1 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition"
-              aria-label="Minimize Chat"
+              aria-label="Close Chat Window"
             >
               <X className="w-4 h-4" />
             </button>

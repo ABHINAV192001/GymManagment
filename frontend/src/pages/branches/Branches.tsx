@@ -45,8 +45,12 @@ export const Branches: React.FC = () => {
 
   const refreshBranches = async () => {
     try {
-      const b = await getBranches();
+      const [b, stf] = await Promise.all([
+        getBranches(),
+        getStaff().catch(() => [])
+      ]);
       setBranches(Array.isArray(b) ? b : []);
+      setStaff(Array.isArray(stf) ? stf : []);
     } catch (err: any) {
       triggerAnnouncement('Failed to refresh branches data: ' + err.message);
     }

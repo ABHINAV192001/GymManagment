@@ -245,7 +245,7 @@ export const Plans: React.FC = () => {
           <p className="text-xs text-zinc-500">Create custom membership tiers for your gym.</p>
         </div>
       ) : (
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-label="Plans Catalog">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" aria-label="Plans Catalog">
           {plans.map((p) => {
             const parsed = parsePlanDescription(p.description);
             const priceNum = p?.price != null ? Number(p.price) : 0;
@@ -259,7 +259,7 @@ export const Plans: React.FC = () => {
             return (
               <div
                 key={p.id}
-                className="p-6 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between hover:border-blue-500/50 transition relative overflow-hidden group shadow-sm"
+                className="p-4 sm:p-6 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between hover:border-blue-500/50 transition relative overflow-hidden group shadow-sm"
               >
                 <div>
                   {/* Plan Card Header */}
@@ -329,18 +329,22 @@ export const Plans: React.FC = () => {
 
                 {/* Footer Action Bar */}
                 <div className="pt-4 border-t border-zinc-100 dark:border-zinc-900 flex justify-end gap-2 text-[10px] font-mono">
-                  <button
-                    onClick={() => handleOpenEdit(p)}
-                    className="px-3 py-1.5 font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 rounded-lg border border-blue-200 dark:border-blue-800 transition flex items-center gap-1"
-                  >
-                    <Pencil className="w-3 h-3" /> Edit
-                  </button>
-                  <button
-                    onClick={() => { setPlanToDelete(p); setIsDeleteOpen(true); }}
-                    className="px-3 py-1.5 font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 rounded-lg border border-red-200 dark:border-red-800 transition flex items-center gap-1"
-                  >
-                    <Trash2 className="w-3 h-3" /> Delete
-                  </button>
+                  {canEdit('plans') && (
+                    <button
+                      onClick={() => handleOpenEdit(p)}
+                      className="px-3 py-1.5 font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 rounded-lg border border-blue-200 dark:border-blue-800 transition flex items-center gap-1"
+                    >
+                      <Pencil className="w-3 h-3" /> Edit
+                    </button>
+                  )}
+                  {canDelete('plans') && (
+                    <button
+                      onClick={() => { setPlanToDelete(p); setIsDeleteOpen(true); }}
+                      className="px-3 py-1.5 font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 rounded-lg border border-red-200 dark:border-red-800 transition flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" /> Delete
+                    </button>
+                  )}
                 </div>
               </div>
             );

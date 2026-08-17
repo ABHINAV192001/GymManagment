@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Send, MessageCircle, Lock, Search, Radio, Users, Bot, Sparkles } from 'lucide-react';
+import { Send, MessageCircle, Lock, Search, Radio, Users, Bot, Sparkles, ChevronLeft } from 'lucide-react';
 import { ChatMessage, Staff, Member } from '../../types';
 import { getChatHistory, sendChatMessage } from '../../lib/api/chat';
 import { getUsers, getStaff } from '../../lib/api/admin';
@@ -14,6 +14,7 @@ export const Chat: React.FC = () => {
   const [contacts, setContacts] = useState<DynamicContact[]>([]);
   const [activeContact, setActiveContact] = useState<DynamicContact | null>(null);
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(true);
+  const [mobileChatView, setMobileChatView] = useState<'list' | 'thread'>('list');
   
   const [search, setSearch] = useState('');
   const [typedMessage, setTypedMessage] = useState('');
@@ -231,7 +232,9 @@ export const Chat: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[540px] rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden text-xs shadow-lg">
         {/* Contact Directory Sidebar */}
-        <div className="md:col-span-1 border-r border-zinc-150 dark:border-zinc-800 p-3.5 bg-zinc-50 dark:bg-zinc-900/40 flex flex-col gap-3">
+        <div className={`md:col-span-1 border-r border-zinc-150 dark:border-zinc-800 p-3.5 bg-zinc-50 dark:bg-zinc-900/40 flex-col gap-3 ${
+          mobileChatView === 'list' || activeTab === 'BROADCAST' ? 'flex' : 'hidden md:flex'
+        }`}>
           
           {/* Org Admin Tabs */}
           {isStaffUser && (
@@ -239,7 +242,7 @@ export const Chat: React.FC = () => {
               {(['ALL', 'STAFF', 'MEMBERS', 'BROADCAST'] as const).map(tab => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => { setActiveTab(tab); setMobileChatView('list'); }}
                   className={`flex-1 py-1.5 text-center transition ${
                     activeTab === tab
                       ? 'bg-emerald-600 text-white'
@@ -284,7 +287,7 @@ export const Chat: React.FC = () => {
               displayedContacts.map(contact => (
                 <button
                   key={contact.id}
-                  onClick={() => setActiveContact(contact)}
+                  onClick={() => { setActiveContact(contact); setMobileChatView('thread'); }}
                   className={`w-full p-2.5 rounded-xl text-left transition flex items-center justify-between ${
                     activeContact?.id === contact.id
                       ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-900/50 shadow-sm'
@@ -314,7 +317,9 @@ export const Chat: React.FC = () => {
         </div>
 
         {/* Chat Thread / Broadcast Workspace */}
-        <div className="md:col-span-2 flex flex-col justify-between h-full bg-white dark:bg-zinc-950">
+        <div className={`md:col-span-2 flex-col justify-between h-full bg-white dark:bg-zinc-950 ${
+          mobileChatView === 'thread' || activeTab === 'BROADCAST' ? 'flex' : 'hidden md:flex'
+        }`}>
           {activeTab === 'BROADCAST' && isStaffUser ? (
             <form onSubmit={handleSendBroadcast} className="flex-1 p-6 space-y-4 flex flex-col justify-between">
               <div className="space-y-4">
@@ -367,11 +372,18 @@ export const Chat: React.FC = () => {
           ) : (
             <>
               {/* Header */}
-              <div className="p-4 border-b border-zinc-150 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <MessageCircle className="w-5 h-5 text-emerald-500" />
-                  <div>
-                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+              <div className="p-3.5 sm:p-4 border-b border-zinc-150 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900 flex justify-between items-center">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={() => setMobileChatView('list')}
+                    className="md:hidden p-1.5 -ml-1 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                    title="Back to Contact Directory"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <MessageCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">
                       {activeContact ? activeContact.name : 'Select Contact'}
                     </h3>
                     <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">

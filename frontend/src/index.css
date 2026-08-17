@@ -23,6 +23,15 @@
   color-scheme: light;
 }
 
+/* Hide scrollbar utility for sleek UI */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Light mode base body canvas matching Gym Palette (#F6F7F9 & #111418) */
 html, body {
   background-color: #F6F7F9;
@@ -59,3 +68,38 @@ html.high-contrast-dark * {
   border-color: #ffffff !important;
   box-shadow: none !important;
 }
+
+/* Mobile Navigation & Bottom Sheet Animations */
+@keyframes slideUpDrawer {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInOverlay {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-up-drawer {
+  animation: slideUpDrawer 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in-overlay {
+  animation: fadeInOverlay 0.2s ease-out forwards;
+}
+
+/* Safe area inset support for mobile screens */
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+

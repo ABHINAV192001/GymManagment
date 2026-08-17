@@ -20,6 +20,7 @@ public class WorkoutExerciseDto {
     private Integer sets;
     private String reps;
     private Integer time;
+    private String targetDays;
 
     // Step-by-step instructions
     private String stepOneImage;

@@ -3,10 +3,12 @@ import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react';
 
 type LoginFormProps = {
   onSuccess: () => void;
+  initialEmail?: string;
+  onForgotPassword?: (currentEmail: string) => void;
 };
 
-export function LoginForm({ onSuccess }: LoginFormProps) {
-  const [email, setEmail] = useState('');
+export function LoginForm({ onSuccess, initialEmail = '', onForgotPassword }: LoginFormProps) {
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -91,7 +93,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           <input type="checkbox" className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-600" />
           Remember me
         </label>
-        <button type="button" className="font-semibold text-blue-600 hover:text-blue-700 focus:outline-none focus:underline">
+        <button
+          type="button"
+          onClick={() => onForgotPassword?.(email)}
+          className="font-semibold text-blue-600 hover:text-blue-700 focus:outline-none focus:underline"
+        >
           Forgot password?
         </button>
       </div>
@@ -107,3 +113,4 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     </form>
   );
 }
+

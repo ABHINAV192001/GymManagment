@@ -1,5 +1,5 @@
 -- 2. UNIFIED IDENTITY & PROFILES
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
@@ -22,10 +22,10 @@ CREATE TABLE users (
     UNIQUE (org_id, username),
     UNIQUE (org_id, user_code)
 );
-CREATE INDEX idx_users_org_branch ON users(org_id, branch_id);
-CREATE INDEX idx_users_auth ON users(username, email);
+CREATE INDEX IF NOT EXISTS idx_users_org_branch ON users(org_id, branch_id);
+CREATE INDEX IF NOT EXISTS idx_users_auth ON users(username, email);
 
-CREATE TABLE staff_profiles (
+CREATE TABLE IF NOT EXISTS staff_profiles (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     manager_id UUID REFERENCES users(id) ON DELETE SET NULL,
     is_personal_trainer BOOLEAN NOT NULL DEFAULT false,
@@ -35,9 +35,9 @@ CREATE TABLE staff_profiles (
     payment_status VARCHAR(255),
     start_date DATE
 );
-CREATE INDEX idx_staff_manager ON staff_profiles(manager_id);
+CREATE INDEX IF NOT EXISTS idx_staff_manager ON staff_profiles(manager_id);
 
-CREATE TABLE member_profiles (
+CREATE TABLE IF NOT EXISTS member_profiles (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     trainer_id UUID REFERENCES users(id) ON DELETE SET NULL,
     plan_id UUID,

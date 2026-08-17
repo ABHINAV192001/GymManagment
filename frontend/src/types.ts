@@ -176,13 +176,29 @@ export interface ActivitySchedule {
 export interface FoodItem {
   id: string;
   name: string;
+  category?: string;
   caloriesPer100g: number;
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
-  unit: string;
-  isGlobal: boolean;
+  fiberPer100g?: number;
+  magnesiumMg?: number;
+  calciumMg?: number;
+  ironMg?: number;
+  potassiumMg?: number;
+  sodiumMg?: number;
+  vitaminCMg?: number;
+  vitaminDIu?: number;
+  unit?: string;
+  defaultServingGrams?: number;
+  isGlobal?: boolean;
+  isRecipe?: boolean;
+  recipeIngredients?: string[];
+  recipeInstructions?: string[];
+  prepTimeMins?: number;
+  tags?: string[];
 }
+
 
 export interface DietMeal {
   mealType: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
@@ -216,19 +232,45 @@ export interface Exercise {
   safetyTips?: string;
 }
 
+export interface WorkoutExerciseItem {
+  id?: string;
+  exerciseId: string;
+  name?: string;
+  muscleGroup?: string;
+  mechanics?: string;
+  description?: string;
+  videoUrl?: string;
+  sets: number;
+  reps: string;
+  time?: number;
+  targetDays?: string; // e.g. "Monday,Wednesday,Friday"
+}
+
 export interface WorkoutDay {
   dayNumber: number;
   dayLabel: string;
-  exercises: { exerciseId: string; sets: number; reps: string; weightKg: number }[];
+  exercises: { exerciseId: string; sets: number; reps: string; weightKg?: number; targetDays?: string }[];
 }
 
 export interface WorkoutPlan {
-  id: string;
-  name: string;
-  assignedTo: string;
-  createdBy: string;
-  splitType: string;
-  days: WorkoutDay[];
+  id?: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  category?: string;
+  badge?: string;
+  difficulty?: string;
+  daysPerWeek?: number;
+  calories?: number;
+  duration?: string;
+  image?: string;
+  targetDays?: string;
+  createdByUserId?: string;
+  assignedTo?: string;
+  createdBy?: string;
+  splitType?: string;
+  days?: WorkoutDay[];
+  exercises?: WorkoutExerciseItem[];
   notes?: string;
 }
 

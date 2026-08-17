@@ -36,6 +36,12 @@ public class Workout extends com.Gym.GymCommonServices.common.BaseEntity {
     @Column(name = "days_per_week")
     private Integer daysPerWeek;
 
+    @Column(name = "created_by_user_id")
+    private java.util.UUID createdByUserId;
+
+    @Column(name = "target_days")
+    private String targetDays; // e.g. "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday"
+
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WorkoutExercise> workoutExercises;
 

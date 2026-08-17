@@ -13,16 +13,20 @@ import java.util.List;
 @Configuration
 public class CommonCorsConfig {
 
-    @Value("${app.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000}")
+    @Value("${app.cors.allowed-origins:*}")
     private String[] allowedOrigins;
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(Arrays.asList(allowedOrigins));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        if (allowedOrigins.length == 1 && "*".equals(allowedOrigins[0].trim())) {
+            config.setAllowedOriginPatterns(List.of("*"));
+        } else {
+            config.setAllowedOriginPatterns(Arrays.asList(allowedOrigins));
+        }
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
         config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
+        config.setExposedHeaders(List.of("Authorization", "Set-Cookie", "X-Total-Count"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
         

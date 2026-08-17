@@ -184,9 +184,6 @@ export const HumanBodyMap: React.FC<HumanBodyMapProps> = ({
               <h1 className="text-xl md:text-2xl font-black uppercase tracking-wide text-[#111418] dark:text-[#F5F7FA]">
                 MUSCLE TARGETING DATABASE
               </h1>
-              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-[#E63946] text-white dark:bg-[#FF4D5A] dark:text-slate-950 font-extrabold shadow-sm">
-                ACTIVE FILTER
-              </span>
             </div>
             <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5">
               Select a target muscle group below to filter exercises with execution guides & form tips.

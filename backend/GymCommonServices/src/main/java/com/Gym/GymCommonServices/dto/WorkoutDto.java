@@ -26,6 +26,8 @@ public class WorkoutDto {
     private String duration;
     private String image; // imageUrl in entity
     private Integer mandatoryExercises;
+    private java.util.UUID createdByUserId;
+    private String targetDays;
     private List<WorkoutSplitDayDto> splitDays;
     private List<WorkoutExerciseDto> exercises;
 }
