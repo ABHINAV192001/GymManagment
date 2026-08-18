@@ -5,6 +5,7 @@ import com.Gym.GymCommonServices.dto.WeeklyWorkoutPlanDto;
 import com.Gym.GymCommonServices.dto.WorkoutExerciseDto;
 import com.Gym.GymCommonServices.entity.*;
 import com.gymbross.workout.repository.*;
+import com.gymbross.usermanagement.repository.UserRepository;
 import com.gymbross.workout.service.UserWorkoutService;
 import com.gymbross.workout.service.WorkoutAssignmentService;
 import lombok.RequiredArgsConstructor;
