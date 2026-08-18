@@ -39,6 +39,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/", "/health", "/actuator/health").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/user/food/**").permitAll()
                         .requestMatchers(
                                 "/api/auth/login", "/api/auth/refresh",

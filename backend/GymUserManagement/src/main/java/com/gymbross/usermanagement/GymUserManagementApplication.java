@@ -18,4 +18,11 @@ public class GymUserManagementApplication {
 	}
 
 }
-// the main file
+
+@org.springframework.web.bind.annotation.RestController
+class HealthCheckController {
+	@org.springframework.web.bind.annotation.GetMapping({"/", "/health"})
+	public String health() {
+		return "GymBross Unified Backend API is Live!";
+	}
+}
