@@ -5,9 +5,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
+import org.springframework.scheduling.annotation.EnableAsync;
+
 @SpringBootApplication(scanBasePackages = { "com.gymbross.usermanagement", "com.Gym.GymCommonServices" })
 @EntityScan(basePackages = { "com.gymbross.usermanagement.entity", "com.Gym.GymCommonServices.entity" })
 @EnableJpaRepositories(basePackages = { "com.gymbross.usermanagement.repository", "com.Gym.GymCommonServices.repository" })
+@EnableAsync
 public class GymUserManagementApplication {
 
 	public static void main(String[] args) {
