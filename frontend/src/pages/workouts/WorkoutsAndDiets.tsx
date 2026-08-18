@@ -46,16 +46,7 @@ import { calculateHealthMetrics, HealthResponse } from '../../lib/api/health';
 import { PROGRAM_SPLITS_CONFIG, EXERCISES_CATALOG, getTodayWorkoutFocus } from '../member-portal/MemberDashboard';
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-const DEFAULT_MACRO_FOODS: FoodItem[] = [
-  { id: 'f1', name: 'Raw Eggs (Whole)', category: 'Dairy & Eggs', caloriesPer100g: 143, proteinPer100g: 13, carbsPer100g: 1, fatPer100g: 10 },
-  { id: 'f2', name: 'Chicken Breast (Boneless, Skinless)', category: 'Poultry', caloriesPer100g: 165, proteinPer100g: 31, carbsPer100g: 0, fatPer100g: 3.6 },
-  { id: 'f3', name: 'Lean Ground Beef (93/7)', category: 'Meat', caloriesPer100g: 172, proteinPer100g: 24, carbsPer100g: 0, fatPer100g: 8 },
-  { id: 'f4', name: 'White Basmati Rice (Cooked)', category: 'Grains', caloriesPer100g: 130, proteinPer100g: 2.7, carbsPer100g: 28, fatPer100g: 0.3 },
-  { id: 'f5', name: 'Rolled Oats (Dry)', category: 'Grains', caloriesPer100g: 389, proteinPer100g: 16.9, carbsPer100g: 66, fatPer100g: 6.9 },
-  { id: 'f6', name: 'Whey Protein Isolate (Standard)', category: 'Supplements', caloriesPer100g: 370, proteinPer100g: 85, carbsPer100g: 3, fatPer100g: 1.5 },
-  { id: 'f7', name: 'Peanut Butter (Natural)', category: 'Nuts & Seeds', caloriesPer100g: 588, proteinPer100g: 25, carbsPer100g: 20, fatPer100g: 50 },
-  { id: 'f8', name: 'Greek Yogurt (Plain Nonfat)', category: 'Dairy', caloriesPer100g: 59, proteinPer100g: 10, carbsPer100g: 3.6, fatPer100g: 0.4 },
-];
+
 
 
 
@@ -260,7 +251,7 @@ export const WorkoutsAndDiets: React.FC = () => {
   }, [selectedMuscle]);
 
   // Fetch Foods & Preset Workout Splits from Backend Database
-  const [foodsList, setFoodsList] = useState<FoodItem[]>(DEFAULT_MACRO_FOODS);
+  const [foodsList, setFoodsList] = useState<FoodItem[]>([]);
   const [presetSplits, setPresetSplits] = useState<any[]>([]);
 
   useEffect(() => {
@@ -272,12 +263,12 @@ export const WorkoutsAndDiets: React.FC = () => {
           getMySplits().catch(() => []),
         ]);
         const items = Array.isArray(foodsData) ? foodsData : (foodsData?.items || []);
-        setFoodsList(items.length > 0 ? items : DEFAULT_MACRO_FOODS);
+        setFoodsList(items);
         setPresetSplits(Array.isArray(splitsData) ? splitsData : []);
         setMySplits(Array.isArray(userSplits) ? userSplits : []);
       } catch (err) {
         console.error('Error fetching backend foods or splits from DB', err);
-        setFoodsList(DEFAULT_MACRO_FOODS);
+        setFoodsList([]);
       }
     }
     loadBackendData();
