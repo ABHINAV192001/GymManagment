@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.*;
 
-@RestController
+@RestController("userNotificationController")
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
