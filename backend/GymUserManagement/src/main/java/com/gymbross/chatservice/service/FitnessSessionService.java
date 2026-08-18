@@ -12,7 +12,7 @@ import com.Gym.GymCommonServices.entity.Role;
 import com.Gym.GymCommonServices.entity.User;
 import com.gymbross.chatservice.repository.FitnessSessionRepository;
 import com.gymbross.chatservice.repository.SessionVoteRepository;
-import com.gymbross.chatservice.repository.UserRepository;
+import com.gymbross.usermanagement.repository.UserRepository;
 
 @Service
 public class FitnessSessionService {

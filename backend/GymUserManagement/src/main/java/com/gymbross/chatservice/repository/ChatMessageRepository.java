@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface MessageRepository extends JpaRepository<ChatMessage, java.util.UUID> {
+public interface ChatMessageRepository extends JpaRepository<ChatMessage, java.util.UUID> {
 
     // Fetch conversation between two users
     @Query("SELECT m FROM ChatMessage m WHERE (m.senderUsername = :user1 AND m.receiverUsername = :user2) OR (m.senderUsername = :user2 AND m.receiverUsername = :user1) ORDER BY m.timestamp ASC")

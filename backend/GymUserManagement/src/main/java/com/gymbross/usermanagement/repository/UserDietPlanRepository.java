@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface UserDietPlanRepository extends JpaRepository<UserDietPlan, java.util.UUID> {
     List<UserDietPlan> findByUserIdAndIsDeletedFalse(java.util.UUID userId);
+
+    List<UserDietPlan> findByPremiumUserIdAndIsDeletedFalse(java.util.UUID premiumUserId);
 }
