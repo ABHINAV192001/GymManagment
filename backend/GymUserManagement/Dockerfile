@@ -10,11 +10,7 @@ RUN mvn clean install -DskipTests -B
 FROM common-builder AS builder
 WORKDIR /build/service
 
-# Copy POM first for dependency caching
 COPY backend/GymUserManagement/pom.xml ./pom.xml
-RUN mvn dependency:go-offline -B || true
-
-# Copy source and build
 COPY backend/GymUserManagement/src ./src
 RUN mvn clean package -DskipTests -B
 
@@ -31,11 +27,6 @@ RUN mkdir -p /app/uploads && chown appuser:appgroup /app/uploads
 USER appuser
 
 COPY --from=builder /build/service/target/usermanagement-0.0.1-SNAPSHOT.jar app.jar
-
-EXPOSE 8080
-
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://localhost:8080/actuator/health || exit 1
 
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \
