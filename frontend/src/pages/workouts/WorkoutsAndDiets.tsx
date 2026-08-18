@@ -57,79 +57,7 @@ const DEFAULT_MACRO_FOODS: FoodItem[] = [
   { id: 'f8', name: 'Greek Yogurt (Plain Nonfat)', category: 'Dairy', caloriesPer100g: 59, proteinPer100g: 10, carbsPer100g: 3.6, fatPer100g: 0.4 },
 ];
 
-const ALL_CATALOG_EXERCISES: Exercise[] = [
-  // CHEST EXERCISES
-  { id: 'c1000000-0000-4000-8000-000000000101', name: 'Barbell Flat Bench Press', muscleGroup: 'CHEST', equipment: 'Barbell', description: 'Flat bench press targeting overall chest development.' },
-  { id: 'c1000000-0000-4000-8000-000000000102', name: 'Incline Dumbbell Press (Upper Chest)', muscleGroup: 'CHEST', equipment: 'Dumbbell', description: 'Incline dumbbell press isolating upper chest (clavicular head).' },
-  { id: 'c1000000-0000-4000-8000-000000000103', name: 'Incline Barbell Bench Press (Upper Chest)', muscleGroup: 'CHEST', equipment: 'Barbell', description: 'Incline barbell bench press targeting upper chest thickness.' },
-  { id: 'c1000000-0000-4000-8000-000000000104', name: 'Decline Barbell Bench Press (Lower Chest)', muscleGroup: 'CHEST', equipment: 'Barbell', description: 'Decline bench press isolating lower chest (sternal head).' },
-  { id: 'c1000000-0000-4000-8000-000000000105', name: 'Decline Dumbbell Bench Press (Lower Chest)', muscleGroup: 'CHEST', equipment: 'Dumbbell', description: 'Decline dumbbell press for lower chest stretch.' },
-  { id: 'c1000000-0000-4000-8000-000000000106', name: 'Flat Dumbbell Press', muscleGroup: 'CHEST', equipment: 'Dumbbell', description: 'Flat dumbbell press for chest hypertrophy and full motion.' },
-  { id: 'c1000000-0000-4000-8000-000000000107', name: 'Pec Deck Machine Fly', muscleGroup: 'CHEST', equipment: 'Machine', description: 'Machine chest flyes for peak contraction and isolation.' },
-  { id: 'c1000000-0000-4000-8000-000000000108', name: 'Cable Chest Flyes (Low-to-High Upper Chest)', muscleGroup: 'CHEST', equipment: 'Cable', description: 'Low-to-high cable flyes targeting upper inner chest.' },
-  { id: 'c1000000-0000-4000-8000-000000000109', name: 'Cable Chest Flyes (High-to-Low Lower Chest)', muscleGroup: 'CHEST', equipment: 'Cable', description: 'High-to-low cable crossover for lower chest definition.' },
-  { id: 'c1000000-0000-4000-8000-000000000110', name: 'Parallel Bar Chest Dips (Lower Chest)', muscleGroup: 'CHEST', equipment: 'Bodyweight', description: 'Forward-leaning dips isolating lower chest.' },
-  { id: 'c1000000-0000-4000-8000-000000000111', name: 'Dumbbell Chest Flyes', muscleGroup: 'CHEST', equipment: 'Dumbbell', description: 'Flat or incline dumbbell flyes for chest stretch.' },
-  { id: 'c1000000-0000-4000-8000-000000000112', name: 'Push-Ups (Decline / Incline / Standard)', muscleGroup: 'CHEST', equipment: 'Bodyweight', description: 'Classic chest bodyweight movement.' },
 
-  // BACK EXERCISES
-  { id: 'c1000000-0000-4000-8000-000000000201', name: 'Conventional Barbell Deadlift', muscleGroup: 'BACK', equipment: 'Barbell', description: 'Full posterior chain compound lift.' },
-  { id: 'c1000000-0000-4000-8000-000000000202', name: 'Lat Pulldown (Wide Grip)', muscleGroup: 'BACK', equipment: 'Cable', description: 'Wide grip pulldowns for lat width.' },
-  { id: 'c1000000-0000-4000-8000-000000000203', name: 'Bent-Over Barbell Row', muscleGroup: 'BACK', equipment: 'Barbell', description: 'Heavy row targeting mid-back thickness.' },
-  { id: 'c1000000-0000-4000-8000-000000000204', name: 'Seated Cable Rows', muscleGroup: 'BACK', equipment: 'Cable', description: 'Seated cable row for lat and rhomboid thickness.' },
-  { id: 'c1000000-0000-4000-8000-000000000205', name: 'Single-Arm Dumbbell Row', muscleGroup: 'BACK', equipment: 'Dumbbell', description: 'Unilateral row for lat symmetry.' },
-  { id: 'c1000000-0000-4000-8000-000000000206', name: 'Wide Grip Pull-Ups', muscleGroup: 'BACK', equipment: 'Bodyweight', description: 'Bodyweight pull-ups for lat width.' },
-  { id: 'c1000000-0000-4000-8000-000000000207', name: 'T-Bar Row', muscleGroup: 'BACK', equipment: 'Barbell', description: 'Heavy T-bar row for back thickness.' },
-  { id: 'c1000000-0000-4000-8000-000000000208', name: 'Chin-Ups (Underhand Grip)', muscleGroup: 'BACK', equipment: 'Bodyweight', description: 'Underhand grip chin-ups for lats and lower traps.' },
-  { id: 'c1000000-0000-4000-8000-000000000209', name: 'Hyperextensions (Lower Back)', muscleGroup: 'BACK', equipment: 'Bodyweight', description: 'Erector spinae lower back extension.' },
-  { id: 'c1000000-0000-4000-8000-000000000210', name: 'Lat Pulldown (Close-Grip V-Bar)', muscleGroup: 'BACK', equipment: 'Cable', description: 'Close-grip V-bar pulldown for lower lats.' },
-
-  // SHOULDERS EXERCISES
-  { id: 'c1000000-0000-4000-8000-000000000301', name: 'Standing Military Press (Overhead)', muscleGroup: 'SHOULDERS', equipment: 'Barbell', description: 'Strict overhead press for front and side delts.' },
-  { id: 'c1000000-0000-4000-8000-000000000302', name: 'Dumbbell Lateral Raises (Side Delts)', muscleGroup: 'SHOULDERS', equipment: 'Dumbbell', description: 'Lateral raises for shoulder width and side delts.' },
-  { id: 'c1000000-0000-4000-8000-000000000303', name: 'Seated Dumbbell Arnold Press', muscleGroup: 'SHOULDERS', equipment: 'Dumbbell', description: 'Rotational shoulder press targeting all 3 delt heads.' },
-  { id: 'c1000000-0000-4000-8000-000000000304', name: 'Face Pulls (Rear Delts & Traps)', muscleGroup: 'SHOULDERS', equipment: 'Cable', description: 'High cable face pulls for rear delts.' },
-  { id: 'c1000000-0000-4000-8000-000000000305', name: 'Seated Dumbbell Shoulder Press', muscleGroup: 'SHOULDERS', equipment: 'Dumbbell', description: 'Seated shoulder press for front delts.' },
-  { id: 'c1000000-0000-4000-8000-000000000306', name: 'Barbell Shrugs (Traps)', muscleGroup: 'SHOULDERS', equipment: 'Barbell', description: 'Trap isolation exercise.' },
-  { id: 'c1000000-0000-4000-8000-000000000307', name: 'Front Dumbbell Raises (Front Delts)', muscleGroup: 'SHOULDERS', equipment: 'Dumbbell', description: 'Front raise targeting anterior deltoids.' },
-  { id: 'c1000000-0000-4000-8000-000000000308', name: 'Cable Lateral Raises', muscleGroup: 'SHOULDERS', equipment: 'Cable', description: 'Constant-tension cable raises for side delts.' },
-  { id: 'c1000000-0000-4000-8000-000000000309', name: 'Reverse Pec Deck Fly (Rear Delts)', muscleGroup: 'SHOULDERS', equipment: 'Machine', description: 'Machine flyes targeting posterior deltoids.' },
-  { id: 'c1000000-0000-4000-8000-000000000310', name: 'Upright Barbell Rows', muscleGroup: 'SHOULDERS', equipment: 'Barbell', description: 'Upright row for side delts and upper traps.' },
-
-  // BICEPS EXERCISES
-  { id: 'c1000000-0000-4000-8000-000000000401', name: 'EZ-Bar Bicep Curls', muscleGroup: 'BICEPS', equipment: 'Barbell', description: 'Classic EZ-bar curls for bicep mass.' },
-  { id: 'c1000000-0000-4000-8000-000000000402', name: 'Dumbbell Hammer Curls', muscleGroup: 'BICEPS', equipment: 'Dumbbell', description: 'Neutral grip curls for brachialis and forearm strength.' },
-  { id: 'c1000000-0000-4000-8000-000000000403', name: 'Incline Dumbbell Bicep Curls', muscleGroup: 'BICEPS', equipment: 'Dumbbell', description: 'Seated incline curls for bicep long head stretch.' },
-  { id: 'c1000000-0000-4000-8000-000000000404', name: 'Preacher Bicep Curls', muscleGroup: 'BICEPS', equipment: 'EZ-Bar', description: 'Strict bicep isolation curls on preacher bench.' },
-  { id: 'c1000000-0000-4000-8000-000000000405', name: 'Concentration Curls', muscleGroup: 'BICEPS', equipment: 'Dumbbell', description: 'Isolated bicep peak contraction.' },
-  { id: 'c1000000-0000-4000-8000-000000000406', name: 'Standing Cable Bicep Curls', muscleGroup: 'BICEPS', equipment: 'Cable', description: 'Cable bicep curls with constant tension.' },
-
-  // TRICEPS EXERCISES
-  { id: 'c1000000-0000-4000-8000-000000000501', name: 'Tricep Rope Pushdowns', muscleGroup: 'TRICEPS', equipment: 'Cable', description: 'Cable pushdowns targeting lateral and medial heads.' },
-  { id: 'c1000000-0000-4000-8000-000000000502', name: 'Overhead Dumbbell Extension', muscleGroup: 'TRICEPS', equipment: 'Dumbbell', description: 'Overhead extension targeting long head of triceps.' },
-  { id: 'c1000000-0000-4000-8000-000000000503', name: 'Skullcrushers (Lying Tricep Ext)', muscleGroup: 'TRICEPS', equipment: 'EZ-Bar', description: 'Lying tricep extension for long and lateral heads.' },
-  { id: 'c1000000-0000-4000-8000-000000000504', name: 'Close-Grip Barbell Bench Press', muscleGroup: 'TRICEPS', equipment: 'Barbell', description: 'Compound tricep press.' },
-  { id: 'c1000000-0000-4000-8000-000000000505', name: 'Tricep Bench Dips', muscleGroup: 'TRICEPS', equipment: 'Bodyweight', description: 'Bodyweight tricep dips.' },
-  { id: 'c1000000-0000-4000-8000-000000000506', name: 'Single-Arm Cable Tricep Kickbacks', muscleGroup: 'TRICEPS', equipment: 'Cable', description: 'Isolated tricep extension kickbacks.' },
-
-  // LEGS EXERCISES
-  { id: 'c1000000-0000-4000-8000-000000000601', name: 'Barbell Back Squat', muscleGroup: 'LEGS', equipment: 'Barbell', description: 'Quad and glute compound movement.' },
-  { id: 'c1000000-0000-4000-8000-000000000602', name: 'Romanian Deadlift (RDL)', muscleGroup: 'LEGS', equipment: 'Barbell', description: 'Hip hinge targeting hamstrings and glutes.' },
-  { id: 'c1000000-0000-4000-8000-000000000603', name: '45-Degree Leg Press', muscleGroup: 'LEGS', equipment: 'Machine', description: 'Heavy leg press for quads and glutes.' },
-  { id: 'c1000000-0000-4000-8000-000000000604', name: 'Lying Hamstring Leg Curls', muscleGroup: 'LEGS', equipment: 'Machine', description: 'Machine leg curls for hamstring isolation.' },
-  { id: 'c1000000-0000-4000-8000-000000000605', name: 'Seated Leg Extensions', muscleGroup: 'LEGS', equipment: 'Machine', description: 'Quad isolation extensions.' },
-  { id: 'c1000000-0000-4000-8000-000000000606', name: 'Dumbbell Bulgarian Split Squats', muscleGroup: 'LEGS', equipment: 'Dumbbell', description: 'Unilateral leg squat for quads and glutes.' },
-  { id: 'c1000000-0000-4000-8000-000000000607', name: 'Standing Calf Raises', muscleGroup: 'LEGS', equipment: 'Machine', description: 'Calf raises for gastrocnemius.' },
-  { id: 'c1000000-0000-4000-8000-000000000608', name: 'Barbell Hip Thrusts', muscleGroup: 'LEGS', equipment: 'Barbell', description: 'Glute isolation thrusts.' },
-  { id: 'c1000000-0000-4000-8000-000000000609', name: 'Dumbbell Walking Lunges', muscleGroup: 'LEGS', equipment: 'Dumbbell', description: 'Walking lunges for quads and hamstrings.' },
-
-  // ABS EXERCISES
-  { id: 'c1000000-0000-4000-8000-000000000701', name: 'Hanging Leg Raises', muscleGroup: 'ABS', equipment: 'Bodyweight', description: 'Hanging raises targeting lower abs and core.' },
-  { id: 'c1000000-0000-4000-8000-000000000702', name: 'Ab Roller Wheel Rollouts', muscleGroup: 'ABS', equipment: 'Other', description: 'Core rollout for deep ab engagement.' },
-  { id: 'c1000000-0000-4000-8000-000000000703', name: 'Weighted Declined Ab Crunches', muscleGroup: 'ABS', equipment: 'Dumbbell', description: 'Declined crunch with added weight.' },
-  { id: 'c1000000-0000-4000-8000-000000000704', name: 'Planks & Cable Woodchoppers', muscleGroup: 'ABS', equipment: 'Cable', description: 'Core stability and oblique rotations.' },
-  { id: 'c1000000-0000-4000-8000-000000000705', name: 'Decline Bench Sit-Ups', muscleGroup: 'ABS', equipment: 'Bodyweight', description: 'Full range ab sit-ups on decline bench.' }
-];
 
 export type ActiveTab =
   | 'SCANNER'
@@ -356,15 +284,7 @@ export const WorkoutsAndDiets: React.FC = () => {
   }, []);
 
   const inserterExercises = useMemo(() => {
-    const combinedMap = new Map<string, Exercise>();
-    
-    // 1. Catalog exercises
-    ALL_CATALOG_EXERCISES.forEach(e => combinedMap.set(e.id, e));
-    
-    // 2. Loaded backend exercises
-    exercises.forEach(e => combinedMap.set(e.id, e));
-    
-    const allList = Array.from(combinedMap.values());
+    const allList = exercises;
     
     if (!selectedInserterMuscle || selectedInserterMuscle === 'ALL') {
       return allList;
@@ -682,7 +602,7 @@ export const WorkoutsAndDiets: React.FC = () => {
         daysPerWeek: selectedDays.length,
         targetDays: selectedDays.join(','),
         exercises: workoutExercises.map(ex => {
-          const matchedCatalogEx = ALL_CATALOG_EXERCISES.find(c => c.id === ex.exerciseId) || exercises.find(c => c.id === ex.exerciseId);
+          const matchedCatalogEx = exercises.find(c => c.id === ex.exerciseId);
           return {
             exerciseId: ex.exerciseId,
             name: matchedCatalogEx?.name || 'Exercise',
@@ -1446,7 +1366,7 @@ export const WorkoutsAndDiets: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {workoutExercises.map((we, index) => {
-                    const ex = ALL_CATALOG_EXERCISES.find(e => e.id === we.exerciseId) || exercises.find(e => e.id === we.exerciseId);
+                    const ex = exercises.find(e => e.id === we.exerciseId);
                     const isEditingThis = editingExIndex === index;
 
                     if (isEditingThis) {
