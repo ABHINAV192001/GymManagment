@@ -69,193 +69,7 @@ export interface FoodItemRecord {
   isRecipe?: boolean;
 }
 
-// Rich fallback food catalog to guarantee instant offline search response
-export const DEFAULT_FOOD_CATALOG: FoodItemRecord[] = [
-  {
-    id: '00000000-0000-0000-0000-000000000015',
-    foodName: 'Fresh Red Delicious Apple',
-    category: 'Fruits',
-    calories: 52,
-    protein: 0.3,
-    carbohydrates: 13.8,
-    fat: 0.2,
-    fiber: 2.4,
-    potassium: 107,
-    vitaminC: 4.6,
-    calcium: 6,
-    magnesium: 5
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000001',
-    foodName: 'Grilled Skinless Chicken Breast',
-    category: 'Poultry & Meat',
-    calories: 165,
-    protein: 31.0,
-    carbohydrates: 0.0,
-    fat: 3.6,
-    fiber: 0.0,
-    sodium: 74,
-    potassium: 256,
-    magnesium: 29
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000002',
-    foodName: 'Plain Greek Yogurt (0% Fat)',
-    category: 'Dairy & Eggs',
-    calories: 59,
-    protein: 10.0,
-    carbohydrates: 3.6,
-    fat: 0.4,
-    fiber: 0.0,
-    calcium: 110,
-    potassium: 141
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000003',
-    foodName: 'Rolled Whole Oats',
-    category: 'Grains & Cereals',
-    calories: 389,
-    protein: 16.9,
-    carbohydrates: 66.3,
-    fat: 6.9,
-    fiber: 10.6,
-    magnesium: 177,
-    potassium: 429
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000004',
-    foodName: 'Boiled Whole Large Egg',
-    category: 'Dairy & Eggs',
-    calories: 155,
-    protein: 12.6,
-    carbohydrates: 1.1,
-    fat: 10.6,
-    fiber: 0.0,
-    sodium: 124,
-    calcium: 50
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000005',
-    foodName: 'Pan-Seared Atlantic Salmon Fillet',
-    category: 'Seafood',
-    calories: 208,
-    protein: 20.4,
-    carbohydrates: 0.0,
-    fat: 13.4,
-    fiber: 0.0,
-    potassium: 363,
-    magnesium: 27
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000006',
-    foodName: 'Steamed Brown Rice (Cooked)',
-    category: 'Grains & Cereals',
-    calories: 123,
-    protein: 2.7,
-    carbohydrates: 25.6,
-    fat: 1.0,
-    fiber: 1.8,
-    magnesium: 43,
-    potassium: 86
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000007',
-    foodName: 'Whey Protein Isolate 90%',
-    category: 'Supplements',
-    calories: 370,
-    protein: 85.0,
-    carbohydrates: 2.0,
-    fat: 1.5,
-    fiber: 0.0,
-    calcium: 450,
-    potassium: 420
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000008',
-    foodName: 'Baked Sweet Potato (Skin on)',
-    category: 'Vegetables',
-    calories: 90,
-    protein: 2.0,
-    carbohydrates: 20.7,
-    fat: 0.2,
-    fiber: 3.3,
-    potassium: 475,
-    vitaminC: 19.6
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000009',
-    foodName: 'Raw Whole California Almonds',
-    category: 'Nuts & Seeds',
-    calories: 579,
-    protein: 21.2,
-    carbohydrates: 21.6,
-    fat: 49.9,
-    fiber: 12.5,
-    magnesium: 270,
-    calcium: 269
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000010',
-    foodName: 'Fresh Ripe Cavendish Banana',
-    category: 'Fruits',
-    calories: 89,
-    protein: 1.1,
-    carbohydrates: 22.8,
-    fat: 0.3,
-    fiber: 2.6,
-    potassium: 358,
-    vitaminC: 8.7
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000011',
-    foodName: 'Firm Organic Tofu',
-    category: 'Plant Protein',
-    calories: 144,
-    protein: 17.3,
-    carbohydrates: 2.8,
-    fat: 8.7,
-    fiber: 2.3,
-    calcium: 683,
-    magnesium: 58
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000012',
-    foodName: 'Lean Beef Sirloin Steak (Cooked)',
-    category: 'Poultry & Meat',
-    calories: 244,
-    protein: 30.1,
-    carbohydrates: 0.0,
-    fat: 12.7,
-    fiber: 0.0,
-    potassium: 355,
-    magnesium: 25
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000013',
-    foodName: 'Fresh Hass Avocado',
-    category: 'Fruits',
-    calories: 160,
-    protein: 2.0,
-    carbohydrates: 8.5,
-    fat: 14.7,
-    fiber: 6.7,
-    potassium: 485,
-    magnesium: 29
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000014',
-    foodName: 'Fresh Baby Spinach Leaves',
-    category: 'Vegetables',
-    calories: 23,
-    protein: 2.9,
-    carbohydrates: 3.6,
-    fat: 0.4,
-    fiber: 2.2,
-    magnesium: 79,
-    calcium: 99,
-    potassium: 558
-  }
-];
+
 
 export type ModalTab = 'Breakfast' | 'Lunch' | 'Snacks' | 'Dinner' | 'Fasting' | 'Water';
 
@@ -367,11 +181,11 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('All');
-  const [availableFoods, setAvailableFoods] = useState<FoodItemRecord[]>(DEFAULT_FOOD_CATALOG);
+  const [availableFoods, setAvailableFoods] = useState<FoodItemRecord[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
 
   // Food Selection & Serving Scale state
-  const [selectedFood, setSelectedFood] = useState<FoodItemRecord | null>(DEFAULT_FOOD_CATALOG[0]);
+  const [selectedFood, setSelectedFood] = useState<FoodItemRecord | null>(null);
   const [selectedUnitId, setSelectedUnitId] = useState<string>('grams');
   const [enteredQuantity, setEnteredQuantity] = useState<string>('100');
 
@@ -395,7 +209,7 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
         size: 50
       });
       const list = res?.data || res || [];
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         const normalized = list.map((item: any) => ({
           ...item,
           foodName: item.foodName || item.description || item.name || 'Food Item',
@@ -403,26 +217,13 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
           carbohydrates: item.carbohydrates ?? item.carbs ?? 0,
         }));
         setAvailableFoods(normalized);
-        if (!selectedFood && normalized.length > 0) {
+        if (normalized.length > 0) {
           setSelectedFood(normalized[0]);
         }
-        return;
-      }
-      
-      // Fallback local filter
-      if (cleanQuery) {
-        const q = cleanQuery.toLowerCase();
-        const filtered = DEFAULT_FOOD_CATALOG.filter(f =>
-          (f.foodName || f.name || '').toLowerCase().includes(q) ||
-          (f.category || '').toLowerCase().includes(q)
-        );
-        setAvailableFoods(filtered);
-      } else {
-        setAvailableFoods(DEFAULT_FOOD_CATALOG);
       }
     } catch (err) {
-      console.warn('Using local food database fallback', err);
-      setAvailableFoods(DEFAULT_FOOD_CATALOG);
+      console.warn('Error loading foods from API', err);
+      setAvailableFoods([]);
     } finally {
       setIsSearching(false);
     }
@@ -431,9 +232,6 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadFoods();
-      if (!selectedFood && DEFAULT_FOOD_CATALOG.length > 0) {
-        setSelectedFood(DEFAULT_FOOD_CATALOG[0]);
-      }
     }
   }, [isOpen]);
 

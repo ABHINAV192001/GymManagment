@@ -657,7 +657,7 @@ export const WorkoutsAndDiets: React.FC = () => {
   const handleAddFood = (e: React.FormEvent) => {
     e.preventDefault();
     setDietFoods([...dietFoods, { foodId: selectedFoodToAdd, quantityG: Number(addGrams) }]);
-    const currentList = Array.isArray(foodsList) && foodsList.length > 0 ? foodsList : DEFAULT_MACRO_FOODS;
+    const currentList = foodsList;
     const name = currentList.find(f => f.id === selectedFoodToAdd)?.name || 'Food';
     triggerAnnouncement(`Added ${addGrams}g of ${name} to macro meal draft.`);
   };
@@ -669,7 +669,7 @@ export const WorkoutsAndDiets: React.FC = () => {
     let carbs = 0;
     let fat = 0;
 
-    const currentList = Array.isArray(foodsList) && foodsList.length > 0 ? foodsList : DEFAULT_MACRO_FOODS;
+    const currentList = foodsList;
 
     dietFoods.forEach(item => {
       const food = currentList.find(f => f.id === item.foodId);
@@ -1636,7 +1636,7 @@ export const WorkoutsAndDiets: React.FC = () => {
                 <span className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase">Selected Plate Foods</span>
                 <div className="space-y-1.5">
                   {dietFoods.map((df, i) => {
-                    const currentList = Array.isArray(foodsList) && foodsList.length > 0 ? foodsList : DEFAULT_MACRO_FOODS;
+                    const currentList = foodsList;
                     const food = currentList.find(f => f.id === df.foodId);
                     const p = food?.proteinPer100g ?? (food as any)?.protein ?? 0;
                     const c = food?.carbsPer100g ?? (food as any)?.carbohydrates ?? (food as any)?.carbs ?? 0;
@@ -1713,7 +1713,7 @@ export const WorkoutsAndDiets: React.FC = () => {
                   onChange={e => setSelectedFoodToAdd(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-md text-zinc-900 dark:text-zinc-100 font-bold"
                 >
-                  {(Array.isArray(foodsList) && foodsList.length > 0 ? foodsList : DEFAULT_MACRO_FOODS).map(f => (
+                  {foodsList.map(f => (
                     <option key={f.id} value={f.id}>
                       {f.name}
                     </option>
