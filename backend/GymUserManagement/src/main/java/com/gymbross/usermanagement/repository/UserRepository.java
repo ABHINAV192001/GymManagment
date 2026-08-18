@@ -46,4 +46,7 @@ public interface UserRepository extends JpaRepository<User, java.util.UUID> {
     long countByBranchId(java.util.UUID branchId);
 
     Optional<User> findTopByBranchId(java.util.UUID branchId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT DISTINCT u FROM User u LEFT JOIN u.roles r WHERE u.branch.id IN :branchIds AND (r.name IN :roleNames OR u.roles IS EMPTY)")
+    java.util.List<User> findByBranchIdInAndRoleNamesIn(@org.springframework.data.repository.query.Param("branchIds") java.util.List<java.util.UUID> branchIds, @org.springframework.data.repository.query.Param("roleNames") java.util.List<String> roleNames);
 }
