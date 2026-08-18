@@ -191,9 +191,75 @@ public class WorkoutDataInitializer implements CommandLineRunner {
                 END $$;
             """);
 
-            // Workouts and split days inserts removed to prevent hardcoded presets
+            // 9. Seed 12 Curated Preset Workout Splits into workouts table
+            jdbcTemplate.execute("""
+                INSERT INTO workouts (id, title, description, category, difficulty, duration, calories, mandatory_exercises)
+                VALUES
+                ('b1111111-0000-0000-0000-000000000001', 'Push / Pull / Legs (PPL) Hypertrophy Split', 'Gold-standard 6-day split isolating pushing muscles (Chest/Shoulders/Triceps), pulling muscles (Back/Biceps), and lower body.', 'PPL', 'INTERMEDIATE', '6 Days/Wk', 450, 6),
+                ('b1111111-0000-0000-0000-000000000002', 'The Arnold Schwarzenegger Golden Era Split', 'High volume chest/back super-sets paired with shoulders and arms for maximum upper body expansion.', 'CLASSIC PRO', 'PRO', '6 Days/Wk', 550, 5),
+                ('b1111111-0000-0000-0000-000000000003', '4-Day Upper / Lower Strength & Volume Split', 'Optimal recovery split training upper body and lower body twice per week with heavy compound progression.', 'STRENGTH & HYPERTROPHY', 'BEGINNER', '4 Days/Wk', 400, 4),
+                ('b1111111-0000-0000-0000-000000000004', '5-Day Classic Bodypart Bro Split', 'Bodybuilding split hitting one major muscle group per day with maximum single-session volume.', 'BODYBUILDING', 'INTERMEDIATE', '5 Days/Wk', 420, 5),
+                ('b1111111-0000-0000-0000-000000000005', 'Fat Loss Shred & High-Calorie Burn Split', 'High-tempo circuit and metabolic resistance split designed to maximize caloric expenditure and strip body fat while preserving muscle.', 'FAT LOSS / SHRED', 'BEGINNER', '5 Days/Wk', 600, 6),
+                ('b1111111-0000-0000-0000-000000000006', '5x5 Heavy Powerlifting Peak Strength Split', 'Low-rep, high-intensity compound power split focused on heavy deadlifts, squats, and bench press for raw maximum strength.', 'POWERLIFTING', 'PRO', '4 Days/Wk', 480, 5),
+                ('b1111111-0000-0000-0000-000000000007', 'German Volume Training (GVT 10x10) Mass Split', 'Brutal 10 sets of 10 reps protocol targeting maximum sarcoplasmic hypertrophy and muscle cell swelling.', 'MASS BUILDING', 'PRO', '5 Days/Wk', 520, 4),
+                ('b1111111-0000-0000-0000-000000000008', '3-Day Full Body Frequency Hypertrophy Split', 'High-frequency 3-day full body routine hitting every major muscle group 3x per week for busy schedules.', 'FULL BODY', 'BEGINNER', '3 Days/Wk', 380, 6),
+                ('b1111111-0000-0000-0000-000000000009', 'Mike Mentzer Heavy Duty High Intensity (HIT) Split', 'Ultra-low volume, single all-out failure set strategy to force rapid muscle adaptions and maximum growth.', 'HIT / HIGH INTENSITY', 'PRO', '3 Days/Wk', 350, 4),
+                ('b1111111-0000-0000-0000-000000000010', '5-Day Upper / Lower / Arms Specialization Split', 'Hypertrophy split with dedicated arm and shoulder specialization days for maximum arm expansion.', 'ARMS & UPPER', 'INTERMEDIATE', '5 Days/Wk', 460, 6),
+                ('b1111111-0000-0000-0000-000000000011', 'Functional Athletic Performance & Agility Hybrid Split', 'Explosive plyometrics, rotational core, sprint work, and athletic compound lifting for hybrid conditioning.', 'ATHLETIC / HYBRID', 'INTERMEDIATE', '4 Days/Wk', 500, 5),
+                ('b1111111-0000-0000-0000-000000000012', 'Posterior Chain & Glute Sculpting Split', 'Targeted posterior chain split emphasizing gluteal hypertrophy, hamstrings, and spinal erector strength.', 'GLUTE & POSTERIOR', 'BEGINNER', '4 Days/Wk', 410, 5)
+                ON CONFLICT (id) DO UPDATE SET 
+                  title = EXCLUDED.title,
+                  description = EXCLUDED.description,
+                  category = EXCLUDED.category,
+                  difficulty = EXCLUDED.difficulty,
+                  duration = EXCLUDED.duration,
+                  calories = EXCLUDED.calories,
+                  mandatory_exercises = EXCLUDED.mandatory_exercises;
+            """);
 
-            log.info("Exercise & Workout Split database enrichment in GymWorkoutService completed successfully.");
+            // 10. Map exercises to new splits
+            jdbcTemplate.execute("""
+                INSERT INTO workout_exercises (id, workout_id, exercise_id, sets, reps, time)
+                VALUES
+                -- Fat Loss Shred (b005)
+                ('c1111111-0000-0000-0000-000000000051', 'b1111111-0000-0000-0000-000000000005', 'e1111111-0000-0000-0000-000000000001', 4, 15, 45),
+                ('c1111111-0000-0000-0000-000000000052', 'b1111111-0000-0000-0000-000000000005', 'e1111111-0000-0000-0000-000000000002', 4, 15, 45),
+                ('c1111111-0000-0000-0000-000000000053', 'b1111111-0000-0000-0000-000000000005', 'e1111111-0000-0000-0000-000000000006', 4, 15, 45),
+                ('c1111111-0000-0000-0000-000000000054', 'b1111111-0000-0000-0000-000000000005', 'e1111111-0000-0000-0000-000000000004', 4, 20, 30),
+
+                -- Powerlifting 5x5 (b006)
+                ('c1111111-0000-0000-0000-000000000061', 'b1111111-0000-0000-0000-000000000006', 'e1111111-0000-0000-0000-000000000001', 5, 5, 180),
+                ('c1111111-0000-0000-0000-000000000062', 'b1111111-0000-0000-0000-000000000006', 'e1111111-0000-0000-0000-000000000006', 5, 5, 180),
+                ('c1111111-0000-0000-0000-000000000063', 'b1111111-0000-0000-0000-000000000006', 'e1111111-0000-0000-0000-000000000002', 5, 5, 180),
+
+                -- GVT 10x10 (b007)
+                ('c1111111-0000-0000-0000-000000000071', 'b1111111-0000-0000-0000-000000000007', 'e1111111-0000-0000-0000-000000000001', 10, 10, 60),
+                ('c1111111-0000-0000-0000-000000000072', 'b1111111-0000-0000-0000-000000000007', 'e1111111-0000-0000-0000-000000000006', 10, 10, 60),
+
+                -- 3-Day Full Body (b008)
+                ('c1111111-0000-0000-0000-000000000081', 'b1111111-0000-0000-0000-000000000008', 'e1111111-0000-0000-0000-000000000001', 3, 10, 90),
+                ('c1111111-0000-0000-0000-000000000082', 'b1111111-0000-0000-0000-000000000008', 'e1111111-0000-0000-0000-000000000006', 3, 10, 90),
+                ('c1111111-0000-0000-0000-000000000083', 'b1111111-0000-0000-0000-000000000008', 'e1111111-0000-0000-0000-000000000002', 3, 10, 90),
+
+                -- Heavy Duty HIT (b009)
+                ('c1111111-0000-0000-0000-000000000091', 'b1111111-0000-0000-0000-000000000009', 'e1111111-0000-0000-0000-000000000001', 1, 8, 180),
+                ('c1111111-0000-0000-0000-000000000092', 'b1111111-0000-0000-0000-000000000009', 'e1111111-0000-0000-0000-000000000006', 1, 8, 180),
+
+                -- Arms Specialization (b010)
+                ('c1111111-0000-0000-0000-000000000101', 'b1111111-0000-0000-0000-000000000010', 'e1111111-0000-0000-0000-000000000003', 4, 12, 60),
+                ('c1111111-0000-0000-0000-000000000102', 'b1111111-0000-0000-0000-000000000010', 'e1111111-0000-0000-0000-000000000004', 4, 12, 60),
+
+                -- Athletic Conditioning (b011)
+                ('c1111111-0000-0000-0000-000000000111', 'b1111111-0000-0000-0000-000000000011', 'e1111111-0000-0000-0000-000000000006', 4, 8, 90),
+                ('c1111111-0000-0000-0000-000000000112', 'b1111111-0000-0000-0000-000000000011', 'e1111111-0000-0000-0000-000000000002', 4, 10, 60),
+
+                -- Glute Sculpting (b012)
+                ('c1111111-0000-0000-0000-000000000121', 'b1111111-0000-0000-0000-000000000012', 'e1111111-0000-0000-0000-000000000006', 4, 12, 60),
+                ('c1111111-0000-0000-0000-000000000122', 'b1111111-0000-0000-0000-000000000012', 'e1111111-0000-0000-0000-000000000002', 4, 10, 90)
+                ON CONFLICT (id) DO NOTHING;
+            """);
+
+            log.info("12 Preset Workout Splits & Exercise mappings initialized successfully in PostgreSQL.");
         } catch (Exception e) {
             log.error("Failed to backfill exercise and workout details in GymWorkoutService", e);
         }
