@@ -57,6 +57,194 @@ const DEFAULT_MACRO_FOODS: FoodItem[] = [
   { id: 'f8', name: 'Greek Yogurt (Plain Nonfat)', category: 'Dairy', caloriesPer100g: 59, proteinPer100g: 10, carbsPer100g: 3.6, fatPer100g: 0.4 },
 ];
 
+const DEFAULT_PRESET_SPLITS = [
+  {
+    id: 'b1111111-0000-0000-0000-000000000001',
+    title: 'Push / Pull / Legs (PPL) Hypertrophy Split',
+    description: 'Gold-standard 6-day split isolating pushing muscles (Chest/Shoulders/Triceps), pulling muscles (Back/Biceps), and lower body.',
+    category: 'PPL',
+    difficulty: 'INTERMEDIATE',
+    duration: '6 Days/Wk',
+    calories: 450,
+    mandatoryExercises: 6,
+    exercises: [
+      { id: 'ex1', name: 'Barbell Flat Bench Press', sets: 4, reps: '8-10', target: 'Chest' },
+      { id: 'ex2', name: 'Incline Dumbbell Press', sets: 4, reps: '10-12', target: 'Upper Chest' },
+      { id: 'ex3', name: 'Barbell Conventional Deadlift', sets: 4, reps: '6-8', target: 'Back' },
+      { id: 'ex4', name: 'Barbell Overhead Press', sets: 4, reps: '8-10', target: 'Shoulders' },
+      { id: 'ex5', name: 'Barbell Back Squat', sets: 4, reps: '8-10', target: 'Quads' },
+      { id: 'ex6', name: 'EZ-Bar Bicep Curls', sets: 4, reps: '10-12', target: 'Biceps' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000002',
+    title: 'The Arnold Schwarzenegger Golden Era Split',
+    description: 'High volume chest/back super-sets paired with shoulders and arms for maximum upper body expansion.',
+    category: 'CLASSIC PRO',
+    difficulty: 'PRO',
+    duration: '6 Days/Wk',
+    calories: 550,
+    mandatoryExercises: 5,
+    exercises: [
+      { id: 'ex1', name: 'Barbell Flat Bench Press', sets: 5, reps: '10', target: 'Chest' },
+      { id: 'ex2', name: 'Wide Grip Pull-Ups', sets: 5, reps: '12', target: 'Lats' },
+      { id: 'ex3', name: 'Incline Barbell Bench Press', sets: 5, reps: '10', target: 'Upper Chest' },
+      { id: 'ex4', name: 'Bent-Over Barbell Row', sets: 5, reps: '10', target: 'Mid-Back' },
+      { id: 'ex5', name: 'Dumbbell Arnold Press', sets: 5, reps: '10', target: 'Shoulders' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000003',
+    title: '4-Day Upper / Lower Strength & Volume Split',
+    description: 'Optimal recovery split training upper body and lower body twice per week with heavy compound progression.',
+    category: 'STRENGTH & HYPERTROPHY',
+    difficulty: 'BEGINNER',
+    duration: '4 Days/Wk',
+    calories: 400,
+    mandatoryExercises: 4,
+    exercises: [
+      { id: 'ex1', name: 'Barbell Flat Bench Press', sets: 4, reps: '6-8', target: 'Chest' },
+      { id: 'ex2', name: 'Lat Pulldown (Wide Grip)', sets: 4, reps: '8-10', target: 'Back' },
+      { id: 'ex3', name: 'Barbell Back Squat', sets: 4, reps: '6-8', target: 'Quads' },
+      { id: 'ex4', name: 'Romanian Deadlift (RDL)', sets: 4, reps: '8-10', target: 'Hamstrings' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000004',
+    title: '5-Day Classic Bodypart Bro Split',
+    description: 'Bodybuilding split hitting one major muscle group per day with maximum single-session volume.',
+    category: 'BODYBUILDING',
+    difficulty: 'INTERMEDIATE',
+    duration: '5 Days/Wk',
+    calories: 420,
+    mandatoryExercises: 5,
+    exercises: [
+      { id: 'ex1', name: 'Incline Dumbbell Press', sets: 4, reps: '10-12', target: 'Chest' },
+      { id: 'ex2', name: 'Seated Cable Rows', sets: 4, reps: '10-12', target: 'Back' },
+      { id: 'ex3', name: 'Dumbbell Lateral Raises', sets: 4, reps: '12-15', target: 'Shoulders' },
+      { id: 'ex4', name: 'EZ-Bar Bicep Curls', sets: 4, reps: '10-12', target: 'Biceps' },
+      { id: 'ex5', name: 'Leg Press Machine', sets: 4, reps: '12-15', target: 'Quads' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000005',
+    title: 'Fat Loss Shred & High-Calorie Burn Split',
+    description: 'High-tempo circuit and metabolic resistance split designed to maximize caloric expenditure and strip body fat while preserving muscle.',
+    category: 'FAT LOSS / SHRED',
+    difficulty: 'BEGINNER',
+    duration: '5 Days/Wk',
+    calories: 600,
+    mandatoryExercises: 6,
+    exercises: [
+      { id: 'ex1', name: 'Kettlebell Swings', sets: 4, reps: '20', target: 'Full Body' },
+      { id: 'ex2', name: 'Dumbbell Goblet Squats', sets: 4, reps: '15', target: 'Quads' },
+      { id: 'ex3', name: 'Push-Ups (Standard)', sets: 4, reps: '20', target: 'Chest' },
+      { id: 'ex4', name: 'Jump Rope Conditioning', sets: 4, reps: '60s', target: 'Cardio' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000006',
+    title: '5x5 Heavy Powerlifting Peak Strength Split',
+    description: 'Low-rep, high-intensity compound power split focused on heavy deadlifts, squats, and bench press for raw maximum strength.',
+    category: 'POWERLIFTING',
+    difficulty: 'PRO',
+    duration: '4 Days/Wk',
+    calories: 480,
+    mandatoryExercises: 5,
+    exercises: [
+      { id: 'ex1', name: 'Barbell Back Squat', sets: 5, reps: '5', target: 'Quads/Glutes' },
+      { id: 'ex2', name: 'Barbell Flat Bench Press', sets: 5, reps: '5', target: 'Chest' },
+      { id: 'ex3', name: 'Barbell Conventional Deadlift', sets: 5, reps: '5', target: 'Back' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000007',
+    title: 'German Volume Training (GVT 10x10) Mass Split',
+    description: 'Brutal 10 sets of 10 reps protocol targeting maximum sarcoplasmic hypertrophy and muscle cell swelling.',
+    category: 'MASS BUILDING',
+    difficulty: 'PRO',
+    duration: '5 Days/Wk',
+    calories: 520,
+    mandatoryExercises: 4,
+    exercises: [
+      { id: 'ex1', name: 'Barbell Flat Bench Press', sets: 10, reps: '10', target: 'Chest' },
+      { id: 'ex2', name: 'Bent-Over Barbell Row', sets: 10, reps: '10', target: 'Back' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000008',
+    title: '3-Day Full Body Frequency Hypertrophy Split',
+    description: 'High-frequency 3-day full body routine hitting every major muscle group 3x per week for busy schedules.',
+    category: 'FULL BODY',
+    difficulty: 'BEGINNER',
+    duration: '3 Days/Wk',
+    calories: 380,
+    mandatoryExercises: 6,
+    exercises: [
+      { id: 'ex1', name: 'Barbell Back Squat', sets: 3, reps: '10', target: 'Quads' },
+      { id: 'ex2', name: 'Barbell Flat Bench Press', sets: 3, reps: '10', target: 'Chest' },
+      { id: 'ex3', name: 'Lat Pulldown (Wide Grip)', sets: 3, reps: '10', target: 'Back' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000009',
+    title: 'Mike Mentzer Heavy Duty High Intensity (HIT) Split',
+    description: 'Ultra-low volume, single all-out failure set strategy to force rapid muscle adaptions and maximum growth.',
+    category: 'HIT / HIGH INTENSITY',
+    difficulty: 'PRO',
+    duration: '3 Days/Wk',
+    calories: 350,
+    mandatoryExercises: 4,
+    exercises: [
+      { id: 'ex1', name: 'Incline Dumbbell Press', sets: 1, reps: '8 to Failure', target: 'Upper Chest' },
+      { id: 'ex2', name: 'Seated Cable Rows', sets: 1, reps: '8 to Failure', target: 'Back' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000010',
+    title: '5-Day Upper / Lower / Arms Specialization Split',
+    description: 'Hypertrophy split with dedicated arm and shoulder specialization days for maximum arm expansion.',
+    category: 'ARMS & UPPER',
+    difficulty: 'INTERMEDIATE',
+    duration: '5 Days/Wk',
+    calories: 460,
+    mandatoryExercises: 6,
+    exercises: [
+      { id: 'ex1', name: 'EZ-Bar Bicep Curls', sets: 4, reps: '12', target: 'Biceps' },
+      { id: 'ex2', name: 'Tricep Rope Pushdown', sets: 4, reps: '12', target: 'Triceps' },
+      { id: 'ex3', name: 'Dumbbell Hammer Curls', sets: 4, reps: '12', target: 'Brachialis' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000011',
+    title: 'Functional Athletic Performance & Agility Hybrid Split',
+    description: 'Explosive plyometrics, rotational core, sprint work, and athletic compound lifting for hybrid conditioning.',
+    category: 'ATHLETIC / HYBRID',
+    difficulty: 'INTERMEDIATE',
+    duration: '4 Days/Wk',
+    calories: 500,
+    mandatoryExercises: 5,
+    exercises: [
+      { id: 'ex1', name: 'Box Jump Calf Explosions', sets: 4, reps: '10', target: 'Plyometrics' },
+      { id: 'ex2', name: 'Barbell Overhead Press', sets: 4, reps: '8', target: 'Shoulders' }
+    ]
+  },
+  {
+    id: 'b1111111-0000-0000-0000-000000000012',
+    title: 'Posterior Chain & Glute Sculpting Split',
+    description: 'Targeted posterior chain split emphasizing gluteal hypertrophy, hamstrings, and spinal erector strength.',
+    category: 'GLUTE & POSTERIOR',
+    difficulty: 'BEGINNER',
+    duration: '4 Days/Wk',
+    calories: 410,
+    mandatoryExercises: 5,
+    exercises: [
+      { id: 'ex1', name: 'Barbell Hip Thrusts', sets: 4, reps: '12', target: 'Glutes' },
+      { id: 'ex2', name: 'Romanian Deadlift (RDL)', sets: 4, reps: '10', target: 'Hamstrings' }
+    ]
+  }
+];
+
 const ALL_CATALOG_EXERCISES: Exercise[] = [
   // CHEST EXERCISES
   { id: 'c1000000-0000-4000-8000-000000000101', name: 'Barbell Flat Bench Press', muscleGroup: 'CHEST', equipment: 'Barbell', description: 'Flat bench press targeting overall chest development.' },
@@ -345,11 +533,13 @@ export const WorkoutsAndDiets: React.FC = () => {
         ]);
         const items = Array.isArray(foodsData) ? foodsData : (foodsData?.items || []);
         setFoodsList(items.length > 0 ? items : DEFAULT_MACRO_FOODS);
-        setPresetSplits(Array.isArray(splitsData) ? splitsData : []);
+        const validSplits = Array.isArray(splitsData) && splitsData.length > 0 ? splitsData : DEFAULT_PRESET_SPLITS;
+        setPresetSplits(validSplits);
         setMySplits(Array.isArray(userSplits) ? userSplits : []);
       } catch (err) {
         console.error('Error fetching backend foods or splits from DB', err);
         setFoodsList(DEFAULT_MACRO_FOODS);
+        setPresetSplits(DEFAULT_PRESET_SPLITS);
       }
     }
     loadBackendData();
