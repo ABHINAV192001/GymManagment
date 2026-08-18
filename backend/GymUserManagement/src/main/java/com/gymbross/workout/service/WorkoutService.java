@@ -7,7 +7,7 @@ import com.Gym.GymCommonServices.entity.Workout;
 import com.Gym.GymCommonServices.entity.WorkoutExercise;
 import com.gymbross.workout.repository.ExerciseRepository;
 import com.gymbross.workout.repository.WorkoutRepository;
-import com.gymbross.workout.repository.UserRepository;
+import com.gymbross.usermanagement.repository.UserRepository;
 import com.Gym.GymCommonServices.entity.User;
 import com.gymbross.workout.repository.WorkoutHistoryRepository;
 import com.gymbross.workout.entity.WorkoutHistory;

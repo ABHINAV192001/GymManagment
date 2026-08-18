@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 public class GroupSessionController {
 
     private final GroupSessionRepository groupSessionRepository;
-    private final com.gymbross.workout.repository.UserRepository userRepository;
+    private final com.gymbross.usermanagement.repository.UserRepository userRepository;
 
     private UUID resolveCurrentUserId() {
         org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();

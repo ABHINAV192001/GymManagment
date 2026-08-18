@@ -4,7 +4,7 @@ import com.gymbross.chatservice.dto.ConversationSummary;
 import com.gymbross.chatservice.dto.MessageRequest;
 import com.gymbross.chatservice.dto.MessageResponse;
 import com.gymbross.chatservice.model.ChatMessage;
-import com.gymbross.chatservice.repository.MessageRepository;
+import com.gymbross.chatservice.repository.ChatMessageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 public class ChatServiceImpl implements ChatService {
 
     @Autowired
-    private MessageRepository messageRepository;
+    private ChatMessageRepository messageRepository;
 
     @Override
     public MessageResponse sendMessage(MessageRequest request) {

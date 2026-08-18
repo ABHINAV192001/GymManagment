@@ -3,7 +3,7 @@ package com.gymbross.workout.service;
 import com.Gym.GymCommonServices.dto.WeeklyWorkoutPlanDto;
 import com.Gym.GymCommonServices.entity.User;
 import com.Gym.GymCommonServices.entity.WeeklyWorkoutPlan;
-import com.gymbross.workout.repository.UserRepository;
+import com.gymbross.usermanagement.repository.UserRepository;
 import com.gymbross.workout.repository.WeeklyWorkoutPlanRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
