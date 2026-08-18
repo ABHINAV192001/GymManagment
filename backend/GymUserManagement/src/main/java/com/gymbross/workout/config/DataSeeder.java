@@ -8,7 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 @Slf4j
-@Component
+@Component("workoutDataSeeder")
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
 

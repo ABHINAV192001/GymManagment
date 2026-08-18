@@ -12,7 +12,7 @@ import java.io.File;
  * Imports recipe data from files on startup, if present.
  * RBAC permissions and system roles are seeded by Flyway (V6, V11).
  */
-@Component
+@Component("userDataSeeder")
 @RequiredArgsConstructor
 @Slf4j
 public class DataSeeder implements CommandLineRunner {

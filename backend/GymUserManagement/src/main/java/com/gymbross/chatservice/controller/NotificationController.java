@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+@RestController("chatNotificationController")
 @RequestMapping("/api/chat/notifications") // Standardized path
 @RequiredArgsConstructor
 public class NotificationController {
