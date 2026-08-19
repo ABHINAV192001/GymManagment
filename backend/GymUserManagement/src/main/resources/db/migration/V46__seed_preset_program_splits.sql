@@ -137,7 +137,7 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- 3. SEED CURATED EXPLICIT WORKOUT EXERCISES MAPPINGS (440 TOTAL)
-DELETE FROM workout_exercises WHERE workout_id LIKE 'b2222222-%';
+DELETE FROM workout_exercises WHERE workout_id::text LIKE 'b2222222-%';
 
 INSERT INTO workout_exercises (id, workout_id, exercise_id, sets, reps, time)
 VALUES
