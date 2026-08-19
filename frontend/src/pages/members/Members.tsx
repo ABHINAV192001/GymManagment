@@ -4,10 +4,11 @@ import {
   Search, X, DollarSign, UserPlus, Printer, Mail, Phone as PhoneIcon, 
   Edit, Trash2, Calendar, User, CheckCircle2, AlertTriangle, 
   CreditCard, Eye, Award, Activity, Building2, Sparkles, ShieldCheck, AlertCircle,
-  CalendarCheck, Clock, LogOut, Check, Loader2, Filter, RotateCcw
+  CalendarCheck, Clock, LogOut, Check, Loader2, Filter, RotateCcw,
+  MessageCircle, Share2, Copy, ExternalLink
 } from 'lucide-react';
 import { Member, Branch, Staff, Payment, Plan } from '../../types';
-import { getUsers, createUser, updateUser, deleteUser, getAdminBranches, getStaff, resendPasswordNotification } from '../../lib/api/admin';
+import { getUsers, createUser, updateUser, deleteUser, getAdminBranches, getStaff, resendPasswordNotification, getWhatsAppInviteUrl } from '../../lib/api/admin';
 import { getPayments, createPayment } from '../../lib/api/accounts';
 import { getRoles as getRbacRoles } from '../../lib/api/rbac';
 import { getPlans } from '../../lib/api/plans';
@@ -59,6 +60,7 @@ export const MembersInternal: React.FC = () => {
   // Modal & Drawer Component States (Declared BEFORE any useEffect hooks)
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [inviteModalData, setInviteModalData] = useState<{ isOpen: boolean; memberName: string; phone: string; email: string; inviteLink: string; whatsAppUrl: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'attendance' | 'card'>('overview');
 
   const [userAttendanceLogs, setUserAttendanceLogs] = useState<any[]>([]);
@@ -391,18 +393,42 @@ export const MembersInternal: React.FC = () => {
     }
     try {
       const res = await resendPasswordNotification(member.id);
-      if (res?.inviteLink) {
-        try {
-          await navigator.clipboard.writeText(res.inviteLink);
-          triggerAnnouncement(`Password setup link sent to ${member.email} & copied to clipboard!`);
-        } catch {
-          triggerAnnouncement(`Password setup notification sent to ${member.email}!`);
-        }
-      } else {
-        triggerAnnouncement(`Password setup notification sent to ${member.email}!`);
-      }
+      const inviteLink = res?.inviteLink || `${window.location.origin}/auth/register/join?u=${member.userCode || member.id}&email=${encodeURIComponent(member.email || '')}`;
+      const whatsAppUrl = getWhatsAppInviteUrl(member.phone, inviteLink, member.name);
+
+      setInviteModalData({
+        isOpen: true,
+        memberName: member.name,
+        phone: member.phone,
+        email: member.email,
+        inviteLink,
+        whatsAppUrl
+      });
+      triggerAnnouncement(`Password setup link ready for ${member.name}!`);
     } catch (err: any) {
       triggerAnnouncement(`Failed to send password notification: ${err.message}`);
+    }
+  };
+
+  const handleSendWhatsAppInvite = async (member: Member, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    try {
+      const res = await resendPasswordNotification(member.id);
+      const inviteLink = res?.inviteLink || `${window.location.origin}/auth/register/join?u=${member.userCode || member.id}&email=${encodeURIComponent(member.email || '')}`;
+      const whatsAppUrl = getWhatsAppInviteUrl(member.phone, inviteLink, member.name);
+
+      setInviteModalData({
+        isOpen: true,
+        memberName: member.name,
+        phone: member.phone,
+        email: member.email,
+        inviteLink,
+        whatsAppUrl
+      });
+      window.open(whatsAppUrl, '_blank');
+      triggerAnnouncement(`Opened WhatsApp invite for ${member.name}!`);
+    } catch (err: any) {
+      triggerAnnouncement(`Failed to generate WhatsApp invite: ${err.message}`);
     }
   };
 
@@ -881,17 +907,17 @@ export const MembersInternal: React.FC = () => {
                       <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         <button
                           className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition"
-                          title="Resend Set Password Notification Email"
+                          title="Resend Invite & Copy Setup Link"
                           onClick={(e) => handleResendPasswordNotification(m, e)}
                         >
                           <Mail className="w-4 h-4 text-indigo-500" />
                         </button>
                         <button
                           className="p-1.5 rounded-lg text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition"
-                          title="Contact via WhatsApp"
-                          onClick={() => alert(`Contacting ${m.phone}...`)}
+                          title="Send Password Setup Link via WhatsApp"
+                          onClick={(e) => handleSendWhatsAppInvite(m, e)}
                         >
-                          <PhoneIcon className="w-4 h-4" />
+                          <MessageCircle className="w-4 h-4 text-emerald-500" />
                         </button>
                         {canEdit('users') && (
                           <button
@@ -995,7 +1021,15 @@ export const MembersInternal: React.FC = () => {
                       title="Resend Set Password Email & Notification"
                     >
                       <Mail className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>Resend Invite</span>
+                      <span>Email Invite</span>
+                    </button>
+                    <button
+                      onClick={(e) => handleSendWhatsAppInvite(selectedMember, e)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl border border-emerald-200 dark:border-emerald-800 transition"
+                      title="Send Password Setup Link via WhatsApp"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>WhatsApp</span>
                     </button>
                     {canEdit('users') && (
                       <button
@@ -2215,6 +2249,79 @@ export const MembersInternal: React.FC = () => {
                 </button>
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Setup & WhatsApp Invite Modal */}
+      {inviteModalData && inviteModalData.isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 text-xs">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                  <MessageCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Share Password Setup Link</h3>
+                  <p className="text-xs text-zinc-500">{inviteModalData.memberName} ({inviteModalData.phone || inviteModalData.email})</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setInviteModalData(null)}
+                className="p-1.5 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-zinc-600 dark:text-zinc-400 font-semibold">Generated Registration & Password Setup Link:</label>
+              <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={inviteModalData.inviteLink}
+                  className="bg-transparent text-zinc-800 dark:text-zinc-200 w-full outline-none font-mono text-[11px]"
+                />
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(inviteModalData.inviteLink);
+                      triggerAnnouncement('Invite link copied to clipboard!');
+                    } catch {
+                      triggerAnnouncement('Failed to copy link.');
+                    }
+                  }}
+                  className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold flex items-center gap-1 shrink-0 transition"
+                  title="Copy link to clipboard"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <a
+                href={inviteModalData.whatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold transition shadow-sm"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Send via WhatsApp</span>
+              </a>
+              <a
+                href={inviteModalData.inviteLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-2xl font-bold transition"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Open Link</span>
+              </a>
             </div>
           </div>
         </div>
