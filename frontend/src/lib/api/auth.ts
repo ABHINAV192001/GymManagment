@@ -24,8 +24,14 @@ export async function login(email: string, password: string) {
   return response.data;
 }
 
-export function logout() {
-  clearStoredAuth();
+export async function logout() {
+  try {
+    await fetchWithAuth(`${API_CONFIG.USER_MANAGEMENT_URL}/api/auth/logout`, { method: 'POST' });
+  } catch (err) {
+    console.warn('Server logout notice:', err);
+  } finally {
+    clearStoredAuth();
+  }
 }
 
 

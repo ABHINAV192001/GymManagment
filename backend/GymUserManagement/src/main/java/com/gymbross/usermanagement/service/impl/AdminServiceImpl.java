@@ -15,6 +15,9 @@ import com.gymbross.usermanagement.service.OtpService;
 import com.Gym.GymCommonServices.entity.UserDietPlan;
 import com.Gym.GymCommonServices.security.CurrentTenantResolver;
 import com.Gym.GymCommonServices.security.TenantAccessGuard;
+import com.Gym.GymCommonServices.exception.ResourceNotFoundException;
+import com.Gym.GymCommonServices.exception.DuplicateResourceException;
+import com.Gym.GymCommonServices.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -200,18 +203,24 @@ public class AdminServiceImpl implements AdminService {
 
         @Override
         public void createUser(AdminDashboardDtos.UserDetailDto userDto, java.util.UUID organizationId, java.util.UUID branchId) {
-                Organization org = organizationRepository.findById(organizationId)
-                                .orElseThrow(() -> new RuntimeException("Organization not found"));
+                Organization org = null;
+                if (organizationId != null) {
+                        org = organizationRepository.findById(organizationId).orElse(null);
+                }
 
                 Branch branch = null;
-                if (branchId != null) {
-                        // Branch User context
-                        branch = branchRepository.findById(branchId)
-                                        .orElseThrow(() -> new RuntimeException("Branch not found"));
-                } else if (userDto.getBranchId() != null) {
-                        // Org User context - specified branch
-                        branch = branchRepository.findById(userDto.getBranchId())
-                                        .orElseThrow(() -> new RuntimeException("Specified Branch not found"));
+                java.util.UUID targetBranchId = branchId != null ? branchId : userDto.getBranchId();
+                if (targetBranchId != null) {
+                        branch = branchRepository.findById(targetBranchId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Specified Branch not found"));
+                        if (org == null) {
+                                org = branch.getOrganization();
+                        }
+                }
+
+                if (org == null) {
+                        org = organizationRepository.findAll().stream().findFirst()
+                                        .orElseThrow(() -> new ResourceNotFoundException("Organization not found. Please ensure an organization exists."));
                 }
 
                 if (userDto.getName() == null && (userDto.getFirstName() != null || userDto.getLastName() != null)) {
@@ -220,8 +229,8 @@ public class AdminServiceImpl implements AdminService {
                         userDto.setName(fullName.trim());
                 }
 
-                if (userDto.getName() == null) {
-                        throw new RuntimeException("User name is required");
+                if (userDto.getName() == null || userDto.getName().trim().isEmpty()) {
+                        throw new IllegalArgumentException("User name is required");
                 }
 
                 validateExistingUserByEmailOrPhone(userDto.getEmail(), userDto.getPhone());
@@ -313,13 +322,14 @@ public class AdminServiceImpl implements AdminService {
                 }
                 
                 final String finalRole = requestedRole;
+                final Organization finalOrg = org;
                 com.gymbross.usermanagement.entity.RbacRole rbacRole = rbacRoleRepository
-                        .findByNameAndOrgId(finalRole, org.getId())
+                        .findByNameAndOrgId(finalRole, finalOrg.getId())
                         .or(() -> rbacRoleRepository.findByNameAndOrgIdIsNull(finalRole))
                         .orElseGet(() -> {
                                 return rbacRoleRepository.save(com.gymbross.usermanagement.entity.RbacRole.builder()
                                         .name(finalRole)
-                                        .orgId(org.getId())
+                                        .orgId(finalOrg.getId())
                                         .isActive(true)
                                         .isDeleted(false)
                                         .build());
@@ -1374,9 +1384,9 @@ public class AdminServiceImpl implements AdminService {
                         boolean isEmailVerified = Boolean.TRUE.equals(existingUser.getIsEmailVerified());
 
                         if (isActive && isEmailVerified) {
-                                throw new RuntimeException("User with this email or phone number already belongs to this organization.");
+                                throw new DuplicateResourceException("User with this email or phone number already belongs to this organization.");
                         } else {
-                                throw new RuntimeException("User with this email or phone number belongs to this organization but is deactivated or pending verification.");
+                                throw new DuplicateResourceException("User with this email or phone number belongs to this organization but is deactivated or pending verification.");
                         }
                 }
         }
