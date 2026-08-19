@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { qrScan } from '../../lib/api/attendance';
+import { getUserProfile } from '../../lib/api/user';
 
 import { X, CheckCircle, AlertTriangle } from 'lucide-react';
 
@@ -8,11 +9,34 @@ export default function QrScannerTab() {
   const [scanResult, setScanResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(true);
-  const user = { id: '00000000-0000-0000-0000-000000000001', branchId: 'org-1-branch-1' }; // Mock user for testing
+  const [user, setUser] = useState<{ id: string; branchId?: string } | null>(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed?.id || parsed?.userId) {
+          return { id: parsed.id || parsed.userId, branchId: parsed.branchId };
+        }
+      } catch (e) {}
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (!user?.id) {
+      getUserProfile()
+        .then(profile => {
+          if (profile?.id) {
+            setUser({ id: profile.id, branchId: profile.branchId });
+          }
+        })
+        .catch(err => console.error('Error loading scanner user profile:', err));
+    }
+  }, []);
 
   useEffect(() => {
     let scanner: Html5QrcodeScanner | null = null;
-    if (isScanning) {
+    if (isScanning && user?.id) {
       scanner = new Html5QrcodeScanner(
         "reader",
         { fps: 10, qrbox: { width: 250, height: 250 } },

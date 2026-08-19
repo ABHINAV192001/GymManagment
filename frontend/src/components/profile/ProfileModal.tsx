@@ -42,10 +42,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [activeTab, setActiveTab] = useState<'PERSONAL' | 'MEMBERSHIP' | 'NOTIFICATIONS' | 'PREFERENCES' | 'SECURITY'>('PERSONAL');
   
   // Profile State
-  const [name, setName] = useState('Abhinav Admin');
-  const [email, setEmail] = useState('kirix92331@gicont.com');
-  const [phone, setPhone] = useState('+91 9876543210');
-  const [dob, setDob] = useState('1998-05-15');
+  const [userId, setUserId] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [dob, setDob] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [bannerColor, setBannerColor] = useState('blue');
 
@@ -68,6 +69,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       getUserProfile()
         .then(profile => {
           if (profile) {
+            if (profile.id) setUserId(profile.id);
             if (profile.name) setName(profile.name);
             if (profile.email) setEmail(profile.email);
             if (profile.phone) setPhone(profile.phone);
@@ -101,11 +103,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     try {
       setIsSendingReset(true);
       setResetSuccessMsg('');
-      await resendPasswordNotification('user-id-current');
-      setResetSuccessMsg(`Password reset link & verification OTP sent to ${email}. Please check your email inbox.`);
+      await resendPasswordNotification(userId || email || 'me');
+      setResetSuccessMsg(`Password reset link & verification OTP sent to ${email || 'your email'}. Please check your email inbox.`);
       if (onAnnounce) onAnnounce('Password reset verification link sent to email.');
     } catch (err: any) {
-      setResetSuccessMsg(`Password reset link & verification OTP sent to ${email}.`);
+      setResetSuccessMsg(`Password reset link & verification OTP sent to ${email || 'your email'}.`);
     } finally {
       setIsSendingReset(false);
     }

@@ -424,10 +424,26 @@ export const MemberDashboard: React.FC = () => {
         localStorage.setItem(`gymOSFoodLogs_${dateKey}`, JSON.stringify(syncedLogs));
       }
 
-      // 2. Process Recipes from Backend API (GET /api/v1/recipes)
-      const recipeList = recRes?.data?.content || recRes?.content || recRes?.data || recRes || [];
       if (Array.isArray(recipeList) && recipeList.length > 0) {
         setRecipes(recipeList.slice(0, 4));
+      }
+
+      // Sync backend exercises into today's workout routine
+      if (Array.isArray(exercisesData) && exercisesData.length > 0) {
+        const savedProgramKey = localStorage.getItem('selectedGymOSProgramKey') || localStorage.getItem('selectedGymOSWorkoutSplit') || 'PPL';
+        const { focusKey } = getTodayWorkoutFocus(savedProgramKey);
+        const mappedExs: ExerciseItem[] = exercisesData.map((ex: any, idx: number) => ({
+          id: String(ex.id || `db-ex-${idx}`),
+          name: ex.name || 'Exercise',
+          sets: ex.recommendedSets || 4,
+          reps: ex.recommendedReps || '8-12 reps',
+          weight: ex.equipment ? `${ex.equipment}` : 'Bodyweight',
+          target: ex.muscleGroup || focusKey,
+          completed: false
+        }));
+        if (mappedExs.length > 0) {
+          setTodayExercises(prev => (prev.length === 0 ? mappedExs.slice(0, 10) : prev));
+        }
       } else {
         setRecipes([
           { id: 'r1', recipeName: 'Grilled Chicken & Quinoa Bowl', category: 'High Protein', calories: 520, protein: 48 },

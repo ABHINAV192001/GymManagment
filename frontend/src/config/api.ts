@@ -2,9 +2,9 @@ const getBaseUrl = (envUrl: string | undefined, defaultLocalUrl: string) => {
   if (envUrl && envUrl.trim() !== '') {
     return envUrl.replace(/\/+$/, '');
   }
-  // Automatic production fallback for Vercel deployment
+  // Dynamic fallback for relative / proxy routing in production deployments
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return 'https://gymmanagment-wi3u.onrender.com';
+    return window.location.origin;
   }
   return defaultLocalUrl;
 };
