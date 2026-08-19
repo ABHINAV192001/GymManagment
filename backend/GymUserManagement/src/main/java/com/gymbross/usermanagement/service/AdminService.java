@@ -64,4 +64,6 @@ public interface AdminService {
     void resendAdminVerification(java.util.UUID branchId);
 
     String resendUserInvite(java.util.UUID userId);
+
+    String resendUserInvite(java.util.UUID userId, String clientOrigin);
 }

@@ -417,8 +417,13 @@ public class AdminServiceImpl implements AdminService {
         }
 
         @Override
-        @Transactional
         public String resendUserInvite(java.util.UUID userId) {
+                return resendUserInvite(userId, null);
+        }
+
+        @Override
+        @Transactional
+        public String resendUserInvite(java.util.UUID userId, String clientOrigin) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
@@ -445,7 +450,17 @@ public class AdminServiceImpl implements AdminService {
                         System.out.println("Notice: Could not resolve user role for invite link: " + e.getMessage());
                 }
 
-                String baseUrl = (frontendUrl != null && !frontendUrl.trim().isEmpty()) ? frontendUrl.trim() : "http://localhost:3000";
+                String baseUrl = null;
+                if (clientOrigin != null && !clientOrigin.trim().isEmpty()) {
+                        baseUrl = clientOrigin.trim();
+                        int queryIdx = baseUrl.indexOf("?");
+                        if (queryIdx != -1) baseUrl = baseUrl.substring(0, queryIdx);
+                        int pathIdx = baseUrl.indexOf("/", 8);
+                        if (pathIdx != -1) baseUrl = baseUrl.substring(0, pathIdx);
+                }
+                if (baseUrl == null || baseUrl.isEmpty()) {
+                        baseUrl = (frontendUrl != null && !frontendUrl.trim().isEmpty()) ? frontendUrl.trim() : "https://gymmanagment-wi3u.onrender.com";
+                }
                 if (baseUrl.endsWith("/")) {
                         baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
                 }
