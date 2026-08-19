@@ -417,33 +417,56 @@ public class AdminServiceImpl implements AdminService {
         }
 
         @Override
+        @Transactional
         public String resendUserInvite(java.util.UUID userId) {
                 User user = userRepository.findById(userId)
-                                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
                 if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
                         throw new IllegalArgumentException("User does not have a valid email address.");
                 }
 
                 String adminCode = "Unknown";
-                if (user.getBranch() != null) {
-                        adminCode = userRepository.findTopByBranchId(user.getBranch().getId())
-                                        .map(User::getAdminCode).orElse("Unknown");
+                try {
+                        if (user.getBranch() != null) {
+                                adminCode = userRepository.findTopByBranchId(user.getBranch().getId())
+                                                .map(User::getAdminCode).orElse("Unknown");
+                        }
+                } catch (Exception e) {
+                        System.out.println("Notice: Could not resolve adminCode for invite link: " + e.getMessage());
                 }
 
-                String inviteLink = frontendUrl + "/auth/register/join?u=" + user.getUserCode()
-                                + "&ref=" + adminCode + "&role=" + user.getRole()
+                String role = "MEMBER";
+                try {
+                        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+                                role = user.getRoles().iterator().next().getName();
+                        }
+                } catch (Exception e) {
+                        System.out.println("Notice: Could not resolve user role for invite link: " + e.getMessage());
+                }
+
+                String baseUrl = (frontendUrl != null && !frontendUrl.trim().isEmpty()) ? frontendUrl.trim() : "http://localhost:3000";
+                if (baseUrl.endsWith("/")) {
+                        baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+                }
+
+                String inviteLink = baseUrl + "/auth/register/join?u=" + user.getUserCode()
+                                + "&ref=" + adminCode + "&role=" + role
                                 + "&email=" + java.net.URLEncoder.encode(user.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8);
 
                 try {
                         otpService.sendOtp(user.getEmail().trim(), user.getPhone(), "REGISTER", inviteLink);
                 } catch (Exception e) {
-                        System.err.println("Resend OTP warning: " + e.getMessage() + ". Sending direct email notification...");
-                        emailService.sendEmail(
-                                user.getEmail().trim(),
-                                "Set Your Password - GymBross Account Invitation",
-                                "Hello " + user.getName() + ",\n\nPlease click the link below to set your password and access your GymBross account:\n" + inviteLink
-                        );
+                        System.err.println("Resend OTP warning: " + e.getMessage() + ". Attempting direct email notification...");
+                        try {
+                                emailService.sendEmail(
+                                        user.getEmail().trim(),
+                                        "Set Your Password - GymBross Account Invitation",
+                                        "Hello " + user.getName() + ",\n\nPlease click the link below to set your password and access your GymBross account:\n\n" + inviteLink
+                                );
+                        } catch (Exception mailEx) {
+                                System.err.println("Direct email fallback notice: " + mailEx.getMessage());
+                        }
                 }
 
                 return inviteLink;
