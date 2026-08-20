@@ -107,6 +107,15 @@ export async function resendPasswordNotification(userId: string): Promise<{ invi
   return response.data || {};
 }
 
+export function getWhatsAppInviteUrl(phone: string, inviteLink: string, memberName?: string): string {
+  const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+  const text = `Hello ${memberName || 'Member'}, welcome to GymBross! 🏋️‍♂️\n\nPlease click the link below to set your account password and access your portal:\n\n${inviteLink}`;
+  if (cleanPhone) {
+    return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`;
+  }
+  return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+}
+
 export async function createTrainer(trainer: Partial<Staff>): Promise<Staff> {
   const response = await fetchWithAuth(`${BASE_URL}/trainers`, {
     method: 'POST',

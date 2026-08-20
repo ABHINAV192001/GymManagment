@@ -15,6 +15,9 @@ import com.gymbross.usermanagement.service.OtpService;
 import com.Gym.GymCommonServices.entity.UserDietPlan;
 import com.Gym.GymCommonServices.security.CurrentTenantResolver;
 import com.Gym.GymCommonServices.security.TenantAccessGuard;
+import com.Gym.GymCommonServices.exception.ResourceNotFoundException;
+import com.Gym.GymCommonServices.exception.DuplicateResourceException;
+import com.Gym.GymCommonServices.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -200,18 +203,24 @@ public class AdminServiceImpl implements AdminService {
 
         @Override
         public void createUser(AdminDashboardDtos.UserDetailDto userDto, java.util.UUID organizationId, java.util.UUID branchId) {
-                Organization org = organizationRepository.findById(organizationId)
-                                .orElseThrow(() -> new RuntimeException("Organization not found"));
+                Organization org = null;
+                if (organizationId != null) {
+                        org = organizationRepository.findById(organizationId).orElse(null);
+                }
 
                 Branch branch = null;
-                if (branchId != null) {
-                        // Branch User context
-                        branch = branchRepository.findById(branchId)
-                                        .orElseThrow(() -> new RuntimeException("Branch not found"));
-                } else if (userDto.getBranchId() != null) {
-                        // Org User context - specified branch
-                        branch = branchRepository.findById(userDto.getBranchId())
-                                        .orElseThrow(() -> new RuntimeException("Specified Branch not found"));
+                java.util.UUID targetBranchId = branchId != null ? branchId : userDto.getBranchId();
+                if (targetBranchId != null) {
+                        branch = branchRepository.findById(targetBranchId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Specified Branch not found"));
+                        if (org == null) {
+                                org = branch.getOrganization();
+                        }
+                }
+
+                if (org == null) {
+                        org = organizationRepository.findAll().stream().findFirst()
+                                        .orElseThrow(() -> new ResourceNotFoundException("Organization not found. Please ensure an organization exists."));
                 }
 
                 if (userDto.getName() == null && (userDto.getFirstName() != null || userDto.getLastName() != null)) {
@@ -220,8 +229,8 @@ public class AdminServiceImpl implements AdminService {
                         userDto.setName(fullName.trim());
                 }
 
-                if (userDto.getName() == null) {
-                        throw new RuntimeException("User name is required");
+                if (userDto.getName() == null || userDto.getName().trim().isEmpty()) {
+                        throw new IllegalArgumentException("User name is required");
                 }
 
                 validateExistingUserByEmailOrPhone(userDto.getEmail(), userDto.getPhone());
@@ -313,13 +322,14 @@ public class AdminServiceImpl implements AdminService {
                 }
                 
                 final String finalRole = requestedRole;
+                final Organization finalOrg = org;
                 com.gymbross.usermanagement.entity.RbacRole rbacRole = rbacRoleRepository
-                        .findByNameAndOrgId(finalRole, org.getId())
+                        .findByNameAndOrgId(finalRole, finalOrg.getId())
                         .or(() -> rbacRoleRepository.findByNameAndOrgIdIsNull(finalRole))
                         .orElseGet(() -> {
                                 return rbacRoleRepository.save(com.gymbross.usermanagement.entity.RbacRole.builder()
                                         .name(finalRole)
-                                        .orgId(org.getId())
+                                        .orgId(finalOrg.getId())
                                         .isActive(true)
                                         .isDeleted(false)
                                         .build());
@@ -408,32 +418,70 @@ public class AdminServiceImpl implements AdminService {
 
         @Override
         public String resendUserInvite(java.util.UUID userId) {
+                return resendUserInvite(userId, null);
+        }
+
+        @Override
+        @Transactional
+        public String resendUserInvite(java.util.UUID userId, String clientOrigin) {
                 User user = userRepository.findById(userId)
-                                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
                 if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
                         throw new IllegalArgumentException("User does not have a valid email address.");
                 }
 
                 String adminCode = "Unknown";
-                if (user.getBranch() != null) {
-                        adminCode = userRepository.findTopByBranchId(user.getBranch().getId())
-                                        .map(User::getAdminCode).orElse("Unknown");
+                try {
+                        if (user.getBranch() != null) {
+                                adminCode = userRepository.findTopByBranchId(user.getBranch().getId())
+                                                .map(User::getAdminCode).orElse("Unknown");
+                        }
+                } catch (Exception e) {
+                        System.out.println("Notice: Could not resolve adminCode for invite link: " + e.getMessage());
                 }
 
-                String inviteLink = frontendUrl + "/auth/register/join?u=" + user.getUserCode()
-                                + "&ref=" + adminCode + "&role=" + user.getRole()
+                String role = "MEMBER";
+                try {
+                        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+                                role = user.getRoles().iterator().next().getName();
+                        }
+                } catch (Exception e) {
+                        System.out.println("Notice: Could not resolve user role for invite link: " + e.getMessage());
+                }
+
+                String baseUrl = null;
+                if (clientOrigin != null && !clientOrigin.trim().isEmpty()) {
+                        baseUrl = clientOrigin.trim();
+                        int queryIdx = baseUrl.indexOf("?");
+                        if (queryIdx != -1) baseUrl = baseUrl.substring(0, queryIdx);
+                        int pathIdx = baseUrl.indexOf("/", 8);
+                        if (pathIdx != -1) baseUrl = baseUrl.substring(0, pathIdx);
+                }
+                if (baseUrl == null || baseUrl.isEmpty()) {
+                        baseUrl = (frontendUrl != null && !frontendUrl.trim().isEmpty()) ? frontendUrl.trim() : "https://gymmanagment-wi3u.onrender.com";
+                }
+                if (baseUrl.endsWith("/")) {
+                        baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+                }
+
+                String inviteLink = baseUrl + "/auth/register/join?u=" + user.getUserCode()
+                                + "&ref=" + adminCode + "&role=" + role
                                 + "&email=" + java.net.URLEncoder.encode(user.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8);
 
                 try {
                         otpService.sendOtp(user.getEmail().trim(), user.getPhone(), "REGISTER", inviteLink);
                 } catch (Exception e) {
-                        System.err.println("Resend OTP warning: " + e.getMessage() + ". Sending direct email notification...");
-                        emailService.sendEmail(
-                                user.getEmail().trim(),
-                                "Set Your Password - GymBross Account Invitation",
-                                "Hello " + user.getName() + ",\n\nPlease click the link below to set your password and access your GymBross account:\n" + inviteLink
-                        );
+                        System.err.println("Resend OTP warning: " + e.getMessage() + ". Attempting direct email notification...");
+                        try {
+                                emailService.sendEmail(
+                                        user.getEmail().trim(),
+                                        "Set Your Password - GymBross Account Invitation",
+                                        "Hello " + user.getName() + ",\n\nPlease click the link below to set your password and access your GymBross account:\n\n" + inviteLink
+                                );
+                        } catch (Exception mailEx) {
+                                System.err.println("Direct email fallback notice: " + mailEx.getMessage());
+                        }
                 }
 
                 return inviteLink;
@@ -1374,9 +1422,9 @@ public class AdminServiceImpl implements AdminService {
                         boolean isEmailVerified = Boolean.TRUE.equals(existingUser.getIsEmailVerified());
 
                         if (isActive && isEmailVerified) {
-                                throw new RuntimeException("User with this email or phone number already belongs to this organization.");
+                                throw new DuplicateResourceException("User with this email or phone number already belongs to this organization.");
                         } else {
-                                throw new RuntimeException("User with this email or phone number belongs to this organization but is deactivated or pending verification.");
+                                throw new DuplicateResourceException("User with this email or phone number belongs to this organization but is deactivated or pending verification.");
                         }
                 }
         }

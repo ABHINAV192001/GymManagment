@@ -191,10 +191,7 @@ export const WorkoutsAndDiets: React.FC = () => {
   const [selectedDays, setSelectedDays] = useState<string[]>(DAYS_OF_WEEK);
 
   const [selectedInserterMuscle, setSelectedInserterMuscle] = useState<string>('CHEST');
-  const [workoutExercises, setWorkoutExercises] = useState<{ exerciseId: string; sets: number; reps: string; targetDays: string[] }[]>([
-    { exerciseId: 'c1000000-0000-4000-8000-000000000101', sets: 4, reps: '8-10', targetDays: ['Monday', 'Wednesday', 'Friday'] },
-    { exerciseId: 'c1000000-0000-4000-8000-000000000102', sets: 4, reps: '10-12', targetDays: ['Monday', 'Thursday'] },
-  ]);
+  const [workoutExercises, setWorkoutExercises] = useState<{ exerciseId: string; sets: number; reps: string; targetDays: string[] }[]>([]);
 
   const [selectedExToAdd, setSelectedExToAdd] = useState('');
   const [addSets, setAddSets] = useState('4');

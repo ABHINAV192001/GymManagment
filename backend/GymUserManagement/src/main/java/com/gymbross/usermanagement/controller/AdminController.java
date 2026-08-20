@@ -74,8 +74,14 @@ public class AdminController {
 
     @PostMapping("/users/{id}/resend-invite")
     @PreAuthorize("hasAuthority('USERS:EDIT')")
-    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> resendUserInvite(@PathVariable java.util.UUID id) {
-        String inviteLink = adminService.resendUserInvite(id);
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> resendUserInvite(
+            @PathVariable java.util.UUID id,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String origin = request.getHeader("Origin");
+        if (origin == null || origin.trim().isEmpty()) {
+            origin = request.getHeader("Referer");
+        }
+        String inviteLink = adminService.resendUserInvite(id, origin);
         java.util.Map<String, String> res = new java.util.HashMap<>();
         res.put("inviteLink", inviteLink);
         res.put("message", "Password setup notification resent successfully");
