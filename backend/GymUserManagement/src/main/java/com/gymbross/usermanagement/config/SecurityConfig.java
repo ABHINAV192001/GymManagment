@@ -49,7 +49,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/api/public/**", "/api/otp/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
-                        .requestMatchers("/api/chat/**", "/ws/**").permitAll()
+                        .requestMatchers("/api/chat/**", "/api/ai-chat/**", "/ws/**").permitAll()
                         .requestMatchers("/api/auth/logout").authenticated()
                         // String/permission-specific checks live on the controller methods via @PreAuthorize;
                         // this layer just enforces "must be authenticated at all" as a baseline.

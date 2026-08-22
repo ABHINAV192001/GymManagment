@@ -29,6 +29,7 @@ import { RBAC } from '../pages/rbac/RBAC';
 import { CRM } from '../pages/crm/CRM';
 import { Roster } from '../pages/roster/Roster';
 import { POS } from '../pages/pos/POS';
+import { AiAgentPage } from '../pages/ai/AiAgentPage';
 
 // Dummy functions to satisfy props while maintaining UI
 const dummyTrigger = (msg: string) => console.log('Announcement:', msg);
@@ -119,6 +120,7 @@ export function AppRoutes() {
           
           {/* Communications */}
           <Route path="/chat" element={<Chat />} />
+          <Route path="/ai-agent" element={<AiAgentPage />} />
           <Route path="/notifications" element={<Notifications />} />
           
           {/* Settings & Admin */}

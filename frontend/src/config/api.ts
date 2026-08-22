@@ -16,11 +16,11 @@ export const API_CONFIG = {
   ),
   WORKOUT_SERVICE_URL: getBaseUrl(
     import.meta.env.VITE_WORKOUT_SERVICE_URL || import.meta.env.VITE_API_BASE_URL,
-    'http://localhost:8083'
+    'http://localhost:8080'
   ),
   CHAT_SERVICE_URL: getBaseUrl(
     import.meta.env.VITE_CHAT_SERVICE_URL || import.meta.env.VITE_API_BASE_URL,
-    'http://localhost:8082'
+    'http://localhost:8080'
   ),
 };
 
