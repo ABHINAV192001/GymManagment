@@ -34,7 +34,7 @@ public class AiChatService {
     private final AiChatSessionRepository sessionRepository;
     private final AiChatMessageRepository messageRepository;
 
-    @Value("${nvidia.api.key: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}")
+    @Value("${nvidia.api.key:}")
     private String apiKey;
 
     @Value("${nvidia.api.url:https://integrate.api.nvidia.com/v1/chat/completions}")
@@ -56,6 +56,12 @@ public class AiChatService {
             String userId,
             OutputStream outputStream
     ) {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            log.error("NVIDIA_API_KEY environment variable is missing.");
+            sendSseError(outputStream, "NVIDIA_API_KEY is not configured in backend environment variables.");
+            return;
+        }
+
         // 1. Validation & Input Sanitization
         if (rawMessage == null || rawMessage.trim().isEmpty()) {
             sendSseError(outputStream, "Message cannot be empty.");

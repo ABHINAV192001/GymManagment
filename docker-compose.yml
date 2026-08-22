@@ -63,6 +63,9 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-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}
+      NVIDIA_API_URL: ${NVIDIA_API_URL:-https://integrate.api.nvidia.com/v1/chat/completions}
+      NVIDIA_API_MODEL: ${NVIDIA_API_MODEL:-nvidia/nemotron-3-ultra-550b-a55b}
     volumes:
       - uploads:/app/uploads
     depends_on:
