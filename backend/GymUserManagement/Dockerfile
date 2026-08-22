@@ -2,11 +2,11 @@
 FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /build/service
 
-COPY pom.xml ./pom.xml
-COPY src ./src
+COPY . ./
+RUN if [ -f "backend/GymUserManagement/pom.xml" ]; then cp -rf backend/GymUserManagement/* ./ ; fi
 RUN mvn clean package -DskipTests -B
 
-# ---------- Stage 3: Runtime ----------
+# ---------- Stage 2: Runtime ----------
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
