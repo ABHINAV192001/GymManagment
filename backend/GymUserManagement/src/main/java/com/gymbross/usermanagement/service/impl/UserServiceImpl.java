@@ -225,8 +225,22 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public com.gymbross.usermanagement.dto.DailyLogDto getDailyLog(String username, String date) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .or(() -> userRepository.findByEmail(username))
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
+        return getDailyLogForUser(user, date);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.gymbross.usermanagement.dto.DailyLogDto getDailyLogByUserId(java.util.UUID userId, String date) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+
+        return getDailyLogForUser(user, date);
+    }
+
+    private com.gymbross.usermanagement.dto.DailyLogDto getDailyLogForUser(User user, String date) {
         java.time.LocalDate selectedDate;
         try {
             selectedDate = java.time.LocalDate.parse(date);
@@ -248,17 +262,15 @@ public class UserServiceImpl implements UserService {
             double quantity = log.getQuantity() != null ? log.getQuantity() : 1.0;
             com.Gym.GymCommonServices.entity.Food food = log.getFood();
 
-            // Assuming quantity is now serving multiplier.
-            // If servingUnit in log is used, logic would go here. For now, flat multiplier.
             String portionName = quantity + " serving(s)";
             if (log.getServingUnit() != null) {
                 portionName = quantity + " " + log.getServingUnit();
             }
 
-            double itemCalories = food.getCalories() != null ? food.getCalories() * quantity : 0;
-            double itemProtein = food.getProtein() != null ? food.getProtein() * quantity : 0;
-            double itemCarbs = food.getCarbohydrates() != null ? food.getCarbohydrates() * quantity : 0;
-            double itemFat = food.getFat() != null ? food.getFat() * quantity : 0;
+            double itemCalories = food != null && food.getCalories() != null ? food.getCalories() * quantity : 0;
+            double itemProtein = food != null && food.getProtein() != null ? food.getProtein() * quantity : 0;
+            double itemCarbs = food != null && food.getCarbohydrates() != null ? food.getCarbohydrates() * quantity : 0;
+            double itemFat = food != null && food.getFat() != null ? food.getFat() * quantity : 0;
 
             totalCalories += itemCalories;
             totalProtein += itemProtein;
@@ -267,7 +279,7 @@ public class UserServiceImpl implements UserService {
 
             foodLogDtos.add(com.gymbross.usermanagement.dto.FoodLogDto.builder()
                     .id(log.getId())
-                    .foodName(food.getFoodName()) // Updated from description
+                    .foodName(food != null ? food.getFoodName() : "Custom Meal")
                     .quantity(quantity)
                     .portionName(portionName)
                     .calories(itemCalories)
@@ -289,8 +301,7 @@ public class UserServiceImpl implements UserService {
                 .map(wl -> com.gymbross.usermanagement.dto.WaterLogDto.builder()
                         .id(wl.getId())
                         .amount(wl.getAmount())
-                        .loggedAt(wl.getDate().atStartOfDay()) // Using date as best effort since entity might not have
-                                                               // time
+                        .loggedAt(wl.getDate().atStartOfDay())
                         .build())
                 .collect(java.util.stream.Collectors.toList());
 

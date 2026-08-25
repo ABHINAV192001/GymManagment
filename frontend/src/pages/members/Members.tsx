@@ -15,6 +15,7 @@ import { getPlans } from '../../lib/api/plans';
 import { getUserAttendance, checkIn, checkOut } from '../../lib/api/attendance';
 import { sendNotification, testAccountWelcomeWhatsApp } from '../../lib/api/notifications';
 import { getUserDietPlans, assignUserDietPlan, getFoods } from '../../lib/api/diets';
+import { getDailyLog } from '../../lib/api/user';
 import { getUserWorkoutPlan, updateUserWorkoutPlan } from '../../lib/api/workouts';
 import { usePermissions } from '../../lib/usePermissions';
 import { SearchableSelect } from '../../components/shared/SearchableSelect';
@@ -148,6 +149,15 @@ export const MembersInternal: React.FC = () => {
   const [backendDietPlans, setBackendDietPlans] = useState<any[]>([]);
   const [backendWorkoutPlan, setBackendWorkoutPlan] = useState<string[]>([]);
   const [backendFoods, setBackendFoods] = useState<any[]>([]);
+  const [memberDailyLog, setMemberDailyLog] = useState<{
+    totalCalories: number;
+    totalProtein: number;
+    totalCarbs: number;
+    totalFat: number;
+    totalWater: number;
+    foodLogs: any[];
+    waterLogs: any[];
+  } | null>(null);
   const [isLoadingWorkoutDietData, setIsLoadingWorkoutDietData] = useState<boolean>(false);
 
   const [userAttendanceLogs, setUserAttendanceLogs] = useState<any[]>([]);
@@ -344,19 +354,38 @@ export const MembersInternal: React.FC = () => {
     if (selectedMember && selectedMember.id) {
       fetchUserAttendanceLogs(selectedMember.id);
       
-      // Fetch dynamic backend diet & workout plans
+      // Fetch dynamic backend diet & workout plans and daily logged activity
       const fetchBackendMemberData = async () => {
         setIsLoadingWorkoutDietData(true);
+        const todayStr = new Date().toISOString().split('T')[0];
         try {
-          const [diets, workouts, foods] = await Promise.all([
+          const [diets, workouts, foods, dailyLogRes] = await Promise.all([
             getUserDietPlans(selectedMember.id).catch(() => []),
             getUserWorkoutPlan(selectedMember.id).catch(() => []),
-            getFoods().catch(() => [])
+            getFoods().catch(() => []),
+            getDailyLog(todayStr, selectedMember.id).catch(() => null)
           ]);
 
           setBackendDietPlans(diets);
           setBackendWorkoutPlan(workouts);
           setBackendFoods(foods);
+
+          const dailyLog = dailyLogRes?.data || dailyLogRes;
+          if (dailyLog) {
+            const rawWater = dailyLog.totalWater || 0;
+            const waterInMl = rawWater <= 10 ? Math.round(rawWater * 1000) : Math.round(rawWater);
+            setMemberDailyLog({
+              totalCalories: Math.round(dailyLog.totalCalories || 0),
+              totalProtein: Math.round(dailyLog.totalProtein || 0),
+              totalCarbs: Math.round(dailyLog.totalCarbs || 0),
+              totalFat: Math.round(dailyLog.totalFat || 0),
+              totalWater: waterInMl,
+              foodLogs: Array.isArray(dailyLog.foodLogs) ? dailyLog.foodLogs : [],
+              waterLogs: Array.isArray(dailyLog.waterLogs) ? dailyLog.waterLogs : []
+            });
+          } else {
+            setMemberDailyLog(null);
+          }
 
           // If backend has assigned diet plans, populate inputs
           if (Array.isArray(diets) && diets.length > 0) {
@@ -1468,8 +1497,7 @@ ${finalInviteLink}
                         {/* Water Intake Card */}
                         {(() => {
                           const goal = prescribedWaterMl || 3000;
-                          // If member has logged water in profile/logs, use it; otherwise default to 0 for unlogged days
-                          const loggedWater = (selectedMember as any)?.waterIntake || 0;
+                          const loggedWater = memberDailyLog ? memberDailyLog.totalWater : ((selectedMember as any)?.waterIntake || 0);
                           const waterPct = goal > 0 ? Math.min(100, Math.round((loggedWater / goal) * 100)) : 0;
                           return (
                             <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
@@ -1493,7 +1521,7 @@ ${finalInviteLink}
                         {/* Calories Card */}
                         {(() => {
                           const target = prescribedCalories || 2400;
-                          const loggedCals = (selectedMember as any)?.caloriesLogged || 0;
+                          const loggedCals = memberDailyLog ? memberDailyLog.totalCalories : ((selectedMember as any)?.caloriesLogged || 0);
                           const calPct = target > 0 ? Math.min(100, Math.round((loggedCals / target) * 100)) : 0;
                           return (
                             <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
@@ -1517,7 +1545,7 @@ ${finalInviteLink}
                         {/* Protein Card */}
                         {(() => {
                           const target = prescribedProtein || 160;
-                          const loggedProtein = (selectedMember as any)?.proteinLogged || 0;
+                          const loggedProtein = memberDailyLog ? memberDailyLog.totalProtein : ((selectedMember as any)?.proteinLogged || 0);
                           const proteinPct = target > 0 ? Math.min(100, Math.round((loggedProtein / target) * 100)) : 0;
                           return (
                             <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
@@ -1568,6 +1596,24 @@ ${finalInviteLink}
                               <div className="p-3 text-center text-zinc-400 text-xs flex items-center justify-center gap-2">
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading diet plans...
                               </div>
+                            ) : memberDailyLog?.foodLogs && memberDailyLog.foodLogs.length > 0 ? (
+                              memberDailyLog.foodLogs.map((foodLog, idx) => (
+                                <div key={foodLog.id || idx} className="p-2.5 rounded-xl border border-emerald-150 dark:border-emerald-950/60 bg-emerald-50/30 dark:bg-emerald-950/20 flex items-center justify-between">
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <h6 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{foodLog.foodName || 'Logged Meal'}</h6>
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase tracking-wider">Logged Today</span>
+                                    </div>
+                                    <span className="text-[10px] text-zinc-400 font-mono">{foodLog.mealType || 'Meal'} {foodLog.portionName ? `• ${foodLog.portionName}` : ''}</span>
+                                  </div>
+                                  <div className="text-right font-mono">
+                                    <span className="block text-xs font-bold text-amber-600">{foodLog.calories != null ? `${Math.round(foodLog.calories)} kcal` : ''}</span>
+                                    {foodLog.protein != null && (
+                                      <span className="text-[10px] text-purple-600 font-semibold">{foodLog.protein}g Protein</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
                             ) : backendDietPlans.length > 0 ? (
                               backendDietPlans.map((diet, idx) => (
                                 <div key={diet.id || idx} className="p-2.5 rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 flex items-center justify-between">

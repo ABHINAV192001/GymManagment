@@ -17,9 +17,10 @@ export const logWater = async (amount: number, date?: string) => {
   return response.data || response;
 };
 
-export const getDailyLog = async (date?: string) => {
+export const getDailyLog = async (date?: string, userId?: string) => {
   const url = new URL(`${API_CONFIG.USER_MANAGEMENT_URL}/api/user/daily-log`);
   if (date) url.searchParams.append('date', date);
+  if (userId) url.searchParams.append('userId', userId);
   const response = await fetchWithAuth(url.toString());
   return response.data || response;
 };
