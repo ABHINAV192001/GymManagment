@@ -1468,10 +1468,9 @@ ${finalInviteLink}
                         {/* Water Intake Card */}
                         {(() => {
                           const goal = prescribedWaterMl || 3000;
-                          // Derive a unique member-specific progress ratio based on member ID hash or actual logged progress
-                          const hash = (selectedMember?.id || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                          const loggedWater = Math.round(goal * (0.4 + ((hash % 50) / 100)));
-                          const waterPct = Math.min(100, Math.round((loggedWater / goal) * 100));
+                          // If member has logged water in profile/logs, use it; otherwise default to 0 for unlogged days
+                          const loggedWater = (selectedMember as any)?.waterIntake || 0;
+                          const waterPct = goal > 0 ? Math.min(100, Math.round((loggedWater / goal) * 100)) : 0;
                           return (
                             <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
                               <div className="flex items-center justify-between text-zinc-500">
@@ -1494,9 +1493,8 @@ ${finalInviteLink}
                         {/* Calories Card */}
                         {(() => {
                           const target = prescribedCalories || 2400;
-                          const hash = (selectedMember?.id || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                          const loggedCals = Math.round(target * (0.5 + ((hash % 45) / 100)));
-                          const calPct = Math.min(100, Math.round((loggedCals / target) * 100));
+                          const loggedCals = (selectedMember as any)?.caloriesLogged || 0;
+                          const calPct = target > 0 ? Math.min(100, Math.round((loggedCals / target) * 100)) : 0;
                           return (
                             <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
                               <div className="flex items-center justify-between text-zinc-500">
@@ -1519,9 +1517,8 @@ ${finalInviteLink}
                         {/* Protein Card */}
                         {(() => {
                           const target = prescribedProtein || 160;
-                          const hash = (selectedMember?.id || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                          const loggedProtein = Math.round(target * (0.45 + ((hash % 48) / 100)));
-                          const proteinPct = Math.min(100, Math.round((loggedProtein / target) * 100));
+                          const loggedProtein = (selectedMember as any)?.proteinLogged || 0;
+                          const proteinPct = target > 0 ? Math.min(100, Math.round((loggedProtein / target) * 100)) : 0;
                           return (
                             <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
                               <div className="flex items-center justify-between text-zinc-500">
@@ -1564,7 +1561,7 @@ ${finalInviteLink}
                         {/* Meal Logs */}
                         <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3">
                           <h5 className="font-bold text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
-                            <Utensils className="w-3.5 h-3.5 text-amber-500" /> Recent Meals & Diet Plans (Backend)
+                            <Utensils className="w-3.5 h-3.5 text-amber-500" /> Recent Meals & Diet Plans
                           </h5>
                           <div className="space-y-2">
                             {isLoadingWorkoutDietData ? (
@@ -1583,34 +1580,31 @@ ${finalInviteLink}
                                   </div>
                                 </div>
                               ))
-                            ) : backendFoods.length > 0 ? (
-                              backendFoods.slice(0, 4).map((food, idx) => (
-                                <div key={food.id || idx} className="p-2.5 rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 flex items-center justify-between">
-                                  <div>
-                                    <h6 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{food.name}</h6>
-                                    <span className="text-[10px] text-zinc-400 font-mono">{food.category || 'Nutrition Database'}</span>
-                                  </div>
-                                  <div className="text-right font-mono">
-                                    <span className="block text-xs font-bold text-amber-600">{food.caloriesPer100g != null ? `${food.caloriesPer100g} kcal/100g` : 'Standard Portion'}</span>
-                                    {food.proteinPer100g != null && (
-                                      <span className="text-[10px] text-purple-600 font-semibold">{food.proteinPer100g}g Protein</span>
-                                    )}
-                                  </div>
+                            ) : prescribedWorkout || prescribedCalories ? (
+                              <div className="p-3 rounded-xl border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <h6 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{prescribedWorkout || 'Prescribed Macro Target'}</h6>
+                                  <span className="text-[10px] font-bold text-amber-600">Active Goal</span>
                                 </div>
-                              ))
+                                <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                                  Target: {prescribedCalories} kcal, {prescribedProtein}g Protein, {prescribedWaterMl}mL Water
+                                </p>
+                                {trainerAdviceNotes && (
+                                  <p className="text-[10px] text-zinc-500 italic pt-0.5">Advice: {trainerAdviceNotes}</p>
+                                )}
+                              </div>
                             ) : (
-                              <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center text-zinc-400 text-xs">
-                                No diet plans or meal logs found for this member.
+                              <div className="p-4 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-center text-zinc-400 text-xs">
+                                No active diet plans assigned for {selectedMember?.name || 'this member'}. Use the prescription form below to assign meals.
                               </div>
                             )}
                           </div>
                         </div>
 
-
                         {/* Workout Logs */}
                         <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3">
                           <h5 className="font-bold text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
-                            <Dumbbell className="w-3.5 h-3.5 text-blue-500" /> Prescribed Exercises & Workout Plans (Backend)
+                            <Dumbbell className="w-3.5 h-3.5 text-blue-500" /> Prescribed Exercises & Workout Plans
                           </h5>
                           <div className="space-y-2">
                             {isLoadingWorkoutDietData ? (
@@ -1629,13 +1623,24 @@ ${finalInviteLink}
                                   </div>
                                 </div>
                               ))
+                            ) : prescribedWorkout ? (
+                              <div className="p-3 rounded-xl border border-blue-200/60 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20 space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <h6 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{prescribedWorkout}</h6>
+                                  <span className="text-[10px] font-bold text-blue-600">Assigned Routine</span>
+                                </div>
+                                {prescribedWorkoutNotes && (
+                                  <p className="text-[11px] text-zinc-600 dark:text-zinc-400">{prescribedWorkoutNotes}</p>
+                                )}
+                              </div>
                             ) : (
-                              <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center text-zinc-400 text-xs">
-                                No active workout routines assigned for this member.
+                              <div className="p-4 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-center text-zinc-400 text-xs">
+                                No active workout routines assigned for {selectedMember?.name || 'this member'}. Use the prescription form below to assign a routine.
                               </div>
                             )}
                           </div>
                         </div>
+
                       </div>
                     </div>
 
