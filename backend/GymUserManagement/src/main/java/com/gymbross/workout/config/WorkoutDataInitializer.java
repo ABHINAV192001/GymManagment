@@ -214,6 +214,81 @@ public class WorkoutDataInitializer implements CommandLineRunner {
                   difficulty = EXCLUDED.difficulty,
                   duration = EXCLUDED.duration,
                   calories = EXCLUDED.calories;
+
+                INSERT INTO workout_split_days (id, workout_id, day_label, name, description, display_order)
+                VALUES
+                ('d1111111-0000-0000-0000-000000000001', 'b1111111-0000-0000-0000-000000000001', 'Day 1 — Monday', 'Push A (Chest, Shoulders & Triceps)', 'Flat Barbell Bench Press, Incline Dumbbell Press, Military Overhead Press, Cable Chest Flyes, Dumbbell Lateral Raises, Triceps Rope Pushdowns', 1),
+                ('d1111111-0000-0000-0000-000000000002', 'b1111111-0000-0000-0000-000000000001', 'Day 2 — Tuesday', 'Pull A (Back, Biceps & Rear Delts)', 'Conventional Deadlift, Wide-Grip Lat Pulldowns, Barbell Bent-Over Rows, Face Pulls, EZ-Bar Bicep Curls, Dumbbell Hammer Curls', 2),
+                ('d1111111-0000-0000-0000-000000000003', 'b1111111-0000-0000-0000-000000000001', 'Day 3 — Wednesday', 'Legs A (Quads, Hamstrings & Calves)', 'Barbell Back Squat, Romanian Deadlift, 45-Degree Leg Press, Leg Extensions, Lying Leg Curls, Standing Calf Raises', 3),
+                ('d1111111-0000-0000-0000-000000000004', 'b1111111-0000-0000-0000-000000000001', 'Day 4 — Thursday', 'Push B (Upper Chest, Side Delts & Triceps Long Head)', 'Incline Barbell Bench Press, Bodyweight Dips, Arnold Press, Cable Lateral Raises, Skull Crushers, Overhead Triceps Extension', 4),
+                ('d1111111-0000-0000-0000-000000000005', 'b1111111-0000-0000-0000-000000000001', 'Day 5 — Friday', 'Pull B (Lat Width, Rhomboids & Biceps Peak)', 'Weighted Wide-Grip Pull-Ups, T-Bar Rows, Seated Cable Rows, Reverse Pec Deck Flyes, Preacher Curls, Concentration Curls', 5),
+                ('d1111111-0000-0000-0000-000000000006', 'b1111111-0000-0000-0000-000000000001', 'Day 6 — Saturday', 'Legs B (Posterior Chain, Glutes & Abs)', 'Barbell Front Squat, Barbell Hip Thrusts, Bulgarian Split Squat, Single-Leg Hamstring Curl, Seated Calf Raises, Hanging Leg Raises', 6),
+
+                -- Arnold Schwarzenegger Golden Era Split (b002)
+                ('d1111111-0000-0000-0000-000000000011', 'b1111111-0000-0000-0000-000000000002', 'Day 1 — Monday', 'Chest & Back Super-Sets (Volume A)', 'Barbell Bench Press superset w/ Wide-Grip Pull-Up, Incline Dumbbell Press superset w/ T-Bar Row, Cable Crossover superset w/ Seated Cable Row', 1),
+                ('d1111111-0000-0000-0000-000000000012', 'b1111111-0000-0000-0000-000000000002', 'Day 2 — Tuesday', 'Shoulders, Arms & Abs', 'Standing Military Press, Dumbbell Lateral Raises, Barbell Biceps Curl, Close-Grip Bench Press, Alternating Dumbbell Curl, Triceps Pushdowns, Cable Crunches', 2),
+                ('d1111111-0000-0000-0000-000000000013', 'b1111111-0000-0000-0000-000000000002', 'Day 3 — Wednesday', 'Legs', 'Barbell Back Squat, Leg Press, Leg Extensions, Lying Leg Curls, Standing Calf Raises, Seated Calf Raises', 3),
+                ('d1111111-0000-0000-0000-000000000014', 'b1111111-0000-0000-0000-000000000002', 'Day 4 — Thursday', 'Chest & Back Super-Sets (Volume B)', 'Incline Barbell Press superset w/ Close-Grip Pull-Down, Decline Dumbbell Press superset w/ Dumbbell Row, Pec Deck Fly superset w/ Hyperextension', 4),
+                ('d1111111-0000-0000-0000-000000000015', 'b1111111-0000-0000-0000-000000000002', 'Day 5 — Friday', 'Shoulders, Arms & Abs', 'Dumbbell Overhead Press, Barbell Upright Row, EZ-Bar Preacher Curl, Skull Crushers, Concentration Curl, Overhead Triceps Extension, Hanging Leg Raises', 5),
+                ('d1111111-0000-0000-0000-000000000016', 'b1111111-0000-0000-0000-000000000002', 'Day 6 — Saturday', 'Legs', 'Front Squat, Romanian Deadlift, Hack Squat, Leg Curl, Donkey Calf Raises, Tibialis Raise', 6),
+
+                -- 5-Day Classic Bro Split (b004)
+                ('d1111111-0000-0000-0000-000000000041', 'b1111111-0000-0000-0000-000000000004', 'Day 1 — Monday', 'Chest Day', 'Flat Barbell Bench Press, Incline Dumbbell Press, Decline Barbell Press, Cable Chest Flyes, Pec Deck Butterfly, Weighted Dips', 1),
+                ('d1111111-0000-0000-0000-000000000042', 'b1111111-0000-0000-0000-000000000004', 'Day 2 — Tuesday', 'Back Day', 'Deadlift, Wide-Grip Pull-Ups, Barbell Bent-Over Row, T-Bar Row, Seated Cable Row, Single-Arm Dumbbell Row', 2),
+                ('d1111111-0000-0000-0000-000000000043', 'b1111111-0000-0000-0000-000000000004', 'Day 3 — Wednesday', 'Shoulders Day', 'Standing Military Press, Dumbbell Lateral Raises, Barbell Upright Row, Rear Delt Fly, Arnold Press, Shrugs', 3),
+                ('d1111111-0000-0000-0000-000000000044', 'b1111111-0000-0000-0000-000000000004', 'Day 4 — Thursday', 'Arms Day (Biceps & Triceps)', 'Barbell Bicep Curl, Incline Dumbbell Curl, Hammer Curls, Preacher Curl, Triceps Pushdowns, Skull Crushers, Overhead Triceps Extension, Dips', 4),
+                ('d1111111-0000-0000-0000-000000000045', 'b1111111-0000-0000-0000-000000000004', 'Day 5 — Friday', 'Legs Day', 'Barbell Back Squat, Romanian Deadlift, Leg Press, Leg Extensions, Lying Leg Curls, Standing Calf Raises, Seated Calf Raises', 5),
+
+                -- Fat Loss Shred (b005)
+                ('d1111111-0000-0000-0000-000000000051', 'b1111111-0000-0000-0000-000000000005', 'Day 1 — Monday', 'Upper Body HIIT Circuit', 'Push-Ups, Dumbbell Rows, Shoulder Press, Lat Pulldown, Bicep Curls, Tricep Pushdowns, Mountain Climbers', 1),
+                ('d1111111-0000-0000-0000-000000000052', 'b1111111-0000-0000-0000-000000000005', 'Day 2 — Tuesday', 'Lower Body Metabolic Blast', 'Goblet Squat, Romanian Deadlift, Reverse Lunges, Leg Press, Leg Extensions, Box Jumps, Jump Squats', 2),
+                ('d1111111-0000-0000-0000-000000000053', 'b1111111-0000-0000-0000-000000000005', 'Day 3 — Wednesday', 'Full Body Cardio Resistance', 'Burpees, Kettlebell Swings, Battle Ropes, Jump Rope, Dumbbell Thrusters, Renegade Rows, Plank Holds', 3),
+                ('d1111111-0000-0000-0000-000000000054', 'b1111111-0000-0000-0000-000000000005', 'Day 4 — Thursday', 'Upper Body Strength + Cardio', 'Incline Press, Weighted Pull-Ups, Cable Flyes, Face Pulls, Hammer Curls, Dips, Stationary Bike Sprint Intervals', 4),
+                ('d1111111-0000-0000-0000-000000000055', 'b1111111-0000-0000-0000-000000000005', 'Day 5 — Friday', 'Lower Body + Core Shred', 'Hip Thrusts, Sumo Deadlift, Walking Lunges, Calf Raises, Hanging Leg Raises, Cable Crunches, Russian Twists', 5),
+
+                -- 5x5 Powerlifting (b006)
+                ('d1111111-0000-0000-0000-000000000061', 'b1111111-0000-0000-0000-000000000006', 'Day 1 — Monday', 'Heavy Squat & Press (5×5 A)', 'Barbell Back Squat 5x5, Barbell Bench Press 5x5, Barbell Row 5x5', 1),
+                ('d1111111-0000-0000-0000-000000000062', 'b1111111-0000-0000-0000-000000000006', 'Day 2 — Wednesday', 'Heavy Squat & Overhead (5×5 B)', 'Barbell Back Squat 5x5, Overhead Press 5x5, Deadlift 1x5', 2),
+                ('d1111111-0000-0000-0000-000000000063', 'b1111111-0000-0000-0000-000000000006', 'Day 3 — Friday', 'Heavy Squat & Press (5×5 A)', 'Barbell Back Squat 5x5, Barbell Bench Press 5x5, Barbell Row 5x5', 3),
+                ('d1111111-0000-0000-0000-000000000064', 'b1111111-0000-0000-0000-000000000006', 'Day 4 — Next Monday', 'Heavy Squat & Overhead (5×5 B)', 'Barbell Back Squat 5x5, Overhead Press 5x5, Deadlift 1x5', 4),
+
+                -- GVT 10x10 (b007)
+                ('d1111111-0000-0000-0000-000000000071', 'b1111111-0000-0000-0000-000000000007', 'Day 1 — Monday', 'Chest & Back 10×10', 'Flat Barbell Bench Press 10x10, Wide-Grip Pull-Ups 10x10, Incline Dumbbell Fly 3x12, Cable Row 3x12', 1),
+                ('d1111111-0000-0000-0000-000000000072', 'b1111111-0000-0000-0000-000000000007', 'Day 2 — Tuesday', 'Legs & Abs 10×10', 'Barbell Back Squat 10x10, Romanian Deadlift 10x10, Leg Press 3x15, Hanging Leg Raises 3x15', 2),
+                ('d1111111-0000-0000-0000-000000000073', 'b1111111-0000-0000-0000-000000000007', 'Day 3 — Thursday', 'Arms & Shoulders 10×10', 'Barbell Bicep Curl 10x10, Close-Grip Bench Press 10x10, Dumbbell Lateral Raises 3x15, Overhead Press 3x12', 3),
+                ('d1111111-0000-0000-0000-000000000074', 'b1111111-0000-0000-0000-000000000007', 'Day 4 — Friday', 'Back & Chest Accessory 10×10', 'Incline Barbell Press 10x10, T-Bar Row 10x10, Pec Deck Fly 3x12, Lat Pulldown 3x12', 4),
+                ('d1111111-0000-0000-0000-000000000075', 'b1111111-0000-0000-0000-000000000007', 'Day 5 — Saturday', 'Legs & Core Accessory 10×10', 'Front Squat 10x10, Leg Curl 10x10, Cable Crunches 3x15, Calf Raises 3x20', 5),
+
+                -- 3-Day Full Body (b008)
+                ('d1111111-0000-0000-0000-000000000081', 'b1111111-0000-0000-0000-000000000008', 'Day 1 — Monday', 'Full Body A (Squat Focus)', 'Barbell Back Squat, Barbell Bench Press, Barbell Row, Overhead Press, Romanian Deadlift, Dips, Bicep Curls', 1),
+                ('d1111111-0000-0000-0000-000000000082', 'b1111111-0000-0000-0000-000000000008', 'Day 2 — Wednesday', 'Full Body B (Hinge Focus)', 'Deadlift, Incline Dumbbell Press, Weighted Pull-Ups, Goblet Squat, Cable Flyes, Tricep Pushdowns, Hammer Curls', 2),
+                ('d1111111-0000-0000-0000-000000000083', 'b1111111-0000-0000-0000-000000000008', 'Day 3 — Friday', 'Full Body C (Frequency Volume)', 'Bulgarian Split Squat, Barbell Bench Press, Lat Pulldowns, Leg Press, Arnold Press, Skull Crushers, Preacher Curls', 3),
+
+                -- Mike Mentzer HIT (b009)
+                ('d1111111-0000-0000-0000-000000000091', 'b1111111-0000-0000-0000-000000000009', 'Day 1 — Monday', 'Chest & Back (1 All-Out Set Each)', 'Flat Bench Press 1x failure, Weighted Wide-Grip Pull-Ups 1x failure, Pec Deck 1x failure, Deadlift 1x failure', 1),
+                ('d1111111-0000-0000-0000-000000000092', 'b1111111-0000-0000-0000-000000000009', 'Day 2 — Wednesday', 'Legs (1 All-Out Set Each)', 'Leg Press 1x failure, Leg Extensions 1x failure, Lying Leg Curls 1x failure, Standing Calf Raises 1x failure', 2),
+                ('d1111111-0000-0000-0000-000000000093', 'b1111111-0000-0000-0000-000000000009', 'Day 3 — Friday', 'Shoulders & Arms (1 All-Out Set Each)', 'Overhead Press 1x failure, Lateral Raises 1x failure, Barbell Curl 1x failure, Skull Crushers 1x failure', 3),
+
+                -- Arms Specialization (b010)
+                ('d1111111-0000-0000-0000-000000000101', 'b1111111-0000-0000-0000-000000000010', 'Day 1 — Monday', 'Upper Body Push + Triceps', 'Bench Press, Overhead Press, Cable Flyes, Triceps Pushdowns, Skull Crushers, Overhead Extension, Dips', 1),
+                ('d1111111-0000-0000-0000-000000000102', 'b1111111-0000-0000-0000-000000000010', 'Day 2 — Tuesday', 'Lower Body Power', 'Barbell Squat, Romanian Deadlift, Leg Press, Leg Extensions, Seated Leg Curls, Calf Raises', 2),
+                ('d1111111-0000-0000-0000-000000000103', 'b1111111-0000-0000-0000-000000000010', 'Day 3 — Thursday', 'Upper Body Pull + Biceps', 'Deadlift, Pull-Ups, T-Bar Row, Cable Rows, Barbell Curl, Incline Dumbbell Curl, Hammer Curls, Preacher Curl', 3),
+                ('d1111111-0000-0000-0000-000000000104', 'b1111111-0000-0000-0000-000000000010', 'Day 4 — Friday', 'Arms Specialization Day', 'Close-Grip Bench Press, Skull Crushers, Rope Pushdowns, Barbell Curl, Concentration Curl, Reverse Curl, Wrist Curls', 4),
+                ('d1111111-0000-0000-0000-000000000105', 'b1111111-0000-0000-0000-000000000010', 'Day 5 — Saturday', 'Shoulders & Posterior Delts', 'Military Press, Arnold Press, Dumbbell Lateral Raises, Face Pulls, Rear Delt Flyes, Shrugs', 5),
+
+                -- Athletic Hybrid (b011)
+                ('d1111111-0000-0000-0000-000000000111', 'b1111111-0000-0000-0000-000000000011', 'Day 1 — Monday', 'Lower Body Power & Explosiveness', 'Barbell Squat, Deadlift, Box Jumps, Broad Jumps, Sled Push, Sprint Intervals', 1),
+                ('d1111111-0000-0000-0000-000000000112', 'b1111111-0000-0000-0000-000000000011', 'Day 2 — Tuesday', 'Upper Body Push & Core Rotation', 'Push Press, Bench Press, Landmine Press, Cable Wood Chop, Medicine Ball Slam, Pallof Press', 2),
+                ('d1111111-0000-0000-0000-000000000113', 'b1111111-0000-0000-0000-000000000011', 'Day 3 — Thursday', 'Upper Body Pull & Rotational Core', 'Pull-Ups, Dumbbell Row, Face Pulls, Rotational Cable Row, Battle Ropes, Turkish Get-Up', 3),
+                ('d1111111-0000-0000-0000-000000000114', 'b1111111-0000-0000-0000-000000000011', 'Day 4 — Friday', 'Full Body Athletic Conditioning', 'Power Clean, Farmers Walk, Kettlebell Swing, Agility Ladder, Plyo Push-Ups, Timed Sprint Repeats', 4),
+
+                -- Glute Sculpting (b012)
+                ('d1111111-0000-0000-0000-000000000121', 'b1111111-0000-0000-0000-000000000012', 'Day 1 — Monday', 'Glutes & Hamstrings Heavy', 'Barbell Hip Thrust, Romanian Deadlift, Sumo Deadlift, Cable Glute Kickback, Lying Leg Curl, Deficit Reverse Lunge', 1),
+                ('d1111111-0000-0000-0000-000000000122', 'b1111111-0000-0000-0000-000000000012', 'Day 2 — Wednesday', 'Quads & Glutes Volume', 'Barbell Back Squat, Leg Press, Bulgarian Split Squat, Curtsy Lunges, Leg Extensions, Abductor Machine', 2),
+                ('d1111111-0000-0000-0000-000000000123', 'b1111111-0000-0000-0000-000000000012', 'Day 3 — Friday', 'Posterior Chain & Core Finish', 'Glute-Ham Raise, Cable Pull-Through, Frog Pumps, Single-Leg RDL, Reverse Hyper-Extensions, Cable Crunches', 3),
+                ('d1111111-0000-0000-0000-000000000124', 'b1111111-0000-0000-0000-000000000012', 'Day 4 — Saturday', 'Glutes & Hamstrings Pump', 'Dumbbell Hip Thrust, Kettlebell Swing, Step-Ups, Nordic Hamstring Curl, Swiss Ball Leg Curl, Hip Abductor Flyes', 4)
+
+                ON CONFLICT (id) DO NOTHING;
             """);
 
             // 10. Map exercises to new splits

@@ -18,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -32,18 +35,24 @@ public class WorkoutService {
     public List<WorkoutDto> getWorkoutsByCategory(String category) {
         List<Workout> workouts;
         if (category == null || category.isEmpty() || category.equalsIgnoreCase("all")) {
-            workouts = workoutRepository.findAll();
+            workouts = workoutRepository.findAllWithSplitDays();
         } else {
-            workouts = workoutRepository.findByCategory(category);
+            workouts = workoutRepository.findByCategoryWithSplitDays(category);
         }
         return workouts.stream().map(this::mapToDto).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<WorkoutDto> getAllWorkouts() {
-        return workoutRepository.findAll().stream()
+        return workoutRepository.findAllWithSplitDays().stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WorkoutDto> searchWorkouts(String query, Pageable pageable) {
+        Page<Workout> page = workoutRepository.searchByTitle(query != null ? query.trim() : "", pageable);
+        return page.map(this::mapToDto);
     }
 
     public WorkoutDto getWorkoutById(java.util.UUID id) {
@@ -57,7 +66,7 @@ public class WorkoutService {
         if (userId == null) {
             return getAllWorkouts();
         }
-        return workoutRepository.findByCreatedByUserId(userId).stream()
+        return workoutRepository.findByCreatedByUserIdWithSplitDays(userId).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
@@ -221,12 +230,14 @@ public class WorkoutService {
 
         List<com.Gym.GymCommonServices.dto.WorkoutSplitDayDto> splitDayDtos = workout.getSplitDays() != null ?
                 workout.getSplitDays().stream()
+                        .sorted(java.util.Comparator.comparingInt(sd -> sd.getDisplayOrder() != null ? sd.getDisplayOrder() : 99))
                         .map(sd -> com.Gym.GymCommonServices.dto.WorkoutSplitDayDto.builder()
                                 .day(sd.getDayLabel())
                                 .name(sd.getName())
                                 .title(sd.getName())
                                 .description(sd.getDescription())
                                 .muscles(sd.getDescription())
+                                .displayOrder(sd.getDisplayOrder())
                                 .build())
                         .collect(Collectors.toList()) : java.util.Collections.emptyList();
 

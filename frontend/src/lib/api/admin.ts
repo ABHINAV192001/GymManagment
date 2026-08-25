@@ -108,8 +108,11 @@ export async function resendPasswordNotification(userId: string): Promise<{ invi
 }
 
 export function getWhatsAppInviteUrl(phone: string, inviteLink: string, memberName?: string): string {
-  const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
-  const text = `Hello ${memberName || 'Member'}, welcome to GymBross! 🏋️‍♂️\n\nPlease click the link below to set your account password and access your portal:\n\n${inviteLink}`;
+  let cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+  if (cleanPhone.length === 10) {
+    cleanPhone = '91' + cleanPhone;
+  }
+  const text = `🏋️‍♂️ *WELCOME TO GYMBROSS PLATFORM*\n\nHello *${memberName || 'Member'}*,\nYour GYMBROSS account has been created!\n\n• *Setup Password Link:* ${inviteLink}\n\n👉 Click the link above to set your password and access your account.`;
   if (cleanPhone) {
     return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`;
   }

@@ -41,6 +41,7 @@ public class AdminServiceImpl implements AdminService {
         private final BranchRepository branchRepository;
         private final OtpService otpService;
         private final com.Gym.GymCommonServices.service.EmailService emailService;
+        private final com.Gym.GymCommonServices.service.WhatsAppService whatsAppService;
         private final TenantAccessGuard tenantAccessGuard;
         private final CurrentTenantResolver currentTenantResolver;
         private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
@@ -189,7 +190,7 @@ public class AdminServiceImpl implements AdminService {
                                     String role = u.getRole();
                                     if (role != null) {
                                         String r = role.toUpperCase();
-                                        if (r.contains("TRAINER") || r.contains("STAFF") || r.contains("MANAGER") || r.contains("RECEPTIONIST")) return true;
+                                        if (r.contains("TRAINER") || r.contains("STAFF") || r.contains("MANAGER") || r.contains("RECEPTIONIST") || r.contains("ADMIN") || r.contains("OWNER")) return true;
                                     }
                                     return false;
                                 })
@@ -238,10 +239,13 @@ public class AdminServiceImpl implements AdminService {
                 User trainer = null;
                 // Prefer User Code for lookup
                 if (userDto.getTrainerCode() != null && !userDto.getTrainerCode().trim().isEmpty()) {
-                        System.out.println("DEBUG: Looking up trainer by CODE: '" + userDto.getTrainerCode() + "'");
+                        String searchCode = userDto.getTrainerCode().trim();
+                        System.out.println("DEBUG: Looking up trainer by CODE: '" + searchCode + "'");
                         trainer = userRepository.findByOrganizationId(org.getId()).stream()
-                                        .filter(t -> t.getTrainerCode() != null && t.getTrainerCode()
-                                                        .equalsIgnoreCase(userDto.getTrainerCode().trim()))
+                                        .filter(t -> (t.getTrainerCode() != null && t.getTrainerCode().equalsIgnoreCase(searchCode))
+                                                        || (t.getStaffCode() != null && t.getStaffCode().equalsIgnoreCase(searchCode))
+                                                        || (t.getUserCode() != null && t.getUserCode().equalsIgnoreCase(searchCode))
+                                                        || (t.getId() != null && t.getId().toString().equalsIgnoreCase(searchCode)))
                                         .findFirst()
                                         .orElse(null);
                 }
@@ -422,7 +426,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         @Override
-        @Transactional
+        @Transactional(readOnly = true)
         public String resendUserInvite(java.util.UUID userId, String clientOrigin) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
@@ -481,6 +485,20 @@ public class AdminServiceImpl implements AdminService {
                                 );
                         } catch (Exception mailEx) {
                                 System.err.println("Direct email fallback notice: " + mailEx.getMessage());
+                        }
+                }
+
+                if (user.getPhone() != null && !user.getPhone().trim().isEmpty()) {
+                        try {
+                                whatsAppService.sendAccountCreatedNotification(
+                                        user.getPhone().trim(),
+                                        user.getName() != null ? user.getName() : "Member",
+                                        user.getEmail().trim(),
+                                        inviteLink,
+                                        role
+                                );
+                        } catch (Exception waEx) {
+                                System.err.println("Direct WhatsApp invite notification notice: " + waEx.getMessage());
                         }
                 }
 
@@ -590,12 +608,15 @@ public class AdminServiceImpl implements AdminService {
 
                 // User Lookup: Prefer Code, then Name
                 if (userDto.getTrainerCode() != null && !userDto.getTrainerCode().trim().isEmpty()) {
+                        String searchCode = userDto.getTrainerCode().trim();
                         System.out.println("DEBUG: Update User - Looking up trainer by CODE: '"
-                                        + userDto.getTrainerCode() + "'");
+                                        + searchCode + "'");
                         User trainer = userRepository.findByOrganizationId(user.getOrganization().getId())
                                         .stream()
-                                        .filter(t -> t.getTrainerCode() != null && t.getTrainerCode()
-                                                        .equalsIgnoreCase(userDto.getTrainerCode().trim()))
+                                        .filter(t -> (t.getTrainerCode() != null && t.getTrainerCode().equalsIgnoreCase(searchCode))
+                                                        || (t.getStaffCode() != null && t.getStaffCode().equalsIgnoreCase(searchCode))
+                                                        || (t.getUserCode() != null && t.getUserCode().equalsIgnoreCase(searchCode))
+                                                        || (t.getId() != null && t.getId().toString().equalsIgnoreCase(searchCode)))
                                         .findFirst()
                                         .orElse(null);
                         if (trainer != null) {
@@ -1244,7 +1265,7 @@ public class AdminServiceImpl implements AdminService {
                                 .plan(planName)
                                 .amountPaid(user.getAmountPaid())
                                 .trainerName(user.getTrainer() != null ? user.getTrainer().getName() : null)
-                                .trainerCode(user.getTrainer() != null ? user.getTrainer().getTrainerCode() : null)
+                                .trainerCode(user.getTrainer() != null ? (user.getTrainer().getTrainerCode() != null ? user.getTrainer().getTrainerCode() : (user.getTrainer().getStaffCode() != null ? user.getTrainer().getStaffCode() : user.getTrainer().getUserCode())) : null)
                                 .startDate(startDate)
                                 .endDate(endDate)
                                 .attendanceCount(user.getAttendanceCount() != null ? user.getAttendanceCount() : 0)
@@ -1312,7 +1333,7 @@ public class AdminServiceImpl implements AdminService {
                                 .amountPaid(user.getAmountPaid())
                                 .salary(user.getSalary() != null ? user.getSalary() : (user.getStaffProfile() != null ? user.getStaffProfile().getSalary() : BigDecimal.ZERO))
                                 .trainerName(user.getTrainer() != null ? user.getTrainer().getName() : null)
-                                .trainerCode(user.getTrainer() != null ? user.getTrainer().getTrainerCode() : null)
+                                .trainerCode(user.getTrainer() != null ? (user.getTrainer().getTrainerCode() != null ? user.getTrainer().getTrainerCode() : (user.getTrainer().getStaffCode() != null ? user.getTrainer().getStaffCode() : user.getTrainer().getUserCode())) : null)
                                 .startDate(startDate)
                                 .endDate(endDate)
                                 .attendanceCount(calculatedAttendanceCount > 0 ? calculatedAttendanceCount : (user.getAttendanceCount() != null ? user.getAttendanceCount() : 0))
@@ -1354,6 +1375,8 @@ public class AdminServiceImpl implements AdminService {
                 boolean isTrainer = "TRAINER".equalsIgnoreCase(staff.getRole());
                 return AdminDashboardDtos.StaffTrackingDto.builder()
                                 .id(staff.getId())
+                                .branchId(staff.getBranch() != null ? staff.getBranch().getId() : null)
+                                .branchName(staff.getBranch() != null ? staff.getBranch().getName() : null)
                                 .code(staff.getStaffCode() != null ? staff.getStaffCode() : staff.getUserCode())
                                 .username(staff.getUsername())
                                 .role(staff.getRole() != null ? staff.getRole() : "STAFF")

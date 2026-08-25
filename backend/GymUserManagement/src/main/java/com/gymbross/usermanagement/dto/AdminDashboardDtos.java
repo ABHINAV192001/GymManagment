@@ -35,6 +35,8 @@ public class AdminDashboardDtos {
     @AllArgsConstructor
     public static class StaffTrackingDto {
         private java.util.UUID id;
+        private java.util.UUID branchId;
+        private String branchName;
         private String code; // staffCode or trainerCode
         private String username;
         private String role;

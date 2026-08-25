@@ -52,6 +52,7 @@ public class AuthService {
     private final TokenRevocationService tokenRevocationService;
     private final jakarta.persistence.EntityManager entityManager;
     private final AuditLogService auditLogService;
+    private final com.Gym.GymCommonServices.service.WhatsAppService whatsAppService;
 
     @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
@@ -121,10 +122,20 @@ public class AuthService {
         assignRoleToUser(orgAdmin, orgAdminRole.getId());
         userRepository.save(orgAdmin);
 
-        otpService.sendOtp(request.getOwnerEmail(), null, "REGISTER");
+        otpService.sendOtp(request.getOwnerEmail(), request.getPhone(), "REGISTER");
+
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            whatsAppService.sendAccountCreatedNotification(
+                    request.getPhone(),
+                    request.getOwnerName(),
+                    request.getOwnerEmail(),
+                    null,
+                    "ORGANIZATION_ADMIN"
+            );
+        }
 
         return RegisterResponse.builder()
-                .message("Organization registered successfully. Check email for OTP.")
+                .message("Organization registered successfully. Check email and WhatsApp for OTP.")
                 .organizationId(organization.getId())
                 .organizationCode(orgCode)
                 .build();
@@ -255,6 +266,9 @@ public class AuthService {
         assignDefaultUserRole(user);
         userRepository.save(user);
         otpService.sendOtp(request.getEmail(), request.getPhone(), "REGISTER");
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), null, "MEMBER");
+        }
         return "User registered successfully";
     }
 
@@ -283,6 +297,9 @@ public class AuthService {
         // We omit the adminCode part for invite link right now
         String inviteLink = frontendUrl + "/auth/register/join?u=" + trainer.getUserCode() + "&ref=Unknown&role=TRAINER";
         otpService.sendOtp(request.getEmail(), request.getPhone(), "REGISTER", inviteLink);
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), inviteLink, "TRAINER");
+        }
         return "User registered successfully";
     }
 
@@ -310,6 +327,9 @@ public class AuthService {
         userRepository.save(staff);
         String inviteLink = frontendUrl + "/auth/register/join?u=" + staff.getUserCode() + "&ref=Unknown&role=STAFF";
         otpService.sendOtp(request.getEmail(), request.getPhone(), "REGISTER", inviteLink);
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), inviteLink, "STAFF");
+        }
         return "User registered successfully";
     }
 
@@ -337,6 +357,9 @@ public class AuthService {
         assignDefaultUserRole(pu);
         userRepository.save(pu);
         otpService.sendOtp(request.getEmail(), request.getPhone(), "REGISTER");
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), null, "PREMIUM_MEMBER");
+        }
         return "Premium User registered successfully";
     }
 
@@ -365,6 +388,15 @@ public class AuthService {
         user.setIsActive(true);
         user.setIsEmailVerified(true);
         userRepository.save(user);
+
+        if (user.getPhone() != null && !user.getPhone().isBlank()) {
+            whatsAppService.sendGeneralNotification(
+                    user.getPhone(),
+                    "Account Activated Successfully",
+                    "Congratulations " + user.getName() + "! Your GYMBROSS account is now fully activated. Log in to start your fitness journey."
+            );
+        }
+
         return "Registration completed successfully";
     }
 

@@ -405,7 +405,7 @@ export const AiAgentPage: React.FC = () => {
         </div>
 
         {/* Bottom Input Field (Normal Clean Toolbar) */}
-        <div className="p-4 border-t border-zinc-800/80 bg-zinc-950 max-w-4xl w-full mx-auto shrink-0">
+        <div className="p-3 md:p-4 border-t border-zinc-800/80 bg-zinc-950 max-w-4xl w-full mx-auto shrink-0 mb-16 md:mb-0 relative z-10">
           <form
             onSubmit={(e) => {
               e.preventDefault();

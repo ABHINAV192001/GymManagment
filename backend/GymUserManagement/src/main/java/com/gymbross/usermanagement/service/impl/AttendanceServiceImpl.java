@@ -450,4 +450,27 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .status(log.getStatus())
                 .build();
     }
+
+    // ─── Today-status (used by frontend attendance popup) ──────────────────────
+
+    @Override
+    @Transactional(readOnly = true)
+    public AttendanceDtos.TodayStatusDto getTodayAttendanceStatus(UUID userId) {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay   = LocalDate.now().atTime(LocalTime.MAX);
+
+        List<AttendanceLog> todayLogs = attendanceLogRepository
+                .findTodayLogsByEntityId(userId, startOfDay, endOfDay);
+
+        if (todayLogs.isEmpty()) {
+            return AttendanceDtos.TodayStatusDto.builder()
+                    .checkedIn(false)
+                    .checkinTime(null)
+                    .build();
+        }
+        return AttendanceDtos.TodayStatusDto.builder()
+                .checkedIn(true)
+                .checkinTime(todayLogs.get(0).getCheckInTime())
+                .build();
+    }
 }

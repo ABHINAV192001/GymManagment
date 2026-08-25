@@ -38,6 +38,58 @@ export async function getConversations(): Promise<ConversationSummary[]> {
   return res.data || [];
 }
 
+export async function getChatContacts(): Promise<ChatContact[]> {
+  try {
+    const res = await fetchWithAuth(`${CHAT_URL}/api/chat/contacts`);
+    const list = res.data || [];
+    return list.map((item: any) => {
+      const rawRole = (item.role || '').toUpperCase();
+      let displayRole = 'Member';
+      let isStaffOrAdmin = false;
+
+      if (rawRole.includes('ADMIN') || rawRole.includes('OWNER')) {
+        displayRole = 'Admin';
+        isStaffOrAdmin = true;
+      } else if (rawRole.includes('TRAINER')) {
+        displayRole = 'Trainer';
+        isStaffOrAdmin = true;
+      } else if (rawRole.includes('STAFF') || rawRole.includes('EMPLOYEE') || rawRole.includes('MANAGER') || rawRole.includes('RECEPTIONIST')) {
+        displayRole = 'Staff';
+        isStaffOrAdmin = true;
+      } else if (item.isStaff || item.staff) {
+        displayRole = 'Staff';
+        isStaffOrAdmin = true;
+      }
+
+      let displayName = item.name;
+      if (!displayName || displayName === 'string' || displayName === 'null' || displayName.trim() === '') {
+        displayName = displayRole;
+      }
+
+      const cleanNameForAvatar = displayName.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+      const avatarInitials = cleanNameForAvatar.includes(' ')
+        ? cleanNameForAvatar.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+        : cleanNameForAvatar.substring(0, 2).toUpperCase();
+
+      return {
+        id: item.id,
+        name: displayName,
+        role: displayRole,
+        isStaff: isStaffOrAdmin,
+        subtitle: `${displayRole} • Active`,
+        avatar: avatarInitials || displayRole.substring(0, 2).toUpperCase(),
+        email: item.email,
+        userCode: item.userCode,
+        username: item.username,
+        unreadCount: item.unreadCount || 0,
+      };
+    });
+  } catch (err) {
+    console.warn('Failed to fetch chat contacts:', err);
+    return [];
+  }
+}
+
 export interface SendChatMessageInput {
   senderType?: string;
   senderId?: string;
@@ -52,6 +104,16 @@ export interface GetChatHistoryInput {
   userId?: string;
   user1?: string;
   user2?: string;
+}
+
+function normalizeUtcTimestamp(timestamp?: string): string {
+  if (!timestamp) return new Date().toISOString();
+  if (typeof timestamp === 'string') {
+    if (!timestamp.endsWith('Z') && !timestamp.includes('+')) {
+      return timestamp + 'Z';
+    }
+  }
+  return timestamp;
 }
 
 export async function getChatHistory(
@@ -82,8 +144,9 @@ export async function getChatHistory(
       senderId: item.senderUsername || item.senderId || u1,
       receiverId: item.receiverUsername || item.receiverId || u2,
       message: item.content || item.message || '',
-      createdAt: item.timestamp || item.createdAt || new Date().toISOString(),
+      createdAt: normalizeUtcTimestamp(item.timestamp || item.createdAt),
       senderType: item.senderType || 'USER',
+      edited: Boolean(item.edited),
     }));
   } catch (err) {
     console.warn('Failed to fetch chat history:', err);
@@ -105,7 +168,7 @@ export async function sendChatMessage(
     receiver = receiverUsername || '';
     msgContent = content || '';
   } else {
-    sender = payloadOrSender.senderUsername || payloadOrSender.senderId || '';
+    sender = payloadOrSender.senderUsername || payloadOrSender.senderId || 'current-user';
     receiver = payloadOrSender.receiverUsername || payloadOrSender.receiverId || '';
     msgContent = payloadOrSender.content || payloadOrSender.message || '';
   }
@@ -119,16 +182,33 @@ export async function sendChatMessage(
     }),
   });
 
-  const data = res.data || res;
+  const item = res.data;
+  if (!item) return null;
   return {
-    ...data,
-    id: data?.id || `msg-${Date.now()}`,
-    senderId: data?.senderUsername || sender,
-    receiverId: data?.receiverUsername || receiver,
-    message: data?.content || msgContent,
-    createdAt: data?.timestamp || new Date().toISOString(),
-    senderType: 'USER',
+    ...item,
+    id: item.id || `msg-${Math.random()}`,
+    senderId: item.senderUsername || item.senderId || sender,
+    receiverId: item.receiverUsername || item.receiverId || receiver,
+    message: item.content || item.message || msgContent,
+    createdAt: normalizeUtcTimestamp(item.timestamp || item.createdAt),
+    senderType: item.senderType || 'USER',
+    edited: Boolean(item.edited),
   };
+}
+
+export async function editChatMessage(messageId: string, content: string): Promise<any> {
+  const res = await fetchWithAuth(`${CHAT_URL}/api/chat/messages/${encodeURIComponent(messageId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  });
+  return res.data;
+}
+
+export async function deleteChatMessage(messageId: string): Promise<any> {
+  const res = await fetchWithAuth(`${CHAT_URL}/api/chat/messages/${encodeURIComponent(messageId)}`, {
+    method: 'DELETE',
+  });
+  return res.data;
 }
 
 export const sendChatMessageRest = sendChatMessage;

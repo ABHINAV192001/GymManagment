@@ -34,32 +34,39 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const inputId = id || generatedId;
 
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
-
-  // Sync search term when not open
-  useEffect(() => {
-    if (!isOpen) {
-      setSearchTerm(selectedOption ? selectedOption.label : '');
-    }
-  }, [isOpen, selectedOption]);
 
   // Click outside listener
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setSearchQuery('');
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Keyboard listener for Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+        setSearchQuery('');
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   const filteredOptions = options.filter((opt) => {
-    if (!searchTerm || isOpen === false) return true;
-    const term = searchTerm.toLowerCase().trim();
+    if (!searchQuery.trim()) return true;
+    const term = searchQuery.toLowerCase().trim();
     return (
       opt.label.toLowerCase().includes(term) ||
       (opt.sublabel && opt.sublabel.toLowerCase().includes(term)) ||
@@ -69,13 +76,27 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   const handleSelect = (optionValue: string) => {
     onChange(optionValue);
+    setSearchQuery('');
     setIsOpen(false);
   };
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange('');
-    setSearchTerm('');
+    setSearchQuery('');
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  const handleOpen = () => {
+    if (!disabled) {
+      setIsOpen(true);
+      setSearchQuery('');
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }
   };
 
   return (
@@ -84,27 +105,27 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         className={`relative flex items-center border rounded-xl bg-white dark:bg-zinc-900 transition shadow-sm ${
           disabled ? 'opacity-50 cursor-not-allowed bg-zinc-100 dark:bg-zinc-800' : 'cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600'
         } ${isOpen ? 'ring-2 ring-blue-500/40 border-blue-500' : 'border-zinc-300 dark:border-zinc-700'}`}
-        onClick={() => {
-          if (!disabled) {
-            setIsOpen(true);
-          }
-        }}
+        onClick={handleOpen}
       >
         <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 pointer-events-none" />
         
         <input
+          ref={inputRef}
           id={inputId}
           type="text"
           disabled={disabled}
-          placeholder={placeholder}
+          placeholder={isOpen ? (selectedOption ? selectedOption.label : placeholder) : placeholder}
           required={required && !value}
-          value={isOpen ? searchTerm : selectedOption ? selectedOption.label : ''}
+          value={isOpen ? searchQuery : (selectedOption ? selectedOption.label : '')}
           onChange={(e) => {
-            setSearchTerm(e.target.value);
+            setSearchQuery(e.target.value);
             if (!isOpen) setIsOpen(true);
           }}
           onFocus={() => {
-            if (!disabled) setIsOpen(true);
+            if (!disabled && !isOpen) {
+              setIsOpen(true);
+              setSearchQuery('');
+            }
           }}
           className="w-full text-xs pl-8 pr-12 py-2.5 bg-transparent border-none outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 font-medium"
         />
@@ -158,3 +179,4 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     </div>
   );
 };
+

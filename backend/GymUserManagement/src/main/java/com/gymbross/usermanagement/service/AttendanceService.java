@@ -67,4 +67,10 @@ public interface AttendanceService {
      * Search attendance with filters.
      */
     PageResponse<AttendanceDtos.AttendanceLogResponseDto> searchAttendance(UUID orgId, UUID branchId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, String search, int page, int size);
+
+    /**
+     * Returns whether the given user (staff/member) has already checked in today.
+     * Used by the frontend to decide whether to show the attendance popup on login.
+     */
+    AttendanceDtos.TodayStatusDto getTodayAttendanceStatus(UUID userId);
 }

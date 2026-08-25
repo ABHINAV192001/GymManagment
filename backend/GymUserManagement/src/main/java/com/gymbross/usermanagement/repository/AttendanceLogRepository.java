@@ -38,4 +38,9 @@ public interface AttendanceLogRepository extends JpaRepository<AttendanceLog, UU
         @Param("endDate") LocalDateTime endDate, 
         @Param("search") String search, 
         Pageable pageable);
+    @Query(value = "SELECT a FROM AttendanceLog a WHERE a.entityId = :entityId AND a.checkInTime >= :start AND a.checkInTime < :end ORDER BY a.checkInTime DESC")
+    java.util.List<AttendanceLog> findTodayLogsByEntityId(
+        @Param("entityId") UUID entityId,
+        @Param("start") LocalDateTime start,
+        @Param("end") LocalDateTime end);
 }

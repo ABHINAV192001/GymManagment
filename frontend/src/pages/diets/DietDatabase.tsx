@@ -14,18 +14,41 @@ import {
   Clock,
   BookOpen,
   ListChecks,
+  Search,
 } from 'lucide-react';
 import { FoodItem } from '../../types';
-import { getFoodsByFilter, PaginatedResult } from '../../lib/api/food';
+import { filterFoods, PaginatedResult } from '../../lib/api/food';
 
 type RootMode = 'FOODS' | 'RECIPES';
-type FoodPreset = 'FOOD_ALL' | 'FOOD_MAGNESIUM' | 'FOOD_HIGH_PROTEIN' | 'FOOD_LOW_CALORIE' | 'FOOD_HIGH_CALORIE';
-type RecipePreset = 'RECIPE_ALL' | 'RECIPE_FAT_LOSS' | 'RECIPE_MAGNESIUM' | 'RECIPE_HIGH_PROTEIN' | 'RECIPE_LOW_CALORIE' | 'RECIPE_HIGH_CALORIE';
+type FoodPreset = 'FOOD_ALL' | 'FOOD_INDIAN' | 'FOOD_MAGNESIUM' | 'FOOD_HIGH_PROTEIN' | 'FOOD_LOW_CALORIE' | 'FOOD_HIGH_CALORIE';
+type RecipePreset = 'RECIPE_ALL' | 'RECIPE_INDIAN' | 'RECIPE_FAT_LOSS' | 'RECIPE_MAGNESIUM' | 'RECIPE_HIGH_PROTEIN' | 'RECIPE_LOW_CALORIE' | 'RECIPE_HIGH_CALORIE';
+
+const QUICK_SEARCH_CHIPS = [
+  'Banana',
+  'Apple',
+  'Chicken Breast',
+  'Paneer',
+  'Dal',
+  'Roti',
+  'Oats',
+  'Salmon',
+  'Eggs',
+  'Brown Rice',
+  'Spinach',
+  'Greek Yogurt',
+  'Broccoli',
+  'Almonds',
+  'Avocado',
+  'Poha',
+  'Khichdi',
+  'Palak Paneer',
+];
 
 export const DietDatabase: React.FC = () => {
   const [rootMode, setRootMode] = useState<RootMode>('FOODS');
   const [activeFoodPreset, setActiveFoodPreset] = useState<FoodPreset>('FOOD_ALL');
   const [activeRecipePreset, setActiveRecipePreset] = useState<RecipePreset>('RECIPE_ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState<number>(0);
@@ -39,24 +62,36 @@ export const DietDatabase: React.FC = () => {
   const currentApiPreset = rootMode === 'FOODS' ? activeFoodPreset : activeRecipePreset;
 
   useEffect(() => {
-    async function loadData() {
+    let isCurrent = true;
+    const debounceTimer = setTimeout(async () => {
       setLoading(true);
       try {
-        const result: PaginatedResult<FoodItem> = await getFoodsByFilter(currentApiPreset, page, pageSize);
-        setFoods(result.items || []);
-        setPage(result.page);
-        setTotalPages(result.totalPages);
-        setTotalElements(result.totalElements);
-        setHasNext(result.hasNext);
-        setHasPrev(result.hasPrev);
+        const result: PaginatedResult<FoodItem> = await filterFoods({
+          query: searchQuery.trim(),
+          preset: currentApiPreset,
+          page,
+          size: pageSize,
+        });
+        if (isCurrent) {
+          setFoods(result.items || []);
+          setPage(result.page);
+          setTotalPages(result.totalPages);
+          setTotalElements(result.totalElements);
+          setHasNext(result.hasNext);
+          setHasPrev(result.hasPrev);
+        }
       } catch (err) {
         console.error('Failed to load foods from backend API:', err);
       } finally {
-        setLoading(false);
+        if (isCurrent) setLoading(false);
       }
-    }
-    loadData();
-  }, [currentApiPreset, page, pageSize]);
+    }, searchQuery ? 250 : 0);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(debounceTimer);
+    };
+  }, [searchQuery, currentApiPreset, page, pageSize]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -74,6 +109,20 @@ export const DietDatabase: React.FC = () => {
   const handleSubPresetChange = (preset: string) => {
     if (rootMode === 'FOODS') setActiveFoodPreset(preset as FoodPreset);
     else setActiveRecipePreset(preset as RecipePreset);
+    setPage(0);
+  };
+
+  const handleChipClick = (chip: string) => {
+    if (searchQuery === chip) {
+      setSearchQuery('');
+    } else {
+      setSearchQuery(chip);
+    }
+    setPage(0);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
     setPage(0);
   };
 
@@ -97,7 +146,8 @@ export const DietDatabase: React.FC = () => {
     (food.fatPer100g ?? 0) > 0;
 
   const foodButtons = [
-    { id: 'FOOD_ALL', label: 'All Foods', icon: Apple, active: 'bg-emerald-600 border-emerald-600', iconCls: '' },
+    { id: 'FOOD_ALL', label: 'All Foods & Dishes', icon: Apple, active: 'bg-emerald-600 border-emerald-600', iconCls: '' },
+    { id: 'FOOD_INDIAN', label: '🇮🇳 Indian Diet & Foods (1,000+)', icon: Utensils, active: 'bg-orange-600 border-orange-600', iconCls: 'text-orange-500' },
     { id: 'FOOD_MAGNESIUM', label: 'Magnesium-Rich Foods', icon: Zap, active: 'bg-amber-500 border-amber-500', iconCls: 'text-amber-500' },
     { id: 'FOOD_HIGH_PROTEIN', label: 'High Protein Foods', icon: Flame, active: 'bg-cyan-600 border-cyan-600', iconCls: 'text-cyan-600' },
     { id: 'FOOD_LOW_CALORIE', label: 'Low Calorie (<100 kcal)', icon: Scale, active: 'bg-emerald-700 border-emerald-700', iconCls: 'text-emerald-600' },
@@ -106,6 +156,7 @@ export const DietDatabase: React.FC = () => {
 
   const recipeButtons = [
     { id: 'RECIPE_ALL', label: 'All Recipes', icon: Utensils, active: 'bg-teal-600 border-teal-600', iconCls: '' },
+    { id: 'RECIPE_INDIAN', label: '🇮🇳 Indian Recipes & Curries', icon: Utensils, active: 'bg-orange-600 border-orange-600', iconCls: 'text-orange-500' },
     { id: 'RECIPE_FAT_LOSS', label: 'Fat Loss Recipes', icon: Flame, active: 'bg-teal-700 border-teal-700', iconCls: 'text-teal-600' },
     { id: 'RECIPE_MAGNESIUM', label: 'Magnesium-Rich Recipes', icon: Zap, active: 'bg-amber-500 border-amber-500', iconCls: 'text-amber-500' },
     { id: 'RECIPE_HIGH_PROTEIN', label: 'High Protein Recipes', icon: Dumbbell, active: 'bg-cyan-600 border-cyan-600', iconCls: 'text-cyan-600' },
@@ -131,8 +182,57 @@ export const DietDatabase: React.FC = () => {
             </span>
           </div>
           <p className="text-slate-500 dark:text-zinc-400 text-xs mt-0.5">
-            Structured nutritional profiles for raw foods and prepared recipes.
+            Instant search nutritional profiles for raw whole foods, ingredients, and recipes.
           </p>
+        </div>
+      </div>
+
+      {/* SEARCH BAR & SEARCH CHIPS PANEL */}
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-3 sm:p-4 mb-4 shadow-xs space-y-3">
+        <div className="relative flex items-center">
+          <Search className="w-4 h-4 text-emerald-600 dark:text-emerald-400 absolute left-3.5 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(0);
+            }}
+            placeholder="Search any food or recipe (e.g., 'Banana', 'Apple', 'Chicken Breast', 'Salmon', 'Oats')..."
+            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700/80 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all shadow-inner"
+          />
+          {searchQuery && (
+            <button
+              onClick={handleClearSearch}
+              className="absolute right-3 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-700 transition"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* QUICK SUGGESTION SEARCH PILLS */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mr-1">
+            Suggested:
+          </span>
+          {QUICK_SEARCH_CHIPS.map((chip) => {
+            const isSelected = searchQuery.toLowerCase() === chip.toLowerCase();
+            return (
+              <button
+                key={chip}
+                onClick={() => handleChipClick(chip)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all border ${
+                  isSelected
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs font-bold'
+                    : 'bg-slate-50 dark:bg-zinc-800/60 text-slate-600 dark:text-zinc-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600 dark:hover:text-emerald-400 border-slate-200/80 dark:border-zinc-700/60'
+                }`}
+              >
+                {chip}
+              </button>
+            );
+          })}
         </div>
       </div>
 

@@ -24,6 +24,7 @@ interface HumanBodyMapProps {
   onSelectMuscle: (muscle: MuscleGroupKey | null) => void;
   exerciseCounts?: Record<string, number>;
   gender?: 'MALE' | 'FEMALE';
+  onGenderChange?: (gender: 'MALE' | 'FEMALE') => void;
 }
 
 const MUSCLE_IMAGES: Record<MuscleGroupKey, string> = {

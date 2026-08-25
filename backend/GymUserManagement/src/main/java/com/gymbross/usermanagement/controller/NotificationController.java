@@ -20,6 +20,7 @@ public class NotificationController {
 
     private final NotificationTemplateRepository templateRepository;
     private final NotificationLogRepository logRepository;
+    private final com.Gym.GymCommonServices.service.WhatsAppService whatsAppService;
 
     @GetMapping("/templates")
     @PreAuthorize("hasAuthority('NOTIFICATIONS:VIEW')")
@@ -99,20 +100,25 @@ public class NotificationController {
 
         List<NotificationLog> logs = new ArrayList<>();
         for (String recipient : recipients) {
+            boolean sent = true;
+            if ("WHATSAPP".equalsIgnoreCase(channel) || "ALL".equalsIgnoreCase(channel)) {
+                sent = whatsAppService.sendGeneralNotification(recipient, "GymBross Alert", content != null ? content : "Notification from GYMBROSS");
+            }
+
             NotificationLog logEntry = NotificationLog.builder()
                     .templateId(templateId)
                     .recipient(recipient)
                     .channel(channel)
                     .content(content)
                     .targetRole(targetRole)
-                    .status("SENT")
+                    .status(sent ? "SENT" : "FAILED")
                     .createdAt(Instant.now())
                     .build();
             logs.add(logEntry);
         }
 
         logs = logRepository.saveAll(logs);
-        return ResponseEntity.ok(ApiResponse.success(logs, "Notifications sent successfully"));
+        return ResponseEntity.ok(ApiResponse.success(logs, "Notifications dispatched successfully"));
     }
 
     @PostMapping("/schedule")
@@ -200,5 +206,32 @@ public class NotificationController {
     @PreAuthorize("hasAuthority('NOTIFICATIONS:SEND')")
     public ResponseEntity<ApiResponse<String>> testSend() {
         return ResponseEntity.ok(ApiResponse.success("Test notification triggered successfully over log channels"));
+    }
+
+    @PostMapping("/whatsapp/test")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> testWhatsApp(
+            @RequestParam(value = "phone", defaultValue = "+919876543210") String phone,
+            @RequestParam(value = "message", defaultValue = "🏋️‍♂️ Test WhatsApp message!") String message) {
+        boolean sent = whatsAppService.sendGeneralNotification(phone, "WhatsApp Notification", message);
+        Map<String, Object> result = new HashMap<>();
+        result.put("phone", phone);
+        result.put("dispatched", sent);
+        result.put("message", message);
+        return ResponseEntity.ok(ApiResponse.success(result, sent ? "WhatsApp test message sent successfully" : "WhatsApp dispatch attempted (check server logs for details)"));
+    }
+
+    @PostMapping("/whatsapp/test-account")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> testAccountWhatsApp(
+            @RequestParam(value = "phone", defaultValue = "+919876543210") String phone,
+            @RequestParam(value = "name", defaultValue = "John Doe") String name,
+            @RequestParam(value = "email", defaultValue = "john@example.com") String email,
+            @RequestParam(value = "role", defaultValue = "MEMBER") String role,
+            @RequestParam(value = "link", required = false) String link) {
+        String inviteLink = (link != null && !link.isBlank()) ? link : null;
+        boolean sent = whatsAppService.sendAccountCreatedNotification(phone, name, email, inviteLink, role);
+        Map<String, Object> result = new HashMap<>();
+        result.put("phone", phone);
+        result.put("dispatched", sent);
+        return ResponseEntity.ok(ApiResponse.success(result, sent ? "Account welcome WhatsApp sent successfully" : "Account welcome WhatsApp dispatch attempted"));
     }
 }

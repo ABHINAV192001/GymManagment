@@ -12,5 +12,5 @@ public interface ExerciseService {
 
     ExerciseDto getExercise(java.util.UUID id);
 
-    List<ExerciseDto> getAllExercises(String muscleGroup);
+    List<ExerciseDto> getAllExercises(String muscleGroup, String search);
 }

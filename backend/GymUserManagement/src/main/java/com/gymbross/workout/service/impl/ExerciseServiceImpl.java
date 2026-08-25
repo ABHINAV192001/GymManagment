@@ -63,12 +63,12 @@ public class ExerciseServiceImpl implements ExerciseService {
     }
 
     @Override
-    public List<ExerciseDto> getAllExercises(String muscleGroup) {
+    public List<ExerciseDto> getAllExercises(String muscleGroup, String search) {
         List<Exercise> exercises;
-        if (muscleGroup != null && !muscleGroup.isEmpty()) {
-            exercises = exerciseRepository.findAll().stream()
-                    .filter(e -> e.getMuscleGroup() != null && e.getMuscleGroup().equalsIgnoreCase(muscleGroup))
-                    .collect(Collectors.toList());
+        if (search != null && !search.trim().isEmpty()) {
+            exercises = exerciseRepository.searchExercises(search.trim());
+        } else if (muscleGroup != null && !muscleGroup.trim().isEmpty()) {
+            exercises = exerciseRepository.findByMuscleGroupIgnoreCase(muscleGroup.trim());
         } else {
             exercises = exerciseRepository.findAll();
         }

@@ -15,8 +15,10 @@ import {
   CheckCheck
 } from 'lucide-react';
 import { ChatMessage, Member, Staff } from '../../types';
-import { getChatHistory, sendChatMessage } from '../../lib/api/chat';
+import { getChatHistory, sendChatMessage, getChatContacts } from '../../lib/api/chat';
 import { getUsers, getStaff } from '../../lib/api/admin';
+import { chatWebSocket } from '../../lib/api/chatWebSocket';
+import { getUserProfile } from '../../lib/api/user';
 
 export interface DynamicContact {
   id: string;
@@ -28,6 +30,7 @@ export interface DynamicContact {
   isActive: boolean;
   userCode?: string;
   email?: string;
+  username?: string;
 }
 
 interface FloatingChatWidgetProps {
@@ -102,53 +105,67 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
   const loadRealDirectory = async () => {
     try {
       setIsLoadingDirectory(true);
-      
-      const [membersRes, staffRes] = await Promise.allSettled([
-        getUsers({ size: 100 }),
-        getStaff(),
-      ]);
 
-      const loaded: DynamicContact[] = [];
+      // Primary: Try dedicated Chat Contacts API (accessible to ALL authenticated users)
+      const chatContacts = await getChatContacts();
+      const loaded: DynamicContact[] = chatContacts.map(c => ({
+        id: c.id,
+        name: c.name,
+        role: c.role,
+        isStaff: c.isStaff,
+        subtitle: c.subtitle || c.role,
+        avatar: c.avatar || 'CT',
+        isActive: true,
+        email: c.email,
+        userCode: c.userCode,
+        username: c.username,
+      }));
 
-      // Add Active Staff
-      if (staffRes.status === 'fulfilled' && Array.isArray(staffRes.value)) {
-        staffRes.value.forEach((s: Staff) => {
-          if (s.status === 'ACTIVE' || s.status === undefined) {
-            loaded.push({
-              id: s.id || `staff-${s.name}`,
-              name: s.name || s.email || 'Gym Staff',
-              role: s.role ? s.role.replace(/_/g, ' ') : 'Staff',
-              isStaff: true,
-              subtitle: s.specializations && s.specializations.length > 0 ? s.specializations.join(', ') : 'Staff Member',
-              avatar: s.name ? s.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'ST',
-              isActive: true,
-              email: s.email,
-            });
-          }
-        });
-      }
+      // Fallback: If chatContacts is empty, attempt getUsers / getStaff
+      if (loaded.length === 0) {
+        const [membersRes, staffRes] = await Promise.allSettled([
+          getUsers({ size: 100 }),
+          getStaff(),
+        ]);
 
-      // Add Active Members
-      if (membersRes.status === 'fulfilled' && membersRes.value?.members) {
-        membersRes.value.members.forEach((m: Member) => {
-          // Filter strictly for ACTIVE users
-          if (m.isActive || m.status === 'Active') {
-            // Avoid duplicate if already in staff list
-            if (!loaded.some(c => c.id === m.id || (m.email && c.email === m.email))) {
+        if (staffRes.status === 'fulfilled' && Array.isArray(staffRes.value)) {
+          staffRes.value.forEach((s: Staff) => {
+            if (s.status === 'ACTIVE' || s.status === undefined) {
               loaded.push({
-                id: m.id,
-                name: m.name || m.username || m.email || 'Member',
-                role: m.plan ? `${m.plan} Member` : 'Gym Member',
-                isStaff: false,
-                subtitle: m.userCode ? `ID: ${m.userCode}` : m.trainerName ? `Trainer: ${m.trainerName}` : 'Active Member',
-                avatar: m.name ? m.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'MB',
+                id: s.id || `staff-${s.name}`,
+                name: s.name || s.email || 'Gym Staff',
+                role: s.role ? s.role.replace(/_/g, ' ') : 'Staff',
+                isStaff: true,
+                subtitle: s.specializations && s.specializations.length > 0 ? s.specializations.join(', ') : 'Staff Member',
+                avatar: s.name ? s.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'ST',
                 isActive: true,
-                userCode: m.userCode,
-                email: m.email,
+                email: s.email,
               });
             }
-          }
-        });
+          });
+        }
+
+        if (membersRes.status === 'fulfilled' && membersRes.value?.members) {
+          membersRes.value.members.forEach((m: Member) => {
+            if (m.isActive || m.status === 'Active') {
+              if (!loaded.some(c => c.id === m.id || (m.email && c.email === m.email))) {
+                const roleUpper = (m.role || '').toUpperCase();
+                const isStaffMember = roleUpper.includes('ADMIN') || roleUpper.includes('STAFF') || roleUpper.includes('TRAINER') || roleUpper.includes('MANAGER') || roleUpper.includes('OWNER');
+                loaded.push({
+                  id: m.id,
+                  name: m.name || m.username || m.email || 'Member',
+                  role: m.role ? m.role.replace(/_/g, ' ') : (m.plan ? `${m.plan} Member` : 'Gym Member'),
+                  isStaff: isStaffMember,
+                  subtitle: m.userCode ? `ID: ${m.userCode}` : m.trainerName ? `Trainer: ${m.trainerName}` : 'Active Member',
+                  avatar: m.name ? m.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'MB',
+                  isActive: true,
+                  userCode: m.userCode,
+                  email: m.email,
+                });
+              }
+            }
+          });
+        }
       }
 
       setAllContacts(loaded);
@@ -163,17 +180,93 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     loadRealDirectory();
   }, []);
 
-  // Fetch conversation history when active contact changes
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('gymos_user_profile');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    getUserProfile().then(p => {
+      if (p) {
+        setCurrentUserProfile(p);
+        try { localStorage.setItem('gymos_user_profile', JSON.stringify(p)); } catch {}
+      }
+    }).catch(() => null);
+  }, []);
+
+  const activeContactRef = useRef(activeContact);
+  useEffect(() => {
+    activeContactRef.current = activeContact;
+  }, [activeContact]);
+
+  // STOMP WebSocket real-time subscription
+  useEffect(() => {
+    if (!currentUserProfile?.username) return;
+
+    chatWebSocket.connect(currentUserProfile.username);
+
+    const unsubscribe = chatWebSocket.onMessage((newMsg) => {
+      const activePartner = activeContactRef.current;
+      if (activePartner) {
+        const partnerUser = activePartner.username;
+        const partnerEmail = activePartner.email;
+        const partnerCode = activePartner.userCode;
+        const partnerId = activePartner.id;
+
+        const isFromPartner =
+          newMsg.senderUsername === partnerUser ||
+          newMsg.senderUsername === partnerEmail ||
+          newMsg.senderUsername === partnerCode ||
+          newMsg.senderUsername === partnerId;
+
+        const isFromMe =
+          newMsg.senderUsername === currentUserProfile.username ||
+          newMsg.senderUsername === currentUserProfile.email ||
+          newMsg.senderUsername === currentUserProfile.userCode;
+
+        if (isFromPartner || isFromMe) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id || (m.message === newMsg.content && Math.abs(new Date(m.createdAt).getTime() - new Date(newMsg.timestamp || Date.now()).getTime()) < 3000))) {
+              return prev;
+            }
+            return [
+              ...prev,
+              {
+                id: newMsg.id || `msg-${Date.now()}`,
+                senderId: newMsg.senderUsername,
+                senderUsername: newMsg.senderUsername,
+                receiverUsername: newMsg.receiverUsername,
+                message: newMsg.content || newMsg.message || '',
+                createdAt: newMsg.timestamp || newMsg.createdAt || new Date().toISOString(),
+                senderType: newMsg.senderType || 'USER',
+              },
+            ];
+          });
+        }
+      }
+
+      loadRealDirectory();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [currentUserProfile?.username]);
+
+  // Fetch conversation history on contact change (pure real-time STOMP WebSocket handles new messages)
   useEffect(() => {
     if (!activeContact) return;
+
     getChatHistory({ userId: activeContact.id })
       .then(history => {
-        if (Array.isArray(history)) {
-          setMessages(history);
-        }
+        if (Array.isArray(history)) setMessages(history);
       })
-      .catch(err => console.error('Failed history fetch:', err));
-  }, [activeContact]);
+      .catch(() => null);
+  }, [activeContact?.id]);
 
   // Auto-scroll chat body
   useEffect(() => {
@@ -183,16 +276,12 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
   }, [messages, activeContact, isOpen]);
 
   // Filtered contacts based on role rules & selected tab:
-  // - Non-staff regular members ONLY see Staff members.
-  // - Org Admin / Staff see Members and Staff depending on tab.
   const displayedContacts = useMemo(() => {
     let filtered = allContacts;
 
     if (!isOrgAdminOrStaff) {
-      // Regular user: STRICTLY STAFF ONLY
       filtered = allContacts.filter(c => c.isStaff);
     } else {
-      // Staff Admin: Apply Tab Filter
       if (activeTab === 'STAFF') {
         filtered = allContacts.filter(c => c.isStaff);
       } else if (activeTab === 'MEMBERS') {
@@ -220,9 +309,11 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     if (!customText) setTypedMessage('');
 
     const tempMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: `temp-${Date.now()}`,
       senderType: isOrgAdminOrStaff ? 'STAFF' : 'USER',
-      senderId: currentUserId,
+      senderId: currentUserProfile?.username || currentUserId,
+      senderUsername: currentUserProfile?.username || currentUserId,
+      receiverUsername: activeContact.username,
       receiverId: activeContact.id,
       message: text,
       createdAt: new Date().toISOString(),
@@ -230,19 +321,25 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
 
     setMessages(prev => [...prev, tempMsg]);
 
+    // Send via STOMP WebSocket & REST API
+    chatWebSocket.sendMessage(activeContact.username, text);
+
     try {
-      const saved = await sendChatMessage({
+      await sendChatMessage({
         senderType: isOrgAdminOrStaff ? 'STAFF' : 'USER',
-        senderId: currentUserId,
+        senderId: currentUserProfile?.username || currentUserId,
+        receiverUsername: activeContact.username,
         receiverId: activeContact.id,
         message: text,
+        content: text,
       });
-      if (saved && saved.id) {
-        setMessages(prev => prev.map(m => m.id === tempMsg.id ? saved : m));
+
+      if (activeContact) {
+        const history = await getChatHistory({ userId: activeContact.id });
+        if (Array.isArray(history)) setMessages(history);
       }
-      if (onAnnounce) onAnnounce('Message transmitted successfully');
-    } catch (err: any) {
-      console.warn('API message stored locally:', err?.message || err);
+    } catch (err) {
+      console.error('Error sending message:', err);
     }
   };
 
@@ -322,7 +419,7 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
 
       {/* Floating Chat Widget Popup Window */}
       {isOpen && (
-        <div className="fixed bottom-20 md:bottom-6 right-2 sm:right-6 w-96 max-w-[calc(100vw-1rem)] h-[570px] max-h-[calc(100vh-6rem)] z-50 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200 text-xs">
+        <div className="fixed bottom-0 sm:bottom-6 inset-x-0 sm:left-auto sm:right-6 w-full sm:w-96 h-[88vh] sm:h-[570px] max-h-[100vh] sm:max-h-[calc(100vh-6rem)] z-50 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200 text-xs">
           
           {/* Header */}
           <div className="bg-gradient-to-r from-emerald-950 via-zinc-900 to-teal-950 p-3.5 text-white flex items-center justify-between shadow-md">
@@ -525,7 +622,16 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
                   </div>
                 ) : (
                   messages.map(msg => {
-                    const isMe = msg.senderId === currentUserId || msg.senderType === (isOrgAdminOrStaff ? 'STAFF' : 'USER');
+                    const senderName = msg.senderUsername || (msg as any).senderId || '';
+                    const isMe = Boolean(
+                      currentUserProfile && (
+                        senderName === currentUserProfile.username ||
+                        senderName === currentUserProfile.email ||
+                        senderName === currentUserProfile.userCode ||
+                        senderName === currentUserProfile.id
+                      )
+                    );
+
                     return (
                       <div
                         key={msg.id}
@@ -538,6 +644,13 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
                               : 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 rounded-tl-none'
                           }`}
                         >
+                          {!isMe && (
+                            <span className="block text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mb-0.5">
+                              {activeContact?.name && activeContact.name !== 'string' && activeContact.name !== activeContact.role
+                                ? `${activeContact.role} (${activeContact.name})`
+                                : (activeContact?.role || senderName)}
+                            </span>
+                          )}
                           <p className="leading-relaxed text-xs">{msg.message}</p>
                           <span
                             className={`block text-[9px] text-right font-mono ${

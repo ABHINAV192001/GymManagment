@@ -73,7 +73,6 @@ interface ExerciseItem {
 }
 
 export const EXERCISES_CATALOG: Record<string, { label: string; exercises: ExerciseItem[] }> = {};
-
 export const PROGRAM_SPLITS_CONFIG: Record<string, {
   key: string;
   title: string;

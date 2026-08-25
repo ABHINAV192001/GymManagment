@@ -46,3 +46,20 @@ export async function getNotificationStats(): Promise<any> {
   const response = await fetchWithAuth(`${BASE_URL}/stats`);
   return response.data;
 }
+
+export async function testWhatsAppNotification(phone: string, message: string): Promise<any> {
+  const params = new URLSearchParams({ phone, message });
+  const response = await fetchWithAuth(`${BASE_URL}/whatsapp/test?${params.toString()}`, {
+    method: 'POST',
+  });
+  return response.data;
+}
+
+export async function testAccountWelcomeWhatsApp(phone: string, name: string, email: string, role: string, link?: string): Promise<any> {
+  const params = new URLSearchParams({ phone, name, email, role });
+  if (link) params.set('link', link);
+  const response = await fetchWithAuth(`${BASE_URL}/whatsapp/test-account?${params.toString()}`, {
+    method: 'POST',
+  });
+  return response.data;
+}

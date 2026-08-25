@@ -27,6 +27,9 @@ public class ChatMessage {
     @Column(name = "is_read", nullable = false)
     private boolean isRead = false;
 
+    @Column(name = "is_edited", nullable = false)
+    private boolean edited = false;
+
     @Column(name = "read_at")
     private LocalDateTime readAt;
 

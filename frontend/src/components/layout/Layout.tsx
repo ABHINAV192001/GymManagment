@@ -52,6 +52,8 @@ import { getGroupSessions, voteGroupSession, GroupSessionResponse } from '../../
 import { FloatingChatWidget } from '../chat/FloatingChatWidget';
 import { ProfileModal } from '../profile/ProfileModal';
 import { getUserProfile } from '../../lib/api/user';
+import { AttendancePopup } from '../attendance/AttendancePopup';
+import { getMyTodayAttendanceStatus } from '../../lib/api/attendance';
 
 function XIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -308,6 +310,35 @@ export const Layout = () => {
     fetchPermissions();
   }, [navigate]);
 
+
+  const [showAttendancePopup, setShowAttendancePopup] = useState(false);
+
+  useEffect(() => {
+    if (!isLoadingPermissions && userProfile && userRole) {
+      const roleUpper = (userRole || '').toUpperCase();
+      const isSuperAdmin = roleUpper === 'ORG_ADMIN' || roleUpper === 'ROLE_ORG_ADMIN' || roleUpper === 'ADMIN';
+      
+      if (!isSuperAdmin) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const cacheKey = `gymos_att_checked_${userProfile.id || 'me'}`;
+        const lastCheckedDate = localStorage.getItem(cacheKey);
+
+        if (lastCheckedDate !== todayStr) {
+          getMyTodayAttendanceStatus()
+            .then(status => {
+              if (status && status.checkedIn) {
+                localStorage.setItem(cacheKey, todayStr);
+              } else {
+                setShowAttendancePopup(true);
+              }
+            })
+            .catch(err => {
+              console.error('Error checking today attendance status:', err);
+            });
+        }
+      }
+    }
+  }, [isLoadingPermissions, userProfile, userRole]);
 
   // Dynamic Activity Notifications
   const [activityNotifications, setActivityNotifications] = useState<GroupSessionResponse[]>([]);
@@ -1382,7 +1413,26 @@ export const Layout = () => {
           onAnnounce={triggerAnnouncement}
           onLogout={handleLogout}
         />
+
+        {/* Daily Attendance Check-In Popup for Non-Admin Users */}
+        {showAttendancePopup && (
+          <AttendancePopup
+            userProfile={userProfile}
+            selectedBranchId={selectedBranchId}
+            onClose={() => setShowAttendancePopup(false)}
+            onSuccess={(checkinTime) => {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const cacheKey = `gymos_att_checked_${userProfile?.id || 'me'}`;
+              localStorage.setItem(cacheKey, todayStr);
+              triggerAnnouncement(`Attendance successfully marked at ${checkinTime}`);
+              setTimeout(() => {
+                setShowAttendancePopup(false);
+              }, 1200);
+            }}
+          />
+        )}
       </div>
     </div>
   );
 };
+

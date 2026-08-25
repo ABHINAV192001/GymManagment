@@ -39,7 +39,7 @@ public class FoodController {
         return ResponseEntity.ok(ApiResponse.success(foodService.getFoodDetails(id)));
     }
 
-    @GetMapping("/list")
+    @GetMapping({"", "/list"})
     public ResponseEntity<ApiResponse<List<FoodDto>>> getAllFoods(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
