@@ -16,6 +16,9 @@ public interface ExerciseRepository extends JpaRepository<Exercise, java.util.UU
 
     List<Exercise> findByMuscleGroupIgnoreCase(String muscleGroup);
 
+    @Query("SELECT e FROM Exercise e WHERE UPPER(e.muscleGroup) IN :groups")
+    List<Exercise> findByMuscleGroupInIgnoreCase(@Param("groups") List<String> groups);
+
     @Query("SELECT e FROM Exercise e WHERE " +
            "(:query IS NULL OR :query = '' OR " +
            "LOWER(e.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +

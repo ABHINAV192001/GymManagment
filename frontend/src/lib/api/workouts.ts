@@ -67,3 +67,14 @@ export async function getExercises(muscleGroup?: string, search?: string): Promi
   const response = await fetchWithAuth(url);
   return response.data || [];
 }
+
+export async function getExerciseById(id: string): Promise<Exercise | null> {
+  if (!id) return null;
+  try {
+    const response = await fetchWithAuth(`${EXERCISES_URL}/${id}`);
+    return response.data || null;
+  } catch (err) {
+    console.warn(`Error fetching exercise detail for ${id}:`, err);
+    return null;
+  }
+}

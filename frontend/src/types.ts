@@ -232,6 +232,11 @@ export interface Exercise {
   restInterval?: string;
   executionSteps?: string;
   safetyTips?: string;
+  videoUrl?: string;
+  stepOneImage?: string;
+  stepOneDescription?: string;
+  stepTwoImage?: string;
+  stepTwoDescription?: string;
 }
 
 export interface WorkoutExerciseItem {

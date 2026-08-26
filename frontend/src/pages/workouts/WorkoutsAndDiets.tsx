@@ -8,6 +8,7 @@ import {
   Check,
   Calculator,
   Info,
+  Image as ImageIcon,
   Flame,
   ShieldCheck,
   Zap,
@@ -1089,6 +1090,9 @@ export const WorkoutsAndDiets: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                           <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
                             {ex.muscleGroup}
+                          </span>
+                          <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded-full bg-slate-100 dark:bg-zinc-800 text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-zinc-700 flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3 text-blue-500" /> Keyframes
                           </span>
                         </div>
 
