@@ -42,7 +42,9 @@ public class ExerciseController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ExerciseDto>>> getAllExercises(@RequestParam(required = false) String muscleGroup) {
-        return ResponseEntity.ok(ApiResponse.success(exerciseService.getAllExercises(muscleGroup)));
+    public ResponseEntity<ApiResponse<List<com.Gym.GymCommonServices.dto.ExerciseSummaryDto>>> getAllExercises(
+            @RequestParam(required = false) String muscleGroup,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(ApiResponse.success(exerciseService.getAllExerciseSummaries(muscleGroup, search)));
     }
 }

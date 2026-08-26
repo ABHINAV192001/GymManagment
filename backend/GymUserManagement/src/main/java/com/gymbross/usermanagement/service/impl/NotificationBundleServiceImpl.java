@@ -28,6 +28,7 @@ public class NotificationBundleServiceImpl implements NotificationBundleService 
     private final WaterLogRepository waterLogRepository;
     private final CalorieCalculatorService calorieCalculatorService;
     private final EmailService emailService;
+    private final com.Gym.GymCommonServices.service.WhatsAppService whatsAppService;
 
     // In-memory cache for user preferences
     private final ConcurrentHashMap<String, NotificationBundleDto> userPreferencesCache = new ConcurrentHashMap<>();
@@ -163,6 +164,30 @@ public class NotificationBundleServiceImpl implements NotificationBundleService 
 
         log.info("Dispatching Daily Routine Notification Bundle to email: {}", recipient);
         emailService.sendEmail(recipient, subject, body);
+
+        // Also dispatch to WhatsApp if user has a phone number
+        if (user.getPhone() != null && !user.getPhone().isBlank()) {
+            StringBuilder waMsg = new StringBuilder();
+            waMsg.append("📅 *Today's Fitness Plan (").append(todayFormatted).append(")*\n\n");
+            
+            if (dto.getWorkoutReminder() != null && Boolean.TRUE.equals(dto.getWorkoutReminder().getEnabled())) {
+                waMsg.append("🏋️‍♂️ *Workout:* ").append(dto.getWorkoutReminder().getSplitFocus())
+                     .append(" at ").append(dto.getWorkoutReminder().getPreferredTime()).append("\n");
+            }
+            if (dto.getDietReminder() != null && Boolean.TRUE.equals(dto.getDietReminder().getEnabled())) {
+                waMsg.append("🥗 *Diet Target:* ").append(dto.getDietReminder().getDailyCalorieTarget()).append(" kcal (")
+                     .append(dto.getDietReminder().getProteinTargetGrams()).append("g Protein)\n");
+            }
+            if (dto.getWaterReminder() != null && Boolean.TRUE.equals(dto.getWaterReminder().getEnabled())) {
+                waMsg.append("💧 *Water Target:* ").append(dto.getWaterReminder().getDailyTargetLiters()).append("L\n");
+            }
+            if (dto.getWalkReminder() != null && Boolean.TRUE.equals(dto.getWalkReminder().getEnabled())) {
+                waMsg.append("🚶‍♂️ *Daily Steps:* ").append(dto.getWalkReminder().getDailyStepTarget()).append(" steps\n");
+            }
+            waMsg.append("\n👉 Log your progress in the GymBross Member Portal!");
+
+            whatsAppService.sendWorkoutAndDietReminder(user.getPhone(), userName, "WORKOUT", waMsg.toString());
+        }
     }
 
     private String buildEmailBody(String name, String date, NotificationBundleDto bundle) {

@@ -30,6 +30,8 @@ import {
   ClipboardList,
   Apple,
   Layers,
+  Sparkles,
+  Bot,
   X
 } from 'lucide-react';
 
@@ -50,6 +52,8 @@ import { getGroupSessions, voteGroupSession, GroupSessionResponse } from '../../
 import { FloatingChatWidget } from '../chat/FloatingChatWidget';
 import { ProfileModal } from '../profile/ProfileModal';
 import { getUserProfile } from '../../lib/api/user';
+import { AttendancePopup } from '../attendance/AttendancePopup';
+import { getMyTodayAttendanceStatus } from '../../lib/api/attendance';
 
 function XIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -306,6 +310,35 @@ export const Layout = () => {
     fetchPermissions();
   }, [navigate]);
 
+
+  const [showAttendancePopup, setShowAttendancePopup] = useState(false);
+
+  useEffect(() => {
+    if (!isLoadingPermissions && userProfile && userRole) {
+      const roleUpper = (userRole || '').toUpperCase();
+      const isSuperAdmin = roleUpper === 'ORG_ADMIN' || roleUpper === 'ROLE_ORG_ADMIN' || roleUpper === 'ADMIN';
+      
+      if (!isSuperAdmin) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const cacheKey = `gymos_att_checked_${userProfile.id || 'me'}`;
+        const lastCheckedDate = localStorage.getItem(cacheKey);
+
+        if (lastCheckedDate !== todayStr) {
+          getMyTodayAttendanceStatus()
+            .then(status => {
+              if (status && status.checkedIn) {
+                localStorage.setItem(cacheKey, todayStr);
+              } else {
+                setShowAttendancePopup(true);
+              }
+            })
+            .catch(err => {
+              console.error('Error checking today attendance status:', err);
+            });
+        }
+      }
+    }
+  }, [isLoadingPermissions, userProfile, userRole]);
 
   // Dynamic Activity Notifications
   const [activityNotifications, setActivityNotifications] = useState<GroupSessionResponse[]>([]);
@@ -685,18 +718,17 @@ export const Layout = () => {
                 )}
               </button>
 
-              {/* Shortcut 4: Live Chat Hub */}
+              {/* Shortcut: AI Assistant */}
               <button
-                onClick={() => setIsChatOpen(!isChatOpen)}
-                className={`p-2 rounded-xl border transition active:scale-95 relative ${
-                  isChatOpen
-                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 shadow-xs'
-                    : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                }`}
-                title="Live Chat Hub"
-                aria-label="Toggle Live Chat"
+                onClick={() => {
+                  navigate('/ai-agent');
+                  triggerAnnouncement('Navigated to AI Assistant');
+                }}
+                className="p-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 transition transform active:scale-95 cursor-pointer shrink-0 relative"
+                title="AI Assistant"
+                aria-label="AI Assistant"
               >
-                <MessageCircle className="w-4 h-4 text-emerald-500" />
+                <Sparkles className="w-4 h-4 text-indigo-400 animate-pulse" />
               </button>
 
               {/* Shortcut 5: Activity Notifications */}
@@ -852,18 +884,18 @@ export const Layout = () => {
             {/* Right Header Actions */}
             <div className="flex items-center gap-3 relative">
               
-              {/* Chat Hub Launcher */}
+              {/* AI Icon Button */}
               <button
-                onClick={() => setIsChatOpen(!isChatOpen)}
-                className={`p-2 rounded-lg border transition relative ${
-                  isChatOpen
-                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 shadow-xs'
-                    : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                }`}
-                title="Live Chat Hub"
-                aria-label="Toggle Live Chat Hub"
+                onClick={() => {
+                  navigate('/ai-agent');
+                  triggerAnnouncement('Navigated to AI Assistant');
+                }}
+                className="p-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 transition transform active:scale-95 cursor-pointer relative"
+                title="AI Assistant"
+                aria-label="AI Assistant"
               >
-                <MessageCircle className="w-4 h-4 text-emerald-500" />
+                <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
               </button>
 
               {/* Activity Notifications Bell */}
@@ -1006,9 +1038,17 @@ export const Layout = () => {
           </header>
 
           {/* Main Stage viewport */}
-          <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 pb-28 md:pb-6 focus:outline-none" tabIndex={-1} aria-label="Main Viewport Area">
+          <main
+            className={`flex-1 focus:outline-none ${
+              location.pathname === '/ai-agent'
+                ? 'p-0 overflow-hidden flex flex-col'
+                : 'overflow-y-auto p-3 sm:p-4 md:p-6 pb-28 md:pb-6'
+            }`}
+            tabIndex={-1}
+            aria-label="Main Viewport Area"
+          >
             {isAllowed ? (
-              <div className="max-w-7xl mx-auto space-y-4">
+              <div className={location.pathname === '/ai-agent' ? 'w-full h-full flex-1 flex flex-col' : 'max-w-7xl mx-auto space-y-4'}>
                 {/* Outlet for routes */}
                 <Outlet context={outletContext} />
               </div>
@@ -1363,14 +1403,7 @@ export const Layout = () => {
           </div>
         </nav>
 
-        {/* Global Live Chat Widget (Triggered via Top Header Chat Buttons) */}
-        <FloatingChatWidget
-          isOpen={isChatOpen}
-          onClose={() => setIsChatOpen(false)}
-          showFloatingButton={false}
-          currentUserRole={userRole}
-          onAnnounce={triggerAnnouncement}
-        />
+
 
         {/* Profile Editing Modal */}
         <ProfileModal
@@ -1380,7 +1413,26 @@ export const Layout = () => {
           onAnnounce={triggerAnnouncement}
           onLogout={handleLogout}
         />
+
+        {/* Daily Attendance Check-In Popup for Non-Admin Users */}
+        {showAttendancePopup && (
+          <AttendancePopup
+            userProfile={userProfile}
+            selectedBranchId={selectedBranchId}
+            onClose={() => setShowAttendancePopup(false)}
+            onSuccess={(checkinTime) => {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const cacheKey = `gymos_att_checked_${userProfile?.id || 'me'}`;
+              localStorage.setItem(cacheKey, todayStr);
+              triggerAnnouncement(`Attendance successfully marked at ${checkinTime}`);
+              setTimeout(() => {
+                setShowAttendancePopup(false);
+              }, 1200);
+            }}
+          />
+        )}
       </div>
     </div>
   );
 };
+

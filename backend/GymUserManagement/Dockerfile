@@ -1,20 +1,12 @@
-# ---------- Stage 1: Build GymCommonServices (shared dependency) ----------
-FROM maven:3.9-eclipse-temurin-17 AS common-builder
-WORKDIR /build/common
-
-COPY backend/GymCommonServices/pom.xml ./pom.xml
-COPY backend/GymCommonServices/src ./src
-RUN mvn clean install -DskipTests -B
-
-# ---------- Stage 2: Build GymUserManagement ----------
-FROM common-builder AS builder
+# ---------- Stage 1: Build GymUserManagement (Unified Monolith) ----------
+FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /build/service
 
-COPY backend/GymUserManagement/pom.xml ./pom.xml
-COPY backend/GymUserManagement/src ./src
+COPY . ./
+RUN if [ -f "backend/GymUserManagement/pom.xml" ]; then cp -rf backend/GymUserManagement/* ./ ; fi
 RUN mvn clean package -DskipTests -B
 
-# ---------- Stage 3: Runtime ----------
+# ---------- Stage 2: Runtime ----------
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 

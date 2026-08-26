@@ -72,107 +72,7 @@ interface ExerciseItem {
   completed: boolean;
 }
 
-export const EXERCISES_CATALOG: Record<string, { label: string; exercises: ExerciseItem[] }> = {
-  'PUSH_DAY': {
-    label: 'Push Focus (Chest, Shoulders & Triceps)',
-    exercises: [
-      { id: 'ex-p1', name: 'Barbell Flat Bench Press', sets: 4, reps: '8-10 reps', weight: '70 kg', target: 'Chest', completed: false },
-      { id: 'ex-p2', name: 'Incline Dumbbell Press', sets: 3, reps: '10-12 reps', weight: '24 kg', target: 'Upper Chest', completed: false },
-      { id: 'ex-p3', name: 'Standing Military Press', sets: 4, reps: '8 reps', weight: '45 kg', target: 'Shoulders', completed: false },
-      { id: 'ex-p4', name: 'Cable Chest Flyes (Low-to-High)', sets: 3, reps: '12-15 reps', weight: '15 kg', target: 'Inner Chest', completed: false },
-      { id: 'ex-p5', name: 'Tricep Rope Pushdowns', sets: 4, reps: '12-15 reps', weight: '25 kg', target: 'Triceps', completed: false },
-      { id: 'ex-p6', name: 'Dumbbell Lateral Raises', sets: 4, reps: '15 reps', weight: '10 kg', target: 'Side Delts', completed: false },
-      { id: 'ex-p7', name: 'Parallel Bar Chest Dips', sets: 3, reps: 'Failure', weight: 'Bodyweight', target: 'Lower Chest', completed: false },
-      { id: 'ex-p8', name: 'Overhead Dumbbell Extension', sets: 3, reps: '12 reps', weight: '20 kg', target: 'Triceps', completed: false },
-      { id: 'ex-p9', name: 'Seated Dumbbell Arnold Press', sets: 3, reps: '10 reps', weight: '18 kg', target: 'Front/Side Delts', completed: false },
-      { id: 'ex-p10', name: 'Decline Pushups / Cable Kickbacks', sets: 3, reps: '15 reps', weight: 'Bodyweight', target: 'Triceps & Upper Chest', completed: false },
-    ]
-  },
-  'PULL_DAY': {
-    label: 'Pull Focus (Back & Biceps)',
-    exercises: [
-      { id: 'ex-pl1', name: 'Conventional Barbell Deadlift', sets: 4, reps: '5 reps', weight: '110 kg', target: 'Back & Posterior', completed: false },
-      { id: 'ex-pl2', name: 'Lat Pulldown (Wide Grip)', sets: 4, reps: '10 reps', weight: '60 kg', target: 'Lats & Upper Back', completed: false },
-      { id: 'ex-pl3', name: 'Bent-Over Barbell Row', sets: 3, reps: '8-10 reps', weight: '55 kg', target: 'Mid Back', completed: false },
-      { id: 'ex-pl4', name: 'Seated Cable Rows', sets: 3, reps: '12 reps', weight: '50 kg', target: 'Rhomboids', completed: false },
-      { id: 'ex-pl5', name: 'EZ-Bar Bicep Curls', sets: 4, reps: '10 reps', weight: '25 kg', target: 'Biceps', completed: false },
-      { id: 'ex-pl6', name: 'Dumbbell Hammer Curls', sets: 3, reps: '12 reps', weight: '14 kg', target: 'Brachialis', completed: false },
-      { id: 'ex-pl7', name: 'Face Pulls (High Cable)', sets: 4, reps: '15 reps', weight: '20 kg', target: 'Rear Delts', completed: false },
-      { id: 'ex-pl8', name: 'Single-Arm Dumbbell Row', sets: 3, reps: '10 reps', weight: '26 kg', target: 'Lats', completed: false },
-      { id: 'ex-pl9', name: 'Incline Dumbbell Bicep Curls', sets: 3, reps: '12 reps', weight: '12 kg', target: 'Biceps Long Head', completed: false },
-      { id: 'ex-pl10', name: 'Barbell Shrugs & Hyperextensions', sets: 3, reps: '15 reps', weight: '60 kg', target: 'Traps & Lower Back', completed: false },
-    ]
-  },
-  'LEG_DAY': {
-    label: 'Leg Focus (Quads, Hamstrings & Calves)',
-    exercises: [
-      { id: 'ex-l1', name: 'Barbell Back Squat', sets: 4, reps: '8 reps', weight: '85 kg', target: 'Quads & Glutes', completed: false },
-      { id: 'ex-l2', name: 'Romanian Deadlift (RDL)', sets: 4, reps: '10 reps', weight: '70 kg', target: 'Hamstrings', completed: false },
-      { id: 'ex-l3', name: '45-Degree Leg Press', sets: 3, reps: '12 reps', weight: '140 kg', target: 'Quads', completed: false },
-      { id: 'ex-l4', name: 'Lying Leg Curls', sets: 3, reps: '12 reps', weight: '35 kg', target: 'Hamstrings', completed: false },
-      { id: 'ex-l5', name: 'Standing Calf Raises', sets: 4, reps: '15-20 reps', weight: '50 kg', target: 'Calves', completed: false },
-      { id: 'ex-l6', name: 'Hanging Leg Raises', sets: 3, reps: '15 reps', weight: 'Bodyweight', target: 'Core / Abs', completed: false },
-      { id: 'ex-l7', name: 'Dumbbell Bulgarian Split Squats', sets: 3, reps: '10 reps', weight: '16 kg', target: 'Glutes & Quads', completed: false },
-      { id: 'ex-l8', name: 'Dumbbell Walking Lunges', sets: 3, reps: '12 reps', weight: '14 kg', target: 'Quads & Glutes', completed: false },
-      { id: 'ex-l9', name: 'Seated Leg Extensions', sets: 3, reps: '12 reps', weight: '45 kg', target: 'Quads Isolation', completed: false },
-      { id: 'ex-l10', name: 'Ab Roller Wheels & Planks', sets: 4, reps: '1 min', weight: 'Bodyweight', target: 'Core Stability', completed: false },
-    ]
-  },
-  'UPPER_BODY': {
-    label: 'Upper Body Focus',
-    exercises: [
-      { id: 'ex-u1', name: 'Incline Barbell Bench Press', sets: 4, reps: '8 reps', weight: '65 kg', target: 'Chest', completed: false },
-      { id: 'ex-u2', name: 'Wide Grip Pull-Ups', sets: 4, reps: '8-10 reps', weight: 'Bodyweight', target: 'Lats', completed: false },
-      { id: 'ex-u3', name: 'Seated Dumbbell Shoulder Press', sets: 3, reps: '10 reps', weight: '20 kg', target: 'Shoulders', completed: false },
-      { id: 'ex-u4', name: 'Incline Chest-Supported Row', sets: 3, reps: '10 reps', weight: '22 kg', target: 'Upper Back', completed: false },
-      { id: 'ex-u5', name: 'Skullcrushers & Arm Superset', sets: 3, reps: '12 reps', weight: '15 kg', target: 'Arms', completed: false },
-      { id: 'ex-u6', name: 'Standing Cable Chest Press', sets: 3, reps: '12 reps', weight: '20 kg', target: 'Chest', completed: false },
-      { id: 'ex-u7', name: 'Reverse Cable Flyes', sets: 3, reps: '15 reps', weight: '10 kg', target: 'Rear Delts', completed: false },
-      { id: 'ex-u8', name: 'Preacher Bicep Curls', sets: 3, reps: '10 reps', weight: '18 kg', target: 'Biceps', completed: false },
-      { id: 'ex-u9', name: 'Overhead Cable Tricep Extension', sets: 3, reps: '12 reps', weight: '22 kg', target: 'Triceps', completed: false },
-      { id: 'ex-u10', name: 'Dumbbell Shrugs & Lateral Raises', sets: 3, reps: '15 reps', weight: '14 kg', target: 'Traps & Delts', completed: false },
-    ]
-  },
-  'LOWER_BODY': {
-    label: 'Lower Body Focus',
-    exercises: [
-      { id: 'ex-lw1', name: 'Front Squat', sets: 4, reps: '8 reps', weight: '60 kg', target: 'Quads & Core', completed: false },
-      { id: 'ex-lw2', name: 'Dumbbell Bulgarian Split Squats', sets: 3, reps: '10 reps', weight: '16 kg', target: 'Glutes & Quads', completed: false },
-      { id: 'ex-lw3', name: 'Seated Leg Extensions', sets: 3, reps: '12 reps', weight: '45 kg', target: 'Quads', completed: false },
-      { id: 'ex-lw4', name: 'Seated Hamstring Curls', sets: 3, reps: '12 reps', weight: '40 kg', target: 'Hamstrings', completed: false },
-      { id: 'ex-lw5', name: 'Weighted Declined Ab Crunches', sets: 4, reps: '15 reps', weight: '10 kg', target: 'Core', completed: false },
-      { id: 'ex-lw6', name: 'Barbell Hip Thrusts', sets: 4, reps: '10 reps', weight: '90 kg', target: 'Glutes', completed: false },
-      { id: 'ex-lw7', name: 'Standing Calf Raises', sets: 4, reps: '15-20 reps', weight: '50 kg', target: 'Calves', completed: false },
-      { id: 'ex-lw8', name: 'Goblet Squats', sets: 3, reps: '12 reps', weight: '24 kg', target: 'Quads', completed: false },
-      { id: 'ex-lw9', name: 'Standing Cable Hip Abduction', sets: 3, reps: '15 reps', weight: '15 kg', target: 'Glute Medius', completed: false },
-      { id: 'ex-lw10', name: 'Hanging Knee Raises', sets: 3, reps: '15 reps', weight: 'Bodyweight', target: 'Abs', completed: false },
-    ]
-  },
-  'FULL_BODY': {
-    label: 'Full Body Conditioning Focus',
-    exercises: [
-      { id: 'ex-f1', name: 'Heavy Kettlebell Swings', sets: 4, reps: '20 reps', weight: '20 kg', target: 'Full Body', completed: false },
-      { id: 'ex-f2', name: 'Dumbbell Thrusters', sets: 4, reps: '12 reps', weight: '14 kg', target: 'Full Body / Cardio', completed: false },
-      { id: 'ex-f3', name: 'Gymnastic Ring Dips / Pushups', sets: 4, reps: '15 reps', weight: 'Bodyweight', target: 'Upper Body', completed: false },
-      { id: 'ex-f4', name: 'Plyometric Box Jumps', sets: 3, reps: '12 reps', weight: '24 Inch Box', target: 'Explosive Legs', completed: false },
-      { id: 'ex-f5', name: 'Battle Rope Slams & Climbers', sets: 4, reps: '45 sec', weight: 'High Intensity', target: 'Conditioning', completed: false },
-      { id: 'ex-f6', name: "Heavy Farmer's Carries", sets: 4, reps: '50 meters', weight: '28 kg per hand', target: 'Grip & Core', completed: false },
-      { id: 'ex-f7', name: 'Burpees to Pull-Up', sets: 3, reps: '10 reps', weight: 'Bodyweight', target: 'Full Body', completed: false },
-      { id: 'ex-f8', name: 'Medicine Ball Slams', sets: 4, reps: '15 reps', weight: '10 kg', target: 'Power', completed: false },
-      { id: 'ex-f9', name: 'Medicine Ball Wall Balls', sets: 4, reps: '15 reps', weight: '8 kg', target: 'Cardio & Legs', completed: false },
-      { id: 'ex-f10', name: 'Rowing Ergometer Sprint', sets: 4, reps: '500 meters', weight: 'Resistance 8', target: 'Stamina', completed: false },
-    ]
-  },
-  'REST_DAY': {
-    label: 'Rest & Active Recovery',
-    exercises: [
-      { id: 'ex-r1', name: 'Full Body Dynamic Stretching', sets: 1, reps: '15 mins', weight: 'Mobility', target: 'Flexibility', completed: false },
-      { id: 'ex-r2', name: 'Foam Rolling (Legs, Back & Glutes)', sets: 1, reps: '15 mins', weight: 'Self Myofascial', target: 'Recovery', completed: false },
-      { id: 'ex-r3', name: 'Low Intensity Treadmill Walk', sets: 1, reps: '30 mins', weight: 'Incline 5%', target: 'Zone 2 Cardio', completed: false },
-    ]
-  }
-};
-
+export const EXERCISES_CATALOG: Record<string, { label: string; exercises: ExerciseItem[] }> = {};
 export const PROGRAM_SPLITS_CONFIG: Record<string, {
   key: string;
   title: string;
@@ -180,40 +80,7 @@ export const PROGRAM_SPLITS_CONFIG: Record<string, {
   badge: string;
   description: string;
   focusKeys: string[];
-}> = {
-  'PPL': {
-    key: 'PPL',
-    title: 'Push / Pull / Legs (PPL) Program',
-    subtitle: 'Chest, Back, Legs & Core Cycle',
-    badge: 'Most Popular 6-Day Split',
-    description: 'Periodized 6-day split ensuring 48h (2-day) muscle recovery between Push, Pull, and Leg sessions.',
-    focusKeys: ['PUSH_DAY', 'PULL_DAY', 'LEG_DAY']
-  },
-  'UPPER_LOWER': {
-    key: 'UPPER_LOWER',
-    title: 'Upper / Lower Body Split',
-    subtitle: 'Balanced Upper & Lower Frequency',
-    badge: 'Optimal 4-5 Day Split',
-    description: 'High-frequency split targeting upper body and lower body on alternating days for max power & hypertrophy.',
-    focusKeys: ['UPPER_BODY', 'LOWER_BODY']
-  },
-  'FULL_BODY_PROGRAM': {
-    key: 'FULL_BODY_PROGRAM',
-    title: 'Full Body Conditioning Program',
-    subtitle: '3-Day High Intensity Frequency',
-    badge: '3-Day Conditioning',
-    description: 'Full body resistance and cardiovascular conditioning protocol with mandatory alternate day rest intervals.',
-    focusKeys: ['FULL_BODY']
-  },
-  'REST_PROGRAM': {
-    key: 'REST_PROGRAM',
-    title: 'Rest & Active Recovery Plan',
-    subtitle: 'Mobility, Flexibility & Foam Rolling',
-    badge: 'Deload & Recovery',
-    description: 'Low intensity mobility, foam rolling, and cardio protocol for recovery and joint health.',
-    focusKeys: ['REST_DAY']
-  }
-};
+}> = {};
 
 export const WORKOUT_SPLITS_DATA = EXERCISES_CATALOG;
 
@@ -225,37 +92,15 @@ export function getTodayWorkoutFocus(programKey: string): {
 } {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const now = new Date();
-  const dayIndex = now.getDay(); // 0 = Sunday, 1 = Monday ... 6 = Saturday
+  const dayIndex = now.getDay();
   const dayName = days[dayIndex];
 
-  if (programKey === 'PPL' || programKey === 'PUSH_DAY' || programKey === 'PULL_DAY' || programKey === 'LEG_DAY') {
-    if (dayIndex === 1) return { focusKey: 'PUSH_DAY', focusTitle: 'Push Day (Chest, Shoulders & Triceps)', dayName, recoveryNote: 'Day 1: Upper Body Push' };
-    if (dayIndex === 2) return { focusKey: 'PULL_DAY', focusTitle: 'Pull Day (Back & Biceps)', dayName, recoveryNote: 'Day 2: Upper Body Pull (48h Push Recovery)' };
-    if (dayIndex === 3) return { focusKey: 'LEG_DAY', focusTitle: 'Leg Day (Quads, Hamstrings & Calves)', dayName, recoveryNote: 'Day 3: Lower Body (48h Pull Recovery)' };
-    if (dayIndex === 4) return { focusKey: 'PUSH_DAY', focusTitle: 'Push Day (Chest, Shoulders & Triceps)', dayName, recoveryNote: 'Day 4: Push Focus (48h Rest Gap Completed)' };
-    if (dayIndex === 5) return { focusKey: 'PULL_DAY', focusTitle: 'Pull Day (Back & Biceps)', dayName, recoveryNote: 'Day 5: Pull Focus (48h Rest Gap Completed)' };
-    if (dayIndex === 6) return { focusKey: 'LEG_DAY', focusTitle: 'Leg Day (Quads, Hamstrings & Calves)', dayName, recoveryNote: 'Day 6: Legs Focus (48h Rest Gap Completed)' };
-    return { focusKey: 'REST_DAY', focusTitle: 'Rest & Active Recovery', dayName, recoveryNote: 'Sunday: Full Muscle Recovery' };
-  }
-
-  if (programKey === 'UPPER_LOWER' || programKey === 'UPPER_BODY' || programKey === 'LOWER_BODY') {
-    if (dayIndex === 1) return { focusKey: 'UPPER_BODY', focusTitle: 'Upper Body (Chest, Back & Arms)', dayName, recoveryNote: 'Day 1: Upper Body Strength' };
-    if (dayIndex === 2) return { focusKey: 'LOWER_BODY', focusTitle: 'Lower Body (Quads, Hams & Glutes)', dayName, recoveryNote: 'Day 2: Lower Body Strength' };
-    if (dayIndex === 3) return { focusKey: 'REST_DAY', focusTitle: 'Mid-Week Core & Recovery', dayName, recoveryNote: 'Day 3: Mobility & Muscle Repair' };
-    if (dayIndex === 4) return { focusKey: 'UPPER_BODY', focusTitle: 'Upper Body Hypertrophy Focus', dayName, recoveryNote: 'Day 4: Upper Body (48h Rest Completed)' };
-    if (dayIndex === 5) return { focusKey: 'LOWER_BODY', focusTitle: 'Lower Body Hypertrophy Focus', dayName, recoveryNote: 'Day 5: Lower Body (48h Rest Completed)' };
-    if (dayIndex === 6) return { focusKey: 'FULL_BODY', focusTitle: 'Full Body & Core Conditioning', dayName, recoveryNote: 'Day 6: Athletic Conditioning' };
-    return { focusKey: 'REST_DAY', focusTitle: 'Rest & Active Recovery', dayName, recoveryNote: 'Sunday: Complete System Recovery' };
-  }
-
-  if (programKey === 'FULL_BODY_PROGRAM' || programKey === 'FULL_BODY') {
-    if (dayIndex === 1 || dayIndex === 3 || dayIndex === 5) {
-      return { focusKey: 'FULL_BODY', focusTitle: 'Full Body High Intensity Session', dayName, recoveryNote: 'Full Body Protocol (Alternating Day Rest)' };
-    }
-    return { focusKey: 'REST_DAY', focusTitle: 'Active Recovery & Mobility', dayName, recoveryNote: '48h Inter-session Rest Interval' };
-  }
-
-  return { focusKey: 'REST_DAY', focusTitle: 'Rest & Active Recovery', dayName, recoveryNote: 'Rest & Regeneration' };
+  return {
+    focusKey: 'DAILY_WORKOUT',
+    focusTitle: `${dayName}'s Assigned Routine`,
+    dayName,
+    recoveryNote: `Today's workouts loaded directly from database.`
+  };
 }
 
 export interface WaterLogEntry {
@@ -424,6 +269,7 @@ export const MemberDashboard: React.FC = () => {
         localStorage.setItem(`gymOSFoodLogs_${dateKey}`, JSON.stringify(syncedLogs));
       }
 
+      const recipeList = recRes?.data?.content || recRes?.data || (Array.isArray(recRes) ? recRes : []);
       if (Array.isArray(recipeList) && recipeList.length > 0) {
         setRecipes(recipeList.slice(0, 4));
       }

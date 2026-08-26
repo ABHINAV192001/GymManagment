@@ -83,7 +83,11 @@ public class UserController {
     @GetMapping("/daily-log")
     public ResponseEntity<ApiResponse<com.gymbross.usermanagement.dto.DailyLogDto>> getDailyLog(
             Principal principal,
-            @RequestParam(required = false) String date) {
+            @RequestParam(required = false) String date,
+            @RequestParam(required = false) java.util.UUID userId) {
+        if (userId != null) {
+            return ResponseEntity.ok(ApiResponse.success(userService.getDailyLogByUserId(userId, date)));
+        }
         return ResponseEntity.ok(ApiResponse.success(userService.getDailyLog(principal.getName(), date)));
     }
 

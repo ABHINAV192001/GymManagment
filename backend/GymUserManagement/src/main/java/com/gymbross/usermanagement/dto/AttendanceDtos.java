@@ -73,4 +73,13 @@ public class AttendanceDtos {
         private Integer totalStreak; // optional tracking
         private Long daysLeftOnMembership;
     }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TodayStatusDto {
+        private boolean checkedIn;
+        private LocalDateTime checkinTime; // null when not yet checked in
+    }
 }

@@ -48,6 +48,8 @@ bin/
 
 # Raw Seed Data & Local DBs
 FOOD/
+scratch/
+frontend/public/exercises/
 *.db
 *.class
 temp.java

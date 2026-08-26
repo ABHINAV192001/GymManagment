@@ -7,9 +7,15 @@ import com.gymbross.usermanagement.service.AttendanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+
+import com.Gym.GymCommonServices.entity.User;
+import com.gymbross.usermanagement.repository.UserRepository;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/attendance")
@@ -17,6 +23,7 @@ import java.util.UUID;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+    private final UserRepository userRepository;
 
     @PostMapping("/checkin")
     @PreAuthorize("isAuthenticated()")
@@ -131,5 +138,43 @@ public class AttendanceController {
             @RequestAttribute(required = false) UUID branchId) {
         String csvData = attendanceService.exportAttendanceCsv(orgId, branchId);
         return ResponseEntity.ok(ApiResponse.success(csvData));
+    }
+
+    /**
+     * GET /api/v1/attendance/me/today-status
+     * Returns { checkedIn, checkinTime } for the currently authenticated user.
+     * Non-admin staff call this on login to decide whether to show the attendance popup.
+     */
+    @GetMapping("/me/today-status")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<AttendanceDtos.TodayStatusDto>> getMyTodayStatus() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getPrincipal() == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Unauthorized", 401));
+        }
+        UUID userId = null;
+        if (auth.getPrincipal() instanceof User user) {
+            userId = user.getId();
+        } else if (auth.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails ud) {
+            Optional<User> uOpt = userRepository.findByEmail(ud.getUsername());
+            if (uOpt.isPresent()) {
+                userId = uOpt.get().getId();
+            }
+        }
+        if (userId == null && auth.getName() != null) {
+            try {
+                userId = UUID.fromString(auth.getName());
+            } catch (Exception e) {
+                Optional<User> uOpt = userRepository.findByEmail(auth.getName());
+                if (uOpt.isPresent()) {
+                    userId = uOpt.get().getId();
+                }
+            }
+        }
+        if (userId == null) {
+            return ResponseEntity.status(400).body(ApiResponse.error("Cannot resolve user identity", 400));
+        }
+        AttendanceDtos.TodayStatusDto status = attendanceService.getTodayAttendanceStatus(userId);
+        return ResponseEntity.ok(ApiResponse.success(status));
     }
 }

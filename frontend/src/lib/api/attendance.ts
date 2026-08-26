@@ -92,3 +92,16 @@ export async function searchAttendance(params: AttendanceSearchParams): Promise<
   }
   return { logs: [], totalElements: 0 };
 }
+
+export async function getMyTodayAttendanceStatus(): Promise<{ checkedIn: boolean; checkinTime: string | null }> {
+  try {
+    const response = await fetchWithAuth(`${BASE_URL}/me/today-status`);
+    if (response && response.data) {
+      return response.data;
+    }
+  } catch (e) {
+    console.error('Failed to fetch today attendance status', e);
+  }
+  return { checkedIn: false, checkinTime: null };
+}
+

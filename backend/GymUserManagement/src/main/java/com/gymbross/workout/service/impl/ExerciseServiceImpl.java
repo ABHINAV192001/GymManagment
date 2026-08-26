@@ -63,16 +63,82 @@ public class ExerciseServiceImpl implements ExerciseService {
     }
 
     @Override
-    public List<ExerciseDto> getAllExercises(String muscleGroup) {
+    public List<ExerciseDto> getAllExercises(String muscleGroup, String search) {
         List<Exercise> exercises;
-        if (muscleGroup != null && !muscleGroup.isEmpty()) {
-            exercises = exerciseRepository.findAll().stream()
-                    .filter(e -> e.getMuscleGroup() != null && e.getMuscleGroup().equalsIgnoreCase(muscleGroup))
-                    .collect(Collectors.toList());
+        if (search != null && !search.trim().isEmpty()) {
+            exercises = exerciseRepository.searchExercises(search.trim());
+        } else if (muscleGroup != null && !muscleGroup.trim().isEmpty()) {
+            String mg = muscleGroup.trim().toUpperCase();
+            List<String> targetGroups = new java.util.ArrayList<>();
+            targetGroups.add(mg);
+
+            if ("LEGS".equals(mg)) {
+                targetGroups.addAll(List.of("QUADS", "QUADRICEPS", "HAMSTRINGS", "CALVES", "GLUTES", "ADDUCTORS", "ABDUCTORS", "LEGS"));
+            } else if ("BACK".equals(mg)) {
+                targetGroups.addAll(List.of("BACK", "LATS", "LATISSIMUS DORSI", "MIDDLE BACK", "LOWER BACK", "RHOMBOIDS"));
+            } else if ("SHOULDERS".equals(mg)) {
+                targetGroups.addAll(List.of("SHOULDERS", "DELTOIDS", "TRAPS"));
+            } else if ("ABS".equals(mg)) {
+                targetGroups.addAll(List.of("ABS", "ABDOMINALS", "CORE", "OBLIQUES"));
+            } else if ("CHEST".equals(mg)) {
+                targetGroups.addAll(List.of("CHEST", "PECTORALS"));
+            } else if ("ARMS".equals(mg)) {
+                targetGroups.addAll(List.of("BICEPS", "TRICEPS", "FOREARMS", "BRACHIALIS"));
+            }
+
+            exercises = exerciseRepository.findByMuscleGroupInIgnoreCase(targetGroups);
         } else {
             exercises = exerciseRepository.findAll();
         }
         return exercises.stream().map(this::mapToDto).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<com.Gym.GymCommonServices.dto.ExerciseSummaryDto> getAllExerciseSummaries(String muscleGroup, String search) {
+        List<Exercise> exercises;
+        if (search != null && !search.trim().isEmpty()) {
+            exercises = exerciseRepository.searchExercises(search.trim());
+        } else if (muscleGroup != null && !muscleGroup.trim().isEmpty()) {
+            String mg = muscleGroup.trim().toUpperCase();
+            List<String> targetGroups = new java.util.ArrayList<>();
+            targetGroups.add(mg);
+
+            if ("LEGS".equals(mg)) {
+                targetGroups.addAll(List.of("QUADS", "QUADRICEPS", "HAMSTRINGS", "CALVES", "GLUTES", "ADDUCTORS", "ABDUCTORS", "LEGS"));
+            } else if ("BACK".equals(mg)) {
+                targetGroups.addAll(List.of("BACK", "LATS", "LATISSIMUS DORSI", "MIDDLE BACK", "LOWER BACK", "RHOMBOIDS"));
+            } else if ("SHOULDERS".equals(mg)) {
+                targetGroups.addAll(List.of("SHOULDERS", "DELTOIDS", "TRAPS"));
+            } else if ("ABS".equals(mg)) {
+                targetGroups.addAll(List.of("ABS", "ABDOMINALS", "CORE", "OBLIQUES"));
+            } else if ("CHEST".equals(mg)) {
+                targetGroups.addAll(List.of("CHEST", "PECTORALS"));
+            } else if ("ARMS".equals(mg)) {
+                targetGroups.addAll(List.of("BICEPS", "TRICEPS", "FOREARMS", "BRACHIALIS"));
+            }
+
+            exercises = exerciseRepository.findByMuscleGroupInIgnoreCase(targetGroups);
+        } else {
+            exercises = exerciseRepository.findAll();
+        }
+        return exercises.stream().map(this::mapToSummaryDto).collect(Collectors.toList());
+    }
+
+    private com.Gym.GymCommonServices.dto.ExerciseSummaryDto mapToSummaryDto(Exercise e) {
+        return com.Gym.GymCommonServices.dto.ExerciseSummaryDto.builder()
+                .id(e.getId())
+                .name(e.getName())
+                .muscleGroup(e.getMuscleGroup())
+                .secondaryMuscles(e.getSecondaryMuscles())
+                .equipment(e.getEquipment())
+                .mechanics(e.getMechanics())
+                .difficultyLevel(e.getDifficultyLevel())
+                .recommendedSets(e.getRecommendedSets())
+                .recommendedReps(e.getRecommendedReps())
+                .restInterval(e.getRestInterval())
+                .stepOneImage(e.getStepOneImage())
+                .stepTwoImage(e.getStepTwoImage())
+                .build();
     }
 
     private ExerciseDto mapToDto(Exercise e) {

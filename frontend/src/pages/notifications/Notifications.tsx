@@ -2,7 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Send, FileText, History, Plus, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { NotificationTemplate, NotificationLog, Member } from '../../types';
-import { getTemplates, createTemplate, updateTemplate, deleteTemplate, getNotificationLogs, sendNotification } from '../../lib/api/notifications';
+import { 
+  getTemplates, 
+  createTemplate, 
+  updateTemplate, 
+  deleteTemplate, 
+  getNotificationLogs, 
+  sendNotification,
+  testWhatsAppNotification,
+  testAccountWelcomeWhatsApp
+} from '../../lib/api/notifications';
 import { getUsers } from '../../lib/api/admin';
 import { getRoles } from '../../lib/api/rbac';
 import { usePermissions } from '../../lib/usePermissions';
@@ -34,6 +43,41 @@ export const Notifications: React.FC = () => {
     content: '',
     channel: 'WHATSAPP'
   });
+
+  // Twilio WhatsApp Live Test State
+  const [testPhone, setTestPhone] = useState<string>('+91');
+  const [testName, setTestName] = useState<string>('Alex Johnson');
+  const [testEmail, setTestEmail] = useState<string>('alex@gymbross.com');
+  const [testRole, setTestRole] = useState<string>('MEMBER');
+  const [testMsg, setTestMsg] = useState<string>('🏋️‍♂️ Live Test: Twilio WhatsApp Notification is active and working on GymBross!');
+  const [isTestingWhatsApp, setIsTestingWhatsApp] = useState<boolean>(false);
+  const [testFeedback, setTestFeedback] = useState<string | null>(null);
+
+  const handleSendTestWhatsApp = async (type: 'ALERT' | 'ACCOUNT') => {
+    if (!testPhone || testPhone.trim() === '+91' || testPhone.trim().length < 8) {
+      triggerAnnouncement('Please enter a valid phone number with country code (e.g. +919876543210)');
+      return;
+    }
+    setIsTestingWhatsApp(true);
+    setTestFeedback(null);
+    try {
+      if (type === 'ACCOUNT') {
+        await testAccountWelcomeWhatsApp(testPhone.trim(), testName, testEmail, testRole);
+        triggerAnnouncement('✅ Account Welcome WhatsApp message triggered to ' + testPhone);
+        setTestFeedback('✅ Sent account welcome notification to ' + testPhone);
+      } else {
+        await testWhatsAppNotification(testPhone.trim(), testMsg);
+        triggerAnnouncement('✅ Custom WhatsApp alert triggered to ' + testPhone);
+        setTestFeedback('✅ Sent custom WhatsApp message to ' + testPhone);
+      }
+      fetchData();
+    } catch (err: any) {
+      triggerAnnouncement('❌ WhatsApp Test Failed: ' + (err.message || 'Check server logs'));
+      setTestFeedback('❌ Failed: ' + (err.message || 'Check server logs'));
+    } finally {
+      setIsTestingWhatsApp(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -172,9 +216,30 @@ export const Notifications: React.FC = () => {
         
         {/* SEND TAB */}
         {activeTab === 'SEND' && (
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-lg font-bold mb-4">Compose & Send</h2>
-            <form onSubmit={handleSendMessage} className="space-y-5">
+          <div className="max-w-2xl mx-auto space-y-6">
+            
+            {/* WhatsApp Web Gateway Card */}
+            <div className="p-4 bg-gradient-to-r from-emerald-950/40 to-teal-950/30 border border-emerald-500/30 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+                    WhatsApp Web Direct Dispatch
+                  </h3>
+                </div>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Active
+                </span>
+              </div>
+
+              <p className="text-xs text-zinc-300">
+                Send account welcome invites, password setup links, and notifications directly to members via WhatsApp Web without third-party gateways.
+              </p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold mb-4">Compose & Broadcast</h2>
+              <form onSubmit={handleSendMessage} className="space-y-5">
               
               <div>
                 <label className="block text-sm font-bold mb-1">Start from a Template (Optional)</label>
@@ -252,6 +317,7 @@ export const Notifications: React.FC = () => {
                 </button>
               )}
             </form>
+            </div>
           </div>
         )}
 

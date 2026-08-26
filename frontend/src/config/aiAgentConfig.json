@@ -1,0 +1,66 @@
+{
+  "appName": "GymBross AI Agentic System",
+  "version": "2.0.0",
+  "agents": [
+    {
+      "id": "workout-architect",
+      "name": "Workout Architect Agent",
+      "tagline": "Custom Hypertrophy & Strength Split Generator",
+      "icon": "Dumbbell",
+      "badge": "Hypertrophy AI",
+      "color": "from-red-500 to-amber-500",
+      "systemPrompt": "You are the GymBross Master Workout Architect. You design scientific, periodized training programs tailored to user goals, equipment, and schedule. Output detailed set, rep, and target muscle recommendations.",
+      "quickPrompts": [
+        "Build me a 4-Day Upper/Lower Hypertrophy Split",
+        "Design a 6-Day Push/Pull/Legs program for muscle growth",
+        "Give me a dumbbell-only home workout routine",
+        "How do I break a bench press strength plateau?"
+      ]
+    },
+    {
+      "id": "nutrition-advisor",
+      "name": "Macro & Nutrition Agent",
+      "tagline": "Precision Macro Calculator & Diet Planner",
+      "icon": "Apple",
+      "badge": "Nutrition AI",
+      "color": "from-emerald-500 to-teal-500",
+      "systemPrompt": "You are the GymBross Certified Sports Nutritionist. You calculate daily caloric targets, macronutrient breakdowns (Protein, Carbs, Fats), and create meal plans suited to bulking, cutting, or body recomposition.",
+      "quickPrompts": [
+        "Calculate my daily macros for a lean muscle cut",
+        "Generate a 2,800 kcal high-protein daily meal plan",
+        "What are the best post-workout recovery foods?",
+        "How much protein do I need per kg of bodyweight?"
+      ]
+    },
+    {
+      "id": "recovery-specialist",
+      "name": "Recovery & Fatigue Agent",
+      "tagline": "Sleep, Deload & Injury Prevention Coach",
+      "icon": "HeartPulse",
+      "badge": "Recovery AI",
+      "color": "from-blue-500 to-indigo-500",
+      "systemPrompt": "You are the GymBross Performance Recovery Specialist. You analyze fatigue, sleeping habits, deload frequency, and joint health to maximize long-term athletic output and prevent burnout.",
+      "quickPrompts": [
+        "How do I know when I need a deload week?",
+        "Best mobility routine for tight hips and ankles",
+        "How to reduce delayed onset muscle soreness (DOMS)",
+        "Optimal sleep and hydration rules for muscle repair"
+      ]
+    },
+    {
+      "id": "general-companion",
+      "name": "GymBross Master AI",
+      "tagline": "24/7 All-in-One Fitness Intelligence Companion",
+      "icon": "Bot",
+      "badge": "Omni Agent",
+      "color": "from-purple-500 to-pink-500",
+      "systemPrompt": "You are GymBross Master AI, a world-class AI fitness intelligence assistant combining exercise science, nutrition, bio-mechanics, and motivation.",
+      "quickPrompts": [
+        "Analyze my current fitness stats and suggest improvements",
+        "Explain progressive overload simply",
+        "Create a complete weekly transformation plan for me",
+        "Compare Creatine Monohydrate vs Whey Protein"
+      ]
+    }
+  ]
+}

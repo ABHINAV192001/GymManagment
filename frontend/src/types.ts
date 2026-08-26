@@ -68,27 +68,29 @@ export interface Staff {
   id: string;
   code?: string;
   username?: string;
-  orgId: string;
-  branchId: string;
+  orgId?: string;
+  branchId?: string;
+  branchName?: string;
   accessibleBranchIds?: string[];
-  role: 'BRANCH_ADMIN' | 'TRAINER' | 'RECEPTIONIST' | 'MANAGER';
+  role?: string;
   name: string;
   email: string;
   phone: string;
   profilePhotoUrl?: string;
-  gender: string;
-  dob: string;
-  address: string;
-  joiningDate: string;
-  salaryType: 'FIXED' | 'COMMISSION' | 'HYBRID';
+  gender?: string;
+  dob?: string;
+  address?: string;
+  joiningDate?: string;
+  salaryType?: 'FIXED' | 'COMMISSION' | 'HYBRID';
   baseSalary?: number;
   salary?: number;
   commissionRate?: number;
   certifications?: string[];
   specializations?: string[];
-  status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED';
+  status?: 'ACTIVE' | 'INACTIVE' | 'TERMINATED' | string;
   isPersonalTrainer?: boolean;
   ptTrainerPercentage?: number;
+  designation?: string;
 }
 
 export interface Plan {
@@ -230,6 +232,11 @@ export interface Exercise {
   restInterval?: string;
   executionSteps?: string;
   safetyTips?: string;
+  videoUrl?: string;
+  stepOneImage?: string;
+  stepOneDescription?: string;
+  stepTwoImage?: string;
+  stepTwoDescription?: string;
 }
 
 export interface WorkoutExerciseItem {
@@ -278,9 +285,12 @@ export interface ChatMessage {
   id: string;
   senderType: 'USER' | 'STAFF';
   senderId: string;
-  receiverId: string;
+  receiverId?: string;
   message: string;
   createdAt: string;
+  edited?: boolean;
+  senderUsername?: string;
+  receiverUsername?: string;
 }
 
 export interface NotificationTemplate {

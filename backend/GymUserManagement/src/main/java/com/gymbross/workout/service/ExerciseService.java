@@ -1,6 +1,7 @@
 package com.gymbross.workout.service;
 
 import com.Gym.GymCommonServices.dto.ExerciseDto;
+import com.Gym.GymCommonServices.dto.ExerciseSummaryDto;
 import java.util.List;
 
 public interface ExerciseService {
@@ -12,5 +13,7 @@ public interface ExerciseService {
 
     ExerciseDto getExercise(java.util.UUID id);
 
-    List<ExerciseDto> getAllExercises(String muscleGroup);
+    List<ExerciseDto> getAllExercises(String muscleGroup, String search);
+
+    List<ExerciseSummaryDto> getAllExerciseSummaries(String muscleGroup, String search);
 }

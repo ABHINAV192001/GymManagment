@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { 
   Search, X, DollarSign, UserPlus, Printer, Mail, Phone as PhoneIcon, 
   Edit, Trash2, Calendar, User, CheckCircle2, AlertTriangle, 
   CreditCard, Eye, Award, Activity, Building2, Sparkles, ShieldCheck, AlertCircle,
   CalendarCheck, Clock, LogOut, Check, Loader2, Filter, RotateCcw,
-  MessageCircle, Share2, Copy, ExternalLink
+  MessageCircle, Share2, Copy, ExternalLink, Dumbbell, Utensils, Droplets, Flame, Apple, Send, GripVertical
 } from 'lucide-react';
 import { Member, Branch, Staff, Payment, Plan } from '../../types';
 import { getUsers, createUser, updateUser, deleteUser, getAdminBranches, getStaff, resendPasswordNotification, getWhatsAppInviteUrl } from '../../lib/api/admin';
@@ -13,8 +13,13 @@ import { getPayments, createPayment } from '../../lib/api/accounts';
 import { getRoles as getRbacRoles } from '../../lib/api/rbac';
 import { getPlans } from '../../lib/api/plans';
 import { getUserAttendance, checkIn, checkOut } from '../../lib/api/attendance';
+import { sendNotification, testAccountWelcomeWhatsApp } from '../../lib/api/notifications';
+import { getUserDietPlans, assignUserDietPlan, getFoods } from '../../lib/api/diets';
+import { getDailyLog } from '../../lib/api/user';
+import { getUserWorkoutPlan, updateUserWorkoutPlan } from '../../lib/api/workouts';
 import { usePermissions } from '../../lib/usePermissions';
 import { SearchableSelect } from '../../components/shared/SearchableSelect';
+import { getMyOrg } from '../../lib/api/organizations';
 
 export const MembersInternal: React.FC = () => {
   const outletContext = useOutletContext<{ selectedBranchId?: string; triggerAnnouncement?: (msg: string) => void }>() || {};
@@ -37,6 +42,7 @@ export const MembersInternal: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [availableRoles, setAvailableRoles] = useState<{ id: string; name: string }[]>([]);
   const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
+  const [orgName, setOrgName] = useState<string>('GYMBROSS');
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
@@ -61,7 +67,98 @@ export const MembersInternal: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [inviteModalData, setInviteModalData] = useState<{ isOpen: boolean; memberName: string; phone: string; email: string; inviteLink: string; whatsAppUrl: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'attendance' | 'card'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'workout_diet' | 'payments' | 'attendance' | 'card'>('overview');
+
+  // Resizable Member Profile Drawer States & Handlers
+  const [drawerWidth, setDrawerWidth] = useState<number>(640);
+  const [isResizingDrawer, setIsResizingDrawer] = useState<boolean>(false);
+  const isResizingRef = useRef(false);
+
+  const startResizingDrawer = useCallback((mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    isResizingRef.current = true;
+    setIsResizingDrawer(true);
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const newWidth = window.innerWidth - e.clientX;
+      const minWidth = 380;
+      const maxWidth = Math.max(minWidth, window.innerWidth - 40);
+      const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+      setDrawerWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      setIsResizingDrawer(false);
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  const startResizingDrawerTouch = useCallback((touchStartEvent: React.TouchEvent) => {
+    isResizingRef.current = true;
+    setIsResizingDrawer(true);
+    document.body.style.userSelect = 'none';
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isResizingRef.current || !e.touches[0]) return;
+      const newWidth = window.innerWidth - e.touches[0].clientX;
+      const minWidth = 320;
+      const maxWidth = Math.max(minWidth, window.innerWidth - 20);
+      const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+      setDrawerWidth(clampedWidth);
+    };
+
+    const handleTouchEnd = () => {
+      isResizingRef.current = false;
+      setIsResizingDrawer(false);
+      document.body.style.userSelect = '';
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+
+    window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('touchend', handleTouchEnd);
+  }, []);
+
+  const handleDoubleClickResize = useCallback(() => {
+    const defaultWidth = 640;
+    const expandedWidth = Math.min(1100, Math.floor(window.innerWidth * 0.85));
+    setDrawerWidth(prev => (prev > 720 ? defaultWidth : expandedWidth));
+  }, []);
+
+  // Workout & Diet Prescription & Progress States for Member Modal
+  const [prescribedWorkout, setPrescribedWorkout] = useState('Push / Pull / Legs Hypertrophy (4 Days/wk)');
+  const [prescribedWorkoutNotes, setPrescribedWorkoutNotes] = useState('Focus on progressive overload. 4 sets x 10-12 reps per exercise.');
+  const [prescribedWaterMl, setPrescribedWaterMl] = useState(3000);
+  const [prescribedCalories, setPrescribedCalories] = useState(2400);
+  const [prescribedProtein, setPrescribedProtein] = useState(160);
+  const [prescribedCarbs, setPrescribedCarbs] = useState(240);
+  const [prescribedFat, setPrescribedFat] = useState(65);
+  const [trainerAdviceNotes, setTrainerAdviceNotes] = useState('Drink 500ml water pre-workout. Ensure 8h sleep for optimal muscle recovery.');
+  const [isSendingPlan, setIsSendingPlan] = useState(false);
+  const [planSentSuccess, setPlanSentSuccess] = useState(false);
+
+  // Dynamic Backend Data States
+  const [backendDietPlans, setBackendDietPlans] = useState<any[]>([]);
+  const [backendWorkoutPlan, setBackendWorkoutPlan] = useState<string[]>([]);
+  const [backendFoods, setBackendFoods] = useState<any[]>([]);
+  const [memberDailyLog, setMemberDailyLog] = useState<{
+    totalCalories: number;
+    totalProtein: number;
+    totalCarbs: number;
+    totalFat: number;
+    totalWater: number;
+    foodLogs: any[];
+    waterLogs: any[];
+  } | null>(null);
+  const [isLoadingWorkoutDietData, setIsLoadingWorkoutDietData] = useState<boolean>(false);
 
   const [userAttendanceLogs, setUserAttendanceLogs] = useState<any[]>([]);
   const [totalAttendanceCount, setTotalAttendanceCount] = useState<number>(0);
@@ -85,7 +182,7 @@ export const MembersInternal: React.FC = () => {
     accessibleBranchIds: [] as string[],
   });
 
-  const [formErrors, setFormErrors] = useState<{ role?: string; name?: string; phone?: string; email?: string }>({});
+  const [formErrors, setFormErrors] = useState<{ role?: string; name?: string; phone?: string; email?: string; gender?: string; [key: string]: string | undefined }>({});
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
   const [isSubmitAttempted, setIsSubmitAttempted] = useState(false);
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
@@ -173,7 +270,7 @@ export const MembersInternal: React.FC = () => {
   // Pre-load all form metadata on mount so dropdowns are ready instantly when the form opens
   useEffect(() => {
     const loadMetadata = () => {
-      Promise.allSettled([getAdminBranches(), getStaff(), getPayments(), getRbacRoles(), getPlans()])
+      Promise.allSettled([getAdminBranches(), getStaff(), getPayments(), getRbacRoles(), getPlans(), getMyOrg()])
         .then((results) => {
           // Extract array regardless of API wrapper shape
           const extractData = (val: any): any[] => {
@@ -188,13 +285,22 @@ export const MembersInternal: React.FC = () => {
           const pays     = extractData(results[2].status === 'fulfilled' ? results[2].value : []);
           const rawRoles = extractData(results[3].status === 'fulfilled' ? results[3].value : []);
           const plns     = extractData(results[4].status === 'fulfilled' ? results[4].value : []);
+          const orgRes   = results[5].status === 'fulfilled' ? results[5].value : null;
+
+          if (orgRes && orgRes.name && orgRes.name.trim() !== '') {
+            setOrgName(orgRes.name.trim());
+          }
 
           // Normalize staff: backend may return phoneNumber instead of phone, staffCode instead of code
-          const normalizedStaff = rawStaff.map((s: any) => ({
-            ...s,
-            phone: s.phone || s.phoneNumber || '',
-            code: s.code || s.staffCode || s.trainerCode || s.userCode || '',
-          }));
+          const normalizedStaff = rawStaff.map((s: any) => {
+            const branchObj = brs.find((b: any) => b.id === s.branchId);
+            return {
+              ...s,
+              phone: s.phone || s.phoneNumber || '',
+              code: s.code || s.staffCode || s.trainerCode || s.userCode || s.id || '',
+              branchName: s.branchName || branchObj?.name || '',
+            };
+          });
 
           setBranches(brs);
           setStaff(normalizedStaff);
@@ -246,10 +352,135 @@ export const MembersInternal: React.FC = () => {
 
   useEffect(() => {
     if (selectedMember && selectedMember.id) {
-      // Fetch attendance logs immediately on side bar drawer popup
       fetchUserAttendanceLogs(selectedMember.id);
+      
+      // Fetch dynamic backend diet & workout plans and daily logged activity
+      const fetchBackendMemberData = async () => {
+        setIsLoadingWorkoutDietData(true);
+        const todayStr = new Date().toISOString().split('T')[0];
+        try {
+          const [diets, workouts, foods, dailyLogRes] = await Promise.all([
+            getUserDietPlans(selectedMember.id).catch(() => []),
+            getUserWorkoutPlan(selectedMember.id).catch(() => []),
+            getFoods().catch(() => []),
+            getDailyLog(todayStr, selectedMember.id).catch(() => null)
+          ]);
+
+          setBackendDietPlans(diets);
+          setBackendWorkoutPlan(workouts);
+          setBackendFoods(foods);
+
+          const dailyLog = dailyLogRes?.data || dailyLogRes;
+          if (dailyLog) {
+            const rawWater = dailyLog.totalWater || 0;
+            const waterInMl = rawWater <= 10 ? Math.round(rawWater * 1000) : Math.round(rawWater);
+            setMemberDailyLog({
+              totalCalories: Math.round(dailyLog.totalCalories || 0),
+              totalProtein: Math.round(dailyLog.totalProtein || 0),
+              totalCarbs: Math.round(dailyLog.totalCarbs || 0),
+              totalFat: Math.round(dailyLog.totalFat || 0),
+              totalWater: waterInMl,
+              foodLogs: Array.isArray(dailyLog.foodLogs) ? dailyLog.foodLogs : [],
+              waterLogs: Array.isArray(dailyLog.waterLogs) ? dailyLog.waterLogs : []
+            });
+          } else {
+            setMemberDailyLog(null);
+          }
+
+          // If backend has assigned diet plans, populate inputs
+          if (Array.isArray(diets) && diets.length > 0) {
+            const latestDiet = diets[0];
+            if (latestDiet.foodName) setPrescribedWorkout(latestDiet.foodName);
+            if (latestDiet.description) setTrainerAdviceNotes(latestDiet.description);
+          }
+
+          // If backend has workout items, populate notes
+          if (Array.isArray(workouts) && workouts.length > 0) {
+            setPrescribedWorkoutNotes(workouts.join(', '));
+          }
+        } catch (e) {
+          console.warn('Backend load error:', e);
+        } finally {
+          setIsLoadingWorkoutDietData(false);
+        }
+      };
+
+      fetchBackendMemberData();
+
+      // Load saved local prescription settings as fallback
+      const saved = localStorage.getItem(`gym_prescription_${selectedMember.id}`);
+      if (saved) {
+        try {
+          const p = JSON.parse(saved);
+          if (p.prescribedWorkout) setPrescribedWorkout(p.prescribedWorkout);
+          if (p.prescribedWorkoutNotes) setPrescribedWorkoutNotes(p.prescribedWorkoutNotes);
+          if (p.prescribedWaterMl) setPrescribedWaterMl(p.prescribedWaterMl);
+          if (p.prescribedCalories) setPrescribedCalories(p.prescribedCalories);
+          if (p.prescribedProtein) setPrescribedProtein(p.prescribedProtein);
+          if (p.prescribedCarbs) setPrescribedCarbs(p.prescribedCarbs);
+          if (p.prescribedFat) setPrescribedFat(p.prescribedFat);
+          if (p.trainerAdviceNotes) setTrainerAdviceNotes(p.trainerAdviceNotes);
+        } catch (e) {
+          // ignore
+        }
+      }
     }
   }, [selectedMember?.id, fetchUserAttendanceLogs]);
+
+  const handleSendPrescriptionPlan = async () => {
+    if (!selectedMember) return;
+    setIsSendingPlan(true);
+
+    const planPayload = {
+      memberId: selectedMember.id,
+      memberName: selectedMember.name,
+      prescribedWorkout,
+      prescribedWorkoutNotes,
+      prescribedWaterMl,
+      prescribedCalories,
+      prescribedProtein,
+      prescribedCarbs,
+      prescribedFat,
+      trainerAdviceNotes,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Save to local storage persistence
+    localStorage.setItem(`gym_prescription_${selectedMember.id}`, JSON.stringify(planPayload));
+
+    // Save to real Spring Boot backend endpoints
+    try {
+      await Promise.all([
+        updateUserWorkoutPlan(selectedMember.id, [prescribedWorkout, prescribedWorkoutNotes]).catch(err => console.warn('Workout update API warn:', err)),
+        assignUserDietPlan(selectedMember.id, {
+          foodName: prescribedWorkout,
+          description: trainerAdviceNotes,
+          timingFood: `Target: ${prescribedCalories} kcal, ${prescribedProtein}g Protein, ${prescribedWaterMl}mL Water`
+        }).catch(err => console.warn('Diet assign API warn:', err))
+      ]);
+    } catch (e) {
+      console.warn('Backend persistence note:', e);
+    }
+
+    // Trigger announcement
+    triggerAnnouncement(`[Prescription Updated]: Trainer assigned new Detailed Workout & Diet plan for ${selectedMember.name}`);
+
+    try {
+      await sendNotification({
+        recipient: selectedMember.email || selectedMember.phone || selectedMember.userCode || selectedMember.id,
+        content: `Your Gym Trainer has updated your Detailed Workout & Diet Plan! Target Calories: ${prescribedCalories} kcal, Protein: ${prescribedProtein}g. Routine: ${prescribedWorkout}`,
+        channel: 'BOTH',
+      });
+    } catch (err) {
+      console.warn('Send notification error:', err);
+    }
+
+    setTimeout(() => {
+      setIsSendingPlan(false);
+      setPlanSentSuccess(true);
+      setTimeout(() => setPlanSentSuccess(false), 4000);
+    }, 600);
+  };
 
   const handleCheckInMember = async () => {
     if (!selectedMember) return;
@@ -412,23 +643,47 @@ export const MembersInternal: React.FC = () => {
 
   const handleSendWhatsAppInvite = async (member: Member, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (!member.phone || member.phone.trim() === '') {
+      triggerAnnouncement(`❌ Cannot send WhatsApp: ${member.name} does not have a phone number registered.`);
+      return;
+    }
     try {
+      triggerAnnouncement(`⏳ Generating password setup link for ${member.name}...`);
       const res = await resendPasswordNotification(member.id);
-      const inviteLink = res?.inviteLink || `${window.location.origin}/auth/register/join?u=${member.userCode || member.id}&email=${encodeURIComponent(member.email || '')}`;
-      const whatsAppUrl = getWhatsAppInviteUrl(member.phone, inviteLink, member.name);
+      let finalInviteLink = res?.inviteLink || `${window.location.origin}/auth/register/join?u=${member.userCode || member.id}&email=${encodeURIComponent(member.email || '')}`;
+      if (finalInviteLink.includes('localhost')) {
+        finalInviteLink = finalInviteLink.replace(/localhost/g, '127.0.0.1');
+      }
+      
+      let cleanPhone = member.phone.replace(/[^0-9]/g, '');
+      if (cleanPhone.length === 10) {
+        cleanPhone = `91${cleanPhone}`;
+      }
 
-      setInviteModalData({
-        isOpen: true,
-        memberName: member.name,
-        phone: member.phone,
-        email: member.email,
-        inviteLink,
-        whatsAppUrl
-      });
+      const activeGymName = (orgName && orgName.trim() !== '') ? orgName.trim() : 'GYMBROSS';
+      const gymNameUpper = activeGymName.toUpperCase();
+
+      const messageText = `🏋️‍♂️ *WELCOME TO ${gymNameUpper} PLATFORM*
+
+Hello *${member.name}*,
+Your *${activeGymName}* account has been created successfully!
+
+📋 *Account Credentials:*
+• *Username / Email:* ${member.email || 'N/A'}
+• *Role:* ${member.role || 'MEMBER'}
+• *Setup Password Link:*
+${finalInviteLink}
+
+👉 Please click the link above to activate your account and set your login password.
+
+💪 Stay strong and keep crushing your fitness goals!`;
+
+      const whatsAppUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(messageText)}`;
       window.open(whatsAppUrl, '_blank');
-      triggerAnnouncement(`Opened WhatsApp invite for ${member.name}!`);
+      triggerAnnouncement(`✅ Opening WhatsApp Web for ${member.name}...`);
     } catch (err: any) {
-      triggerAnnouncement(`Failed to generate WhatsApp invite: ${err.message}`);
+      console.warn('WhatsApp link generation error:', err);
+      triggerAnnouncement(`❌ Failed to generate WhatsApp link: ${err.message}`);
     }
   };
 
@@ -477,31 +732,10 @@ export const MembersInternal: React.FC = () => {
         accessibleBranchIds: newMember.accessibleBranchIds.length > 0 ? newMember.accessibleBranchIds : undefined,
       });
 
-      if (newMember.amountPaid && Number(newMember.amountPaid) > 0) {
-        try {
-          const pAmt = Number(newMember.amountPaid);
-          const newPay = await createPayment({
-            branchId: newMember.branchId || (selectedBranchId === 'ALL' ? undefined : selectedBranchId),
-            userId: (createdUser as any)?.id || undefined,
-            paymentType: 'MEMBERSHIP',
-            amount: pAmt,
-            currency: 'INR',
-            paymentMode: 'UPI',
-            referenceNo: `REG-${Math.floor(Math.random() * 900000 + 100000)}`,
-            paymentDate: new Date().toISOString().split('T')[0],
-            status: 'COMPLETED',
-            notes: `Registration subscription payment for plan: ${newMember.plan || 'Standard Membership'}`,
-          });
-          setPayments(prev => [...prev, newPay]);
-        } catch (payErr) {
-          console.error("Auto payment creation error:", payErr);
-        }
-      }
-
       await refreshMembers();
       setIsFormOpen(false);
       const registeredName = newMember.name;
-      setNewMember({ role: '', plan: '', isStaff: false, name: '', email: '', phone: '', dob: '', amountPaid: '', startDate: new Date().toISOString().split('T')[0], trainerCode: '', branchId: '', accessibleBranchIds: [] });
+      setNewMember({ role: '', plan: '', isStaff: false, name: '', email: '', phone: '', gender: '', dob: '', amountPaid: '', startDate: new Date().toISOString().split('T')[0], trainerCode: '', branchId: '', accessibleBranchIds: [] });
       setFormErrors({});
       setTouchedFields({});
       setIsSubmitAttempted(false);
@@ -559,7 +793,7 @@ export const MembersInternal: React.FC = () => {
 
       await refreshMembers();
 
-      const updatedTrainerName = staff.find(s => s.code === editMemberData.trainerCode)?.name || targetMember.trainerName;
+      const updatedTrainerName = staff.find(s => s.code === editMemberData.trainerCode || s.id === editMemberData.trainerCode)?.name || targetMember.trainerName;
       const updated: Member = {
         ...targetMember,
         name: editMemberData.name,
@@ -983,8 +1217,33 @@ export const MembersInternal: React.FC = () => {
       {selectedMember && (
         <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="member-profile-title" onClick={() => setSelectedMember(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-xl bg-white dark:bg-zinc-950 shadow-2xl flex flex-col justify-between border-l border-zinc-200 dark:border-zinc-800" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-4 sm:pl-10">
+            <div
+              style={{ width: `${drawerWidth}px`, maxWidth: '96vw' }}
+              className={`relative bg-white dark:bg-zinc-950 shadow-2xl flex flex-col justify-between border-l border-zinc-200 dark:border-zinc-800 ${
+                isResizingDrawer ? 'select-none transition-none' : 'transition-all duration-75'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Adjustable Edge Drag Handle */}
+              <div
+                onMouseDown={startResizingDrawer}
+                onTouchStart={startResizingDrawerTouch}
+                onDoubleClick={handleDoubleClickResize}
+                title="Click & Drag left edge to resize drawer width (Double-click to expand/reset)"
+                className="absolute top-0 bottom-0 -left-3.5 w-7 cursor-ew-resize group flex items-center justify-center z-50 select-none"
+              >
+                {/* Visual Handle Pill */}
+                <div className={`w-2 h-20 rounded-full transition-all duration-200 flex items-center justify-center ${
+                  isResizingDrawer
+                    ? 'bg-blue-600 shadow-lg shadow-blue-500/50 h-28 scale-110'
+                    : 'bg-zinc-400/80 dark:bg-zinc-600 group-hover:bg-blue-500 group-hover:h-24 group-hover:shadow-md'
+                }`}>
+                  <GripVertical className={`w-3.5 h-3.5 text-white transition-opacity ${
+                    isResizingDrawer ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'
+                  }`} />
+                </div>
+              </div>
 
               {/* Header */}
               <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/60 backdrop-blur">
@@ -1094,6 +1353,7 @@ export const MembersInternal: React.FC = () => {
               <div className="px-6 border-b border-zinc-200 dark:border-zinc-800 flex gap-6 text-xs font-bold bg-white dark:bg-zinc-950 overflow-x-auto">
                 {[
                   { key: 'overview', label: 'Overview', icon: User },
+                  { key: 'workout_diet', label: 'Detailed Workout & Diet', icon: Dumbbell },
                   { key: 'payments', label: 'Ledger & Payments', icon: CreditCard },
                   { key: 'attendance', label: 'Attendance', icon: CalendarCheck },
                   { key: 'card', label: 'Desk Pass Card', icon: Printer },
@@ -1101,7 +1361,7 @@ export const MembersInternal: React.FC = () => {
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key as any)}
-                    className={`py-3.5 border-b-2 flex items-center gap-2 transition ${
+                    className={`py-3.5 border-b-2 flex items-center gap-2 transition whitespace-nowrap ${
                       activeTab === tab.key
                         ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                         : 'border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
@@ -1202,6 +1462,347 @@ export const MembersInternal: React.FC = () => {
                             <span>{selectedMember.attendanceCount || 0} visits logged</span>
                           </p>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'workout_diet' && (
+                  <div className="space-y-6">
+                    {/* Notice / Subhead Banner */}
+                    <div className="p-4 rounded-2xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/60 dark:bg-blue-950/30 text-blue-900 dark:text-blue-200 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">
+                          <Dumbbell className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs sm:text-sm">Detailed Workout & Diet Management</h4>
+                          <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                            View member's real-time logged activity & prescribe customized workout routines and macro nutrition plans.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 bg-blue-600 text-white rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0">
+                        Trainer & Staff Portal
+                      </span>
+                    </div>
+
+                    {/* Top Grid: Real-Time Logged Stats & Progress Breakdown */}
+                    <div className="space-y-3">
+                      <h4 className="font-bold text-xs text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-emerald-500" /> Member Logged Activity & Daily Progress
+                      </h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        {/* Water Intake Card */}
+                        {(() => {
+                          const goal = prescribedWaterMl || 3000;
+                          const loggedWater = memberDailyLog ? memberDailyLog.totalWater : ((selectedMember as any)?.waterIntake || 0);
+                          const waterPct = goal > 0 ? Math.min(100, Math.round((loggedWater / goal) * 100)) : 0;
+                          return (
+                            <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
+                              <div className="flex items-center justify-between text-zinc-500">
+                                <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                  <Droplets className="w-3.5 h-3.5 text-cyan-500" /> Water Intake
+                                </span>
+                                <span className="text-[10px] font-mono font-bold text-cyan-600">{waterPct}%</span>
+                              </div>
+                              <div className="flex items-baseline justify-between">
+                                <span className="text-base font-black text-zinc-900 dark:text-zinc-100">{loggedWater.toLocaleString()} <span className="text-xs font-normal text-zinc-400">mL</span></span>
+                                <span className="text-[10px] text-zinc-400">Goal: {goal.toLocaleString()} mL</span>
+                              </div>
+                              <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-cyan-500 rounded-full transition-all duration-500" style={{ width: `${waterPct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Calories Card */}
+                        {(() => {
+                          const target = prescribedCalories || 2400;
+                          const loggedCals = memberDailyLog ? memberDailyLog.totalCalories : ((selectedMember as any)?.caloriesLogged || 0);
+                          const calPct = target > 0 ? Math.min(100, Math.round((loggedCals / target) * 100)) : 0;
+                          return (
+                            <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
+                              <div className="flex items-center justify-between text-zinc-500">
+                                <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                  <Flame className="w-3.5 h-3.5 text-amber-500" /> Calories Logged
+                                </span>
+                                <span className="text-[10px] font-mono font-bold text-amber-600">{calPct}%</span>
+                              </div>
+                              <div className="flex items-baseline justify-between">
+                                <span className="text-base font-black text-zinc-900 dark:text-zinc-100">{loggedCals.toLocaleString()} <span className="text-xs font-normal text-zinc-400">kcal</span></span>
+                                <span className="text-[10px] text-zinc-400">Target: {target.toLocaleString()}</span>
+                              </div>
+                              <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${calPct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Protein Card */}
+                        {(() => {
+                          const target = prescribedProtein || 160;
+                          const loggedProtein = memberDailyLog ? memberDailyLog.totalProtein : ((selectedMember as any)?.proteinLogged || 0);
+                          const proteinPct = target > 0 ? Math.min(100, Math.round((loggedProtein / target) * 100)) : 0;
+                          return (
+                            <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
+                              <div className="flex items-center justify-between text-zinc-500">
+                                <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                  <Apple className="w-3.5 h-3.5 text-purple-500" /> Protein Intake
+                                </span>
+                                <span className="text-[10px] font-mono font-bold text-purple-600">{proteinPct}%</span>
+                              </div>
+                              <div className="flex items-baseline justify-between">
+                                <span className="text-base font-black text-zinc-900 dark:text-zinc-100">{loggedProtein} <span className="text-xs font-normal text-zinc-400">g</span></span>
+                                <span className="text-[10px] text-zinc-400">Target: {target}g</span>
+                              </div>
+                              <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: `${proteinPct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Workouts Logged Card */}
+                        <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 space-y-2">
+                          <div className="flex items-center justify-between text-zinc-500">
+                            <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <Dumbbell className="w-3.5 h-3.5 text-emerald-500" /> Gym Check-in Visits
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-emerald-600">Attendance</span>
+                          </div>
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-base font-black text-zinc-900 dark:text-zinc-100">{totalAttendanceCount} <span className="text-xs font-normal text-zinc-400">visits</span></span>
+                            <span className="text-[10px] text-zinc-400">{userAttendanceLogs.length} logged logs</span>
+                          </div>
+                          <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (totalAttendanceCount / 20) * 100)}%` }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Breakdown Table: Logged Meals & Exercises */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        {/* Meal Logs */}
+                        <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3">
+                          <h5 className="font-bold text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                            <Utensils className="w-3.5 h-3.5 text-amber-500" /> Recent Meals & Diet Plans
+                          </h5>
+                          <div className="space-y-2">
+                            {isLoadingWorkoutDietData ? (
+                              <div className="p-3 text-center text-zinc-400 text-xs flex items-center justify-center gap-2">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading diet plans...
+                              </div>
+                            ) : memberDailyLog?.foodLogs && memberDailyLog.foodLogs.length > 0 ? (
+                              memberDailyLog.foodLogs.map((foodLog, idx) => (
+                                <div key={foodLog.id || idx} className="p-2.5 rounded-xl border border-emerald-150 dark:border-emerald-950/60 bg-emerald-50/30 dark:bg-emerald-950/20 flex items-center justify-between">
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <h6 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{foodLog.foodName || 'Logged Meal'}</h6>
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase tracking-wider">Logged Today</span>
+                                    </div>
+                                    <span className="text-[10px] text-zinc-400 font-mono">{foodLog.mealType || 'Meal'} {foodLog.portionName ? `• ${foodLog.portionName}` : ''}</span>
+                                  </div>
+                                  <div className="text-right font-mono">
+                                    <span className="block text-xs font-bold text-amber-600">{foodLog.calories != null ? `${Math.round(foodLog.calories)} kcal` : ''}</span>
+                                    {foodLog.protein != null && (
+                                      <span className="text-[10px] text-purple-600 font-semibold">{foodLog.protein}g Protein</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            ) : backendDietPlans.length > 0 ? (
+                              backendDietPlans.map((diet, idx) => (
+                                <div key={diet.id || idx} className="p-2.5 rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 flex items-center justify-between">
+                                  <div>
+                                    <h6 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{diet.foodName || 'Assigned Diet Plan'}</h6>
+                                    <span className="text-[10px] text-zinc-400 font-mono">{diet.timingFood || 'Daily Schedule'}</span>
+                                  </div>
+                                  <div className="text-right font-mono">
+                                    <span className="block text-xs font-bold text-amber-600">{diet.description || 'Custom Plan'}</span>
+                                  </div>
+                                </div>
+                              ))
+                            ) : prescribedWorkout || prescribedCalories ? (
+                              <div className="p-3 rounded-xl border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <h6 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{prescribedWorkout || 'Prescribed Macro Target'}</h6>
+                                  <span className="text-[10px] font-bold text-amber-600">Active Goal</span>
+                                </div>
+                                <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                                  Target: {prescribedCalories} kcal, {prescribedProtein}g Protein, {prescribedWaterMl}mL Water
+                                </p>
+                                {trainerAdviceNotes && (
+                                  <p className="text-[10px] text-zinc-500 italic pt-0.5">Advice: {trainerAdviceNotes}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="p-4 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-center text-zinc-400 text-xs">
+                                No active diet plans assigned for {selectedMember?.name || 'this member'}. Use the prescription form below to assign meals.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Workout Logs */}
+                        <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3">
+                          <h5 className="font-bold text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                            <Dumbbell className="w-3.5 h-3.5 text-blue-500" /> Prescribed Exercises & Workout Plans
+                          </h5>
+                          <div className="space-y-2">
+                            {isLoadingWorkoutDietData ? (
+                              <div className="p-3 text-center text-zinc-400 text-xs flex items-center justify-center gap-2">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading workout plans...
+                              </div>
+                            ) : backendWorkoutPlan.length > 0 ? (
+                              backendWorkoutPlan.map((ex, idx) => (
+                                <div key={idx} className="p-2.5 rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 flex items-center justify-between">
+                                  <div>
+                                    <h6 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{ex}</h6>
+                                    <span className="text-[10px] text-zinc-400 font-mono">Prescribed Routine</span>
+                                  </div>
+                                  <div className="text-right font-mono">
+                                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Active Plan</span>
+                                  </div>
+                                </div>
+                              ))
+                            ) : prescribedWorkout ? (
+                              <div className="p-3 rounded-xl border border-blue-200/60 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20 space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <h6 className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{prescribedWorkout}</h6>
+                                  <span className="text-[10px] font-bold text-blue-600">Assigned Routine</span>
+                                </div>
+                                {prescribedWorkoutNotes && (
+                                  <p className="text-[11px] text-zinc-600 dark:text-zinc-400">{prescribedWorkoutNotes}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="p-4 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-center text-zinc-400 text-xs">
+                                No active workout routines assigned for {selectedMember?.name || 'this member'}. Use the prescription form below to assign a routine.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    {/* Section 2: Trainer Prescription & Recommendation Panel */}
+                    <div className="p-5 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-emerald-200/60 dark:border-emerald-900/50">
+                        <div>
+                          <h4 className="font-bold text-xs sm:text-sm text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" /> Trainer Prescription & Goal Customization
+                          </h4>
+                          <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                            Set target routines, macro goals, and water intake for {selectedMember.name}. The member will receive instant notifications and dashboard target updates.
+                          </p>
+                        </div>
+
+                        {planSentSuccess && (
+                          <span className="px-3 py-1 bg-emerald-600 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-sm animate-bounce">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Plan Sent & Member Notified!
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Workout Plan Prescription */}
+                        <div className="space-y-3">
+                          <label className="block font-bold text-xs text-zinc-800 dark:text-zinc-200">
+                            Prescribed Workout Routine & Split
+                          </label>
+                          <select
+                            value={prescribedWorkout}
+                            onChange={(e) => setPrescribedWorkout(e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl text-xs font-medium text-zinc-900 dark:text-zinc-100"
+                          >
+                            <option value="Push / Pull / Legs Hypertrophy (4 Days/wk)">Push / Pull / Legs Hypertrophy (4 Days/wk)</option>
+                            <option value="Upper / Lower Body Strength (4 Days/wk)">Upper / Lower Body Strength (4 Days/wk)</option>
+                            <option value="Full Body Circuit & HIIT Fat Loss (3 Days/wk)">Full Body Circuit & HIIT Fat Loss (3 Days/wk)</option>
+                            <option value="5-Day Bodybuilding Split (Chest, Back, Arms, Shoulders, Legs)">5-Day Bodybuilding Split</option>
+                            <option value="Custom Trainer Program">Custom Trainer Program</option>
+                          </select>
+
+                          <label className="block font-bold text-xs text-zinc-800 dark:text-zinc-200 pt-1">
+                            Workout Instructions & Progressive Overload Notes
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={prescribedWorkoutNotes}
+                            onChange={(e) => setPrescribedWorkoutNotes(e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+
+                        {/* Target Macros & Water Intake Prescription */}
+                        <div className="space-y-3">
+                          <label className="block font-bold text-xs text-zinc-800 dark:text-zinc-200">
+                            Prescribed Daily Macro Targets & Water Goal
+                          </label>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-[10px] font-semibold text-zinc-500 block mb-1">Target Calories (kcal)</span>
+                              <input
+                                type="number"
+                                value={prescribedCalories}
+                                onChange={(e) => setPrescribedCalories(Number(e.target.value))}
+                                className="w-full p-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl font-bold font-mono text-zinc-900 dark:text-zinc-100"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-semibold text-zinc-500 block mb-1">Water Goal (mL)</span>
+                              <input
+                                type="number"
+                                value={prescribedWaterMl}
+                                onChange={(e) => setPrescribedWaterMl(Number(e.target.value))}
+                                className="w-full p-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl font-bold font-mono text-cyan-600"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-semibold text-zinc-500 block mb-1">Target Protein (g)</span>
+                              <input
+                                type="number"
+                                value={prescribedProtein}
+                                onChange={(e) => setPrescribedProtein(Number(e.target.value))}
+                                className="w-full p-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl font-bold font-mono text-purple-600"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-semibold text-zinc-500 block mb-1">Target Carbs (g)</span>
+                              <input
+                                type="number"
+                                value={prescribedCarbs}
+                                onChange={(e) => setPrescribedCarbs(Number(e.target.value))}
+                                className="w-full p-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl font-bold font-mono text-amber-600"
+                              />
+                            </div>
+                          </div>
+
+                          <label className="block font-bold text-xs text-zinc-800 dark:text-zinc-200 pt-1">
+                            Trainer Nutrition Advice & Meal Instructions
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={trainerAdviceNotes}
+                            onChange={(e) => setTrainerAdviceNotes(e.target.value)}
+                            className="w-full p-2.5 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          onClick={handleSendPrescriptionPlan}
+                          disabled={isSendingPlan}
+                          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 disabled:opacity-50 transition"
+                        >
+                          <Send className="w-4 h-4" />
+                          <span>{isSendingPlan ? 'Saving & Sending Notification to Member...' : 'Save & Send Detailed Plan to Member'}</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1702,16 +2303,23 @@ export const MembersInternal: React.FC = () => {
                   </div>
                   <div>
                     <label className="block font-semibold mb-1 text-zinc-800 dark:text-zinc-200">Personal Coach / Trainer</label>
-                    <select
+                    <SearchableSelect
+                      placeholder="Search & Select Personal Trainer..."
+                      options={[
+                        { value: '', label: 'Floor Supervisor (Unassigned)' },
+                        ...staff.map((t) => {
+                          const branchTag = t.branchName ? ` • 📍 ${t.branchName}` : '';
+                          const roleTag = t.designation || t.role || 'Staff';
+                          return {
+                            value: t.code || t.id,
+                            label: t.name ? `${t.name} (${roleTag})` : (t.code || t.id),
+                            sublabel: `${t.code || ''}${branchTag}`.trim(),
+                          };
+                        }),
+                      ]}
                       value={editMemberData.trainerCode}
-                      onChange={(e) => setEditMemberData({ ...editMemberData, trainerCode: e.target.value })}
-                      className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/40"
-                    >
-                      <option value="">Unassigned (Floor Supervisor)</option>
-                      {staff.filter(s => s.role === 'TRAINER' && s.code).map((t) => (
-                        <option key={t.id} value={t.code}>{t.name} ({t.code})</option>
-                      ))}
-                    </select>
+                      onChange={(val) => setEditMemberData({ ...editMemberData, trainerCode: val })}
+                    />
                   </div>
                 </div>
 
@@ -2207,11 +2815,15 @@ export const MembersInternal: React.FC = () => {
                         placeholder="Search & Select Personal Trainer..."
                         options={[
                           { value: '', label: 'Floor Supervisor (Unassigned)' },
-                          ...staff.filter(s => s.role === 'TRAINER' && s.code).map(t => ({
-                            value: t.code,
-                            label: t.name,
-                            sublabel: t.code,
-                          })),
+                          ...staff.map((t) => {
+                            const branchTag = t.branchName ? ` • 📍 ${t.branchName}` : '';
+                            const roleTag = t.designation || t.role || 'Staff';
+                            return {
+                              value: t.code || t.id,
+                              label: t.name ? `${t.name} (${roleTag})` : (t.code || t.id),
+                              sublabel: `${t.code || ''}${branchTag}`.trim(),
+                            };
+                          }),
                         ]}
                         value={newMember.trainerCode}
                         onChange={(val) => setNewMember({ ...newMember, trainerCode: val })}
@@ -2256,8 +2868,14 @@ export const MembersInternal: React.FC = () => {
 
       {/* Password Setup & WhatsApp Invite Modal */}
       {inviteModalData && inviteModalData.isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 text-xs">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-5">
+        <div 
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 text-xs"
+          onClick={() => setInviteModalData(null)}
+        >
+          <div 
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">

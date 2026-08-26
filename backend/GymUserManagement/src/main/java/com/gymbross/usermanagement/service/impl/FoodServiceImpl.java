@@ -208,21 +208,31 @@ public class FoodServiceImpl implements FoodService {
         public Page<FoodDto> filterFoods(String query, String category, String preset, Boolean isRecipe, int page, int size) {
                 Pageable pageable = PageRequest.of(Math.max(0, page), size <= 0 ? 20 : size);
 
-                // 1. If preset is provided and not "ALL", delegate to preset filter logic
-                if (preset != null && !preset.trim().isEmpty() && !"ALL".equalsIgnoreCase(preset)) {
-                        return getFoodsByFilter(preset, page, size);
+                // Derive isRecipe from preset if not explicitly passed
+                Boolean effectiveIsRecipe = isRecipe;
+                if (effectiveIsRecipe == null && preset != null) {
+                        if ("FOOD_RAW".equalsIgnoreCase(preset) || "RAW_FOOD".equalsIgnoreCase(preset)) {
+                                effectiveIsRecipe = false;
+                        } else if (preset.startsWith("RECIPE_") || "RECIPES".equalsIgnoreCase(preset)) {
+                                effectiveIsRecipe = true;
+                        }
                 }
 
-                // 2. If query is provided (e.g. food name like "apple", "banana", "chicken", or numeric like "150"), search
+                // 1. If query is provided (e.g. "banana", "apple", "chicken", "paneer", "dal"), search across foods
                 if (query != null && !query.trim().isEmpty()) {
                         String cleanQuery = query.trim();
                         Page<Food> foodPage = foodRepository.searchByFilter(
                                 cleanQuery,
-                                (category != null && !category.trim().isEmpty()) ? category.trim() : null,
-                                isRecipe,
+                                (category != null && !category.trim().isEmpty() && !"ALL".equalsIgnoreCase(category)) ? category.trim() : null,
+                                effectiveIsRecipe,
                                 pageable
                         );
                         return foodPage.map(this::mapToSummaryDto);
+                }
+
+                // 2. If preset is provided and not "ALL", delegate to preset filter logic
+                if (preset != null && !preset.trim().isEmpty() && !"ALL".equalsIgnoreCase(preset)) {
+                        return getFoodsByFilter(preset, page, size);
                 }
 
                 // 3. If only category is provided
@@ -421,22 +431,33 @@ public class FoodServiceImpl implements FoodService {
 
                 Page<Food> foodPage;
                 switch (preset.toUpperCase()) {
-                        // Raw Foods Tree Options
+                        // All Database Foods & Indian Food
                         case "FOOD_ALL":
                         case "FOODS":
+                        case "ALL_FOODS":
+                                foodPage = foodRepository.findAll(pageable);
+                                break;
+                        case "INDIAN_FOOD":
+                        case "FOOD_INDIAN":
+                        case "RECIPE_INDIAN":
+                        case "INDIAN":
+                                foodPage = foodRepository.findByCategoryContainingIgnoreCase("INDIAN_FOOD", pageable);
+                                break;
+                        case "FOOD_RAW":
+                        case "RAW_FOOD":
                                 foodPage = foodRepository.findByIsRecipeFalse(pageable);
                                 break;
                         case "FOOD_MAGNESIUM":
-                                foodPage = foodRepository.findByIsRecipeFalseAndMagnesiumGreaterThanEqual(25.0, pageable);
+                                foodPage = foodRepository.findByMagnesiumRichTrueOrMagnesiumGreaterThanEqual(25.0, pageable);
                                 break;
                         case "FOOD_HIGH_PROTEIN":
-                                foodPage = foodRepository.findByIsRecipeFalseAndProteinGreaterThanEqual(12.0, pageable);
+                                foodPage = foodRepository.findByProteinGreaterThanEqual(12.0, pageable);
                                 break;
                         case "FOOD_LOW_CALORIE":
-                                foodPage = foodRepository.findByIsRecipeFalseAndCaloriesLessThanEqual(100.0, pageable);
+                                foodPage = foodRepository.findByCaloriesLessThanEqual(100.0, pageable);
                                 break;
                         case "FOOD_HIGH_CALORIE":
-                                foodPage = foodRepository.findByIsRecipeFalseAndCaloriesGreaterThanEqual(300.0, pageable);
+                                foodPage = foodRepository.findByCaloriesGreaterThanEqual(300.0, pageable);
                                 break;
 
                         // Recipes Tree Options

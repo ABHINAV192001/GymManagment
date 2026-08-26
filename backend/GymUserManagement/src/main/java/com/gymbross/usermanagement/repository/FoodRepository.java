@@ -46,7 +46,11 @@ public interface FoodRepository extends JpaRepository<Food, java.util.UUID> {
         Page<Food> findByIsRecipeTrueAndCaloriesGreaterThanEqual(Double minCals, Pageable pageable);
 
         @Query("SELECT f FROM Food f WHERE " +
-               "(:query IS NULL OR :query = '' OR LOWER(f.foodName) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(f.category) LIKE LOWER(CONCAT('%', :query, '%'))) AND " +
+               "(:query IS NULL OR :query = '' OR " +
+               "LOWER(f.foodName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+               "LOWER(f.category) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+               "(f.keyIngredients IS NOT NULL AND LOWER(f.keyIngredients) LIKE LOWER(CONCAT('%', :query, '%'))) OR " +
+               "(f.recipeIngredients IS NOT NULL AND LOWER(f.recipeIngredients) LIKE LOWER(CONCAT('%', :query, '%')))) AND " +
                "(:category IS NULL OR :category = '' OR :category = 'ALL' OR LOWER(f.category) LIKE LOWER(CONCAT('%', :category, '%'))) AND " +
                "(:isRecipe IS NULL OR f.isRecipe = :isRecipe)")
         Page<Food> searchByFilter(

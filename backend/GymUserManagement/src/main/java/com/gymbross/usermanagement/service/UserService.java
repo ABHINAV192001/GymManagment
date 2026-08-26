@@ -20,6 +20,8 @@ public interface UserService {
 
     com.gymbross.usermanagement.dto.DailyLogDto getDailyLog(String username, String date);
 
+    com.gymbross.usermanagement.dto.DailyLogDto getDailyLogByUserId(java.util.UUID userId, String date);
+
     void deleteFoodLog(java.util.UUID id, String username);
 
     void deleteWaterLog(java.util.UUID id, String username);

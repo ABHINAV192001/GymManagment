@@ -35,8 +35,46 @@ export async function deleteWorkout(id: string): Promise<void> {
   await fetchWithAuth(`${BASE_URL}/${id}`, { method: 'DELETE' });
 }
 
-export async function getExercises(muscleGroup?: string): Promise<Exercise[]> {
-  const url = muscleGroup ? `${EXERCISES_URL}?muscleGroup=${encodeURIComponent(muscleGroup)}` : EXERCISES_URL;
+export async function getUserWorkoutPlan(userId: string): Promise<string[]> {
+  try {
+    const response = await fetchWithAuth(`${API_CONFIG.WORKOUT_SERVICE_URL}/api/workout/user-plan/${userId}`);
+    return response.data || [];
+  } catch (err) {
+    console.warn('Error fetching user workout plan:', err);
+    return [];
+  }
+}
+
+export async function updateUserWorkoutPlan(userId: string, workoutPlan: string[]): Promise<void> {
+  await fetchWithAuth(`${API_CONFIG.WORKOUT_SERVICE_URL}/api/workout/user-plan/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(workoutPlan),
+  });
+}
+
+export async function searchWorkouts(query: string, page = 0, size = 20): Promise<WorkoutPlan[]> {
+  const url = `${BASE_URL}/search?query=${encodeURIComponent(query || '')}&page=${page}&size=${size}`;
+  const response = await fetchWithAuth(url);
+  return response.data?.content || (Array.isArray(response.data) ? response.data : []);
+}
+
+export async function getExercises(muscleGroup?: string, search?: string): Promise<Exercise[]> {
+  const params = new URLSearchParams();
+  if (muscleGroup && muscleGroup !== 'ALL') params.set('muscleGroup', muscleGroup);
+  if (search && search.trim()) params.set('search', search.trim());
+  const queryString = params.toString();
+  const url = queryString ? `${EXERCISES_URL}?${queryString}` : EXERCISES_URL;
   const response = await fetchWithAuth(url);
   return response.data || [];
+}
+
+export async function getExerciseById(id: string): Promise<Exercise | null> {
+  if (!id) return null;
+  try {
+    const response = await fetchWithAuth(`${EXERCISES_URL}/${id}`);
+    return response.data || null;
+  } catch (err) {
+    console.warn(`Error fetching exercise detail for ${id}:`, err);
+    return null;
+  }
 }

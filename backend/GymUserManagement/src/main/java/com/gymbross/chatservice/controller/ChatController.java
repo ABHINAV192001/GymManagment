@@ -24,20 +24,36 @@ public class ChatController {
     private final SimpMessagingTemplate messagingTemplate;
     private final ChatService chatService;
 
+    private void broadcastWsMessage(MessageResponse saved) {
+        if (saved == null) return;
+
+        // Push to all identifiers for receiver
+        if (saved.getReceiverUsername() != null) {
+            List<String> receiverIds = chatService.getAllUserIdentifiers(saved.getReceiverUsername());
+            for (String rId : receiverIds) {
+                messagingTemplate.convertAndSend("/topic/messages/" + rId, saved);
+            }
+        }
+
+        // Push to all identifiers for sender
+        if (saved.getSenderUsername() != null) {
+            List<String> senderIds = chatService.getAllUserIdentifiers(saved.getSenderUsername());
+            for (String sId : senderIds) {
+                messagingTemplate.convertAndSend("/topic/messages/" + sId, saved);
+            }
+        }
+    }
+
     // ─── WebSocket ────────────────────────────────────────────────────────────
 
     /** Client sends to /app/chat.send */
     @MessageMapping("/chat.send")
     public void sendMessageWs(@Payload MessageRequest request, Principal principal) {
-        // Use authenticated username as sender
-        if (principal != null && request.getSenderUsername() == null) {
+        if (principal != null && (request.getSenderUsername() == null || request.getSenderUsername().startsWith("current-user"))) {
             request.setSenderUsername(principal.getName());
         }
         MessageResponse saved = chatService.sendMessage(request);
-        // Push to receiver
-        messagingTemplate.convertAndSend("/topic/messages/" + saved.getReceiverUsername(), saved);
-        // Push back to sender
-        messagingTemplate.convertAndSend("/topic/messages/" + saved.getSenderUsername(), saved);
+        broadcastWsMessage(saved);
     }
 
     /** Client sends to /app/chat.read to mark a conversation as read */
@@ -53,26 +69,56 @@ public class ChatController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<MessageResponse>> sendMessageRest(
             @RequestBody MessageRequest request, Principal principal) {
-        if (principal != null && request.getSenderUsername() == null) {
+        if (principal != null && (request.getSenderUsername() == null || request.getSenderUsername().startsWith("current-user"))) {
             request.setSenderUsername(principal.getName());
         }
         MessageResponse saved = chatService.sendMessage(request);
-        messagingTemplate.convertAndSend("/topic/messages/" + saved.getReceiverUsername(), saved);
-        messagingTemplate.convertAndSend("/topic/messages/" + saved.getSenderUsername(), saved);
+        broadcastWsMessage(saved);
         return ResponseEntity.ok(ApiResponse.success(saved, "Message sent"));
+    }
+
+    @PutMapping("/api/chat/messages/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<MessageResponse>> editMessage(
+            @PathVariable java.util.UUID id,
+            @RequestBody MessageRequest request,
+            Principal principal) {
+        String name = principal != null ? principal.getName() : null;
+        MessageResponse updated = chatService.editMessage(id, request.getContent(), name);
+        broadcastWsMessage(updated);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Message updated"));
+    }
+
+    @DeleteMapping("/api/chat/messages/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> deleteMessage(
+            @PathVariable java.util.UUID id,
+            Principal principal) {
+        String name = principal != null ? principal.getName() : null;
+        chatService.deleteMessage(id, name);
+        return ResponseEntity.ok(ApiResponse.success(null, "Message deleted"));
     }
 
     @GetMapping("/api/chat/history/{user1}/{user2}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<MessageResponse>>> getHistory(
-            @PathVariable String user1, @PathVariable String user2) {
-        return ResponseEntity.ok(ApiResponse.success(chatService.getConversation(user1, user2)));
+            @PathVariable String user1, @PathVariable String user2, Principal principal) {
+        String u1 = user1;
+        if (principal != null && ("current-user".equalsIgnoreCase(user1) || "current-user-1".equalsIgnoreCase(user1))) {
+            u1 = principal.getName();
+        }
+        return ResponseEntity.ok(ApiResponse.success(chatService.getConversation(u1, user2)));
     }
 
     @GetMapping("/api/chat/history")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<MessageResponse>>> getUserHistory(@RequestParam String userId) {
-        return ResponseEntity.ok(ApiResponse.success(chatService.getUserHistory(userId)));
+    public ResponseEntity<ApiResponse<List<MessageResponse>>> getUserHistory(
+            @RequestParam String userId, Principal principal) {
+        String targetId = userId;
+        if (principal != null && ("current-user".equalsIgnoreCase(userId) || "current-user-1".equalsIgnoreCase(userId))) {
+            targetId = principal.getName();
+        }
+        return ResponseEntity.ok(ApiResponse.success(chatService.getUserHistory(targetId)));
     }
 
     /** Returns list of all conversation partners with last message + unread count */
@@ -81,6 +127,13 @@ public class ChatController {
     public ResponseEntity<ApiResponse<List<ConversationSummary>>> getConversations(Principal principal) {
         String username = principal != null ? principal.getName() : "unknown";
         return ResponseEntity.ok(ApiResponse.success(chatService.getConversations(username)));
+    }
+
+    /** Returns active contacts for chat directory accessible to all authenticated users */
+    @GetMapping("/api/chat/contacts")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<com.gymbross.chatservice.dto.ChatContactDto>>> getContacts(Principal principal) {
+        return ResponseEntity.ok(ApiResponse.success(chatService.getChatContacts(principal)));
     }
 
     /** Mark all messages in a conversation as read */

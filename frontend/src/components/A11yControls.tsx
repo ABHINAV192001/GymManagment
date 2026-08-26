@@ -5,6 +5,7 @@ import { AccessibilitySettings } from '../types';
 interface A11yProps {
   settings: AccessibilitySettings;
   onChange: (s: AccessibilitySettings) => void;
+  announcements?: string[];
 }
 
 export const KeyboardShortcutsList: React.FC = () => {

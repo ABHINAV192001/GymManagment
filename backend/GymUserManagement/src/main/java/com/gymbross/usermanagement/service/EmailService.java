@@ -34,5 +34,22 @@ public class EmailService {
         log.info("Dispatching attendance notification email to: {}", userEmail);
         commonEmailService.sendEmail(userEmail, subject, sb.toString());
     }
+
+    public void sendMissedAttendanceReminder(String userEmail, String userName, String dateStr) {
+        if (userEmail == null || userEmail.trim().isEmpty()) {
+            log.warn("Cannot send missed attendance email: User email is empty for user {}", userName);
+            return;
+        }
+
+        String subject = "⏰ Reminder: Mark your attendance for " + dateStr;
+        StringBuilder sb = new StringBuilder();
+        sb.append("Hi ").append(userName).append(",\n\n");
+        sb.append("We noticed you haven't marked your attendance for today (").append(dateStr).append(").\n");
+        sb.append("Please log in to your Gym Management account and mark your attendance as soon as possible.\n\n");
+        sb.append("Best regards,\nGymBross Team");
+
+        log.info("Dispatching missed attendance reminder email to: {}", userEmail);
+        commonEmailService.sendEmail(userEmail, subject, sb.toString());
+    }
 }
 

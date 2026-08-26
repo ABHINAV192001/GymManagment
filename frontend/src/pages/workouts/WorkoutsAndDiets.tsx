@@ -8,6 +8,7 @@ import {
   Check,
   Calculator,
   Info,
+  Image as ImageIcon,
   Flame,
   ShieldCheck,
   Zap,
@@ -33,6 +34,8 @@ import {
   Loader2,
   CheckSquare,
   Square,
+  Search,
+  X,
 } from 'lucide-react';
 import { Exercise, FoodItem, WorkoutPlan } from '../../types';
 import { usePermissions } from '../../lib/usePermissions';
@@ -40,15 +43,25 @@ import { HumanBodyMap, MuscleGroupKey } from '../../components/workouts/HumanBod
 import { ExerciseDetailModal } from '../../components/workouts/ExerciseDetailModal';
 import { WorkoutTimerModal } from '../../components/workouts/WorkoutTimerModal';
 import QrScannerTab from '../../components/workouts/QrScannerTab';
-import { getExercises, getWorkouts, getMySplits, createWorkout, updateWorkout, deleteWorkout } from '../../lib/api/workouts';
+import { getExercises, getWorkouts, getMySplits, searchWorkouts, createWorkout, updateWorkout, deleteWorkout } from '../../lib/api/workouts';
 import { getFoods } from '../../lib/api/food';
 import { calculateHealthMetrics, HealthResponse } from '../../lib/api/health';
-import { PROGRAM_SPLITS_CONFIG, EXERCISES_CATALOG, getTodayWorkoutFocus } from '../member-portal/MemberDashboard';
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-
-
-
+const WORKOUT_SEARCH_CHIPS = [
+  'Chest',
+  'Dumbbell Press',
+  'T-Bar Row',
+  'Biceps',
+  'Triceps',
+  'Back',
+  'Legs',
+  'Squat',
+  'Deadlift',
+  'Shoulders',
+  'Pull-Up',
+  'PPL',
+];
 
 export type ActiveTab =
   | 'SCANNER'
@@ -68,26 +81,16 @@ export const WorkoutsAndDiets: React.FC = () => {
   const tabParam = searchParams.get('tab') as ActiveTab | null;
   const [activeTab, setActiveTab] = useState<ActiveTab>(tabParam || 'SCANNER');
 
+  const [workoutSearchQuery, setWorkoutSearchQuery] = useState<string>('');
+  const [isSearchingWorkouts, setIsSearchingWorkouts] = useState<boolean>(false);
+  const [searchedExercises, setSearchedExercises] = useState<Exercise[]>([]);
+  const [searchedWorkouts, setSearchedWorkouts] = useState<WorkoutPlan[]>([]);
+
   const [selectedProgramKey, setSelectedProgramKey] = useState<string>(() => {
     return localStorage.getItem('selectedGymOSProgramKey') || localStorage.getItem('selectedGymOSWorkoutSplit') || 'PPL';
   });
 
-  const [customExerciseSelections, setCustomExerciseSelections] = useState<Record<string, string[]>>(() => {
-    const initial: Record<string, string[]> = {};
-    Object.keys(EXERCISES_CATALOG).forEach(focusKey => {
-      const savedJson = localStorage.getItem(`selectedGymOSCustomExercises_${focusKey}`);
-      if (savedJson) {
-        try {
-          initial[focusKey] = JSON.parse(savedJson);
-        } catch (e) {
-          initial[focusKey] = EXERCISES_CATALOG[focusKey].exercises.map(e => e.id);
-        }
-      } else {
-        initial[focusKey] = EXERCISES_CATALOG[focusKey].exercises.map(e => e.id);
-      }
-    });
-    return initial;
-  });
+  const [customExerciseSelections, setCustomExerciseSelections] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     if (tabParam) {
@@ -101,7 +104,7 @@ export const WorkoutsAndDiets: React.FC = () => {
 
   const toggleExerciseSelection = (focusKey: string, exerciseId: string) => {
     setCustomExerciseSelections(prev => {
-      const currentList = prev[focusKey] || EXERCISES_CATALOG[focusKey]?.exercises.map(e => e.id) || [];
+      const currentList = prev[focusKey] || [];
       const updated = currentList.includes(exerciseId)
         ? currentList.filter(id => id !== exerciseId)
         : [...currentList, exerciseId];
@@ -115,8 +118,8 @@ export const WorkoutsAndDiets: React.FC = () => {
     setSelectedProgramKey(programKey);
     localStorage.setItem('selectedGymOSProgramKey', programKey);
     localStorage.setItem('selectedGymOSWorkoutSplit', programKey);
-    const prog = PROGRAM_SPLITS_CONFIG[programKey];
-    triggerAnnouncement(`Activated ${prog?.title || programKey}! Your dashboard routine has been updated.`);
+    const prog = presetSplits.find(s => s.id === programKey || s.title === programKey || s.name === programKey);
+    triggerAnnouncement(`Activated ${prog?.title || prog?.name || programKey}! Your dashboard routine has been updated.`);
   };
 
   // Muscle selection & exercise list state
@@ -129,6 +132,52 @@ export const WorkoutsAndDiets: React.FC = () => {
   const exercisesSectionRef = useRef<HTMLDivElement>(null);
   const activeSplitSectionRef = useRef<HTMLDivElement>(null);
   const isFirstMuscleMount = useRef(true);
+
+  // Live Workout / Exercise Search Effect
+  useEffect(() => {
+    if (!workoutSearchQuery.trim()) {
+      setSearchedExercises([]);
+      setSearchedWorkouts([]);
+      setIsSearchingWorkouts(false);
+      return;
+    }
+
+    let isCurrent = true;
+    setIsSearchingWorkouts(true);
+    const debounceTimer = setTimeout(async () => {
+      try {
+        const [exs, wks] = await Promise.all([
+          getExercises(undefined, workoutSearchQuery.trim()).catch(() => []),
+          searchWorkouts(workoutSearchQuery.trim()).catch(() => []),
+        ]);
+        if (isCurrent) {
+          setSearchedExercises(Array.isArray(exs) ? exs : []);
+          setSearchedWorkouts(Array.isArray(wks) ? wks : []);
+        }
+      } catch (err) {
+        console.error('Error searching workouts/exercises:', err);
+      } finally {
+        if (isCurrent) setIsSearchingWorkouts(false);
+      }
+    }, 250);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(debounceTimer);
+    };
+  }, [workoutSearchQuery]);
+
+  const handleWorkoutChipClick = (chip: string) => {
+    if (workoutSearchQuery.toLowerCase() === chip.toLowerCase()) {
+      setWorkoutSearchQuery('');
+    } else {
+      setWorkoutSearchQuery(chip);
+    }
+  };
+
+  const handleClearWorkoutSearch = () => {
+    setWorkoutSearchQuery('');
+  };
 
   const handleSelectMuscle = (muscle: MuscleGroupKey | null) => {
     setSelectedMuscle(muscle);
@@ -761,9 +810,238 @@ export const WorkoutsAndDiets: React.FC = () => {
 
       </div>
 
+      {/* ── WORKOUT & EXERCISE SEARCH BAR & CHIPS ── */}
+      <div className="p-3 sm:p-4 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] shadow-md space-y-3">
+        <div className="relative flex items-center">
+          <Search className="w-4 h-4 text-[#E63946] dark:text-[#FF4D5A] absolute left-3.5 pointer-events-none" />
+          <input
+            type="text"
+            value={workoutSearchQuery}
+            onChange={(e) => setWorkoutSearchQuery(e.target.value)}
+            placeholder="Search exercises or splits (e.g. 'Chest', 'Dumbbell Press', 'T-Bar Row', 'Biceps', 'Squat', 'Deadlift', 'PPL')..."
+            className="w-full pl-10 pr-10 py-2.5 bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] rounded-xl text-xs sm:text-sm font-semibold text-[#111418] dark:text-[#F5F7FA] placeholder:text-[#626A73] dark:placeholder:text-[#A7AFB8] focus:outline-none focus:ring-2 focus:ring-[#E63946] dark:focus:ring-[#FF4D5A] transition-all shadow-inner"
+          />
+          {workoutSearchQuery && (
+            <button
+              onClick={handleClearWorkoutSearch}
+              className="absolute right-3 p-1 rounded-lg text-[#626A73] dark:text-[#A7AFB8] hover:text-[#111418] dark:hover:text-[#F5F7FA] hover:bg-[#DDE1E6] dark:hover:bg-[#292E34] transition"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
-      {/* ── TAB 1: 3D SCI-FI TARGET SCANNER (DEFAULT VIEW) ──────────────────── */}
-      {activeTab === 'SCANNER' && (
+        {/* Suggested Workout & Exercise Search Chips */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] font-bold text-[#626A73] dark:text-[#A7AFB8] uppercase tracking-wider mr-1">
+            Suggested Searches:
+          </span>
+          {WORKOUT_SEARCH_CHIPS.map((chip) => {
+            const isSelected = workoutSearchQuery.toLowerCase() === chip.toLowerCase();
+            return (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => handleWorkoutChipClick(chip)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border ${
+                  isSelected
+                    ? 'bg-[#E63946] text-white border-[#E63946] dark:bg-[#FF4D5A] dark:text-[#0B0D0F] dark:border-[#FF4D5A] shadow-xs'
+                    : 'bg-[#EEF0F3] dark:bg-[#1C2024] text-[#626A73] dark:text-[#A7AFB8] hover:bg-[#E63946]/10 hover:text-[#E63946] dark:hover:bg-[#FF4D5A]/10 dark:hover:text-[#FF4D5A] border-[#DDE1E6] dark:border-[#292E34]'
+                }`}
+              >
+                {chip}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── LIVE SEARCH RESULTS VIEW (SHOWN WHEN SEARCH QUERY IS PRESENT) ── */}
+      {workoutSearchQuery.trim() ? (
+        <div className="space-y-6">
+          {/* SEARCH HEADER */}
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] shadow-md">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-[#111418] dark:text-[#F5F7FA]">
+                Search Results for &ldquo;<span className="text-[#E63946] dark:text-[#FF4D5A]">{workoutSearchQuery}</span>&rdquo;
+              </h2>
+              <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] mt-0.5">
+                Found {searchedExercises.length} matching exercises &amp; {searchedWorkouts.length} workout routines.
+              </p>
+            </div>
+            <button
+              onClick={handleClearWorkoutSearch}
+              className="px-3 py-1.5 rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] hover:bg-[#DDE1E6] dark:hover:bg-[#292E34] text-xs font-black text-[#626A73] dark:text-[#A7AFB8] transition border border-[#DDE1E6] dark:border-[#292E34]"
+            >
+              Close Search
+            </button>
+          </div>
+
+          {isSearchingWorkouts ? (
+            <div className="p-16 text-center rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] text-[#626A73] dark:text-[#A7AFB8] flex items-center justify-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-[#E63946]" />
+              <span className="text-xs font-bold">Searching exercises and workout routines...</span>
+            </div>
+          ) : searchedExercises.length === 0 && searchedWorkouts.length === 0 ? (
+            <div className="p-12 text-center rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-3">
+              <Dumbbell className="w-10 h-10 text-[#626A73] dark:text-[#A7AFB8] mx-auto opacity-50" />
+              <h3 className="text-base font-black text-[#111418] dark:text-[#F5F7FA]">
+                No workouts or exercises matched &ldquo;{workoutSearchQuery}&rdquo;
+              </h3>
+              <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] max-w-md mx-auto">
+                Try searching for a general muscle group like &ldquo;Chest&rdquo;, &ldquo;Back&rdquo;, &ldquo;Biceps&rdquo;, or an exercise keyword like &ldquo;Press&rdquo; or &ldquo;Row&rdquo;.
+              </p>
+              <button
+                onClick={handleClearWorkoutSearch}
+                className="px-4 py-2 rounded-xl bg-[#E63946] text-white font-bold text-xs hover:bg-[#C92F3B] transition"
+              >
+                Reset Search
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* SECTION 1: MATCHING EXERCISES */}
+              {searchedExercises.length > 0 && (
+                <div className="p-4 sm:p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
+                    <h3 className="text-sm sm:text-base font-black uppercase text-[#111418] dark:text-[#F5F7FA] flex items-center gap-2">
+                      <Dumbbell className="w-4 h-4 text-[#E63946] dark:text-[#FF4D5A]" />
+                      Matching Exercises ({searchedExercises.length})
+                    </h3>
+                    <span className="text-[11px] font-bold text-[#626A73] dark:text-[#A7AFB8]">
+                      Click any exercise for 3D guide &amp; technique cues
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                    {searchedExercises.map((ex) => (
+                      <div
+                        key={ex.id}
+                        onClick={() => setInspectingExercise(ex)}
+                        className="group cursor-pointer rounded-2xl bg-white dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-200 p-3.5 sm:p-4 flex flex-col justify-between shadow-sm hover:shadow-md relative"
+                      >
+                        {/* Top Row: Tags & Info Icon */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                            <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
+                              {ex.muscleGroup}
+                            </span>
+                            {ex.equipment && (
+                              <span className="px-2 py-0.5 text-[9px] font-bold rounded-md bg-[#EEF0F3] dark:bg-[#1C2024] text-[#626A73] dark:text-[#A7AFB8]">
+                                {ex.equipment}
+                              </span>
+                            )}
+                          </div>
+                          <div className="p-1 rounded-full text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/50 transition-colors shrink-0" title="Click to view technique & safety cues">
+                            <Info className="w-4 h-4" />
+                          </div>
+                        </div>
+
+                        {/* Title & Description */}
+                        <div className="space-y-1 mb-3">
+                          <h4 className="text-sm font-extrabold text-slate-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                            {ex.name}
+                          </h4>
+                          {ex.description && (
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                              {ex.description}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Metrics Bar */}
+                        <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 text-center">
+                          <div className="py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800/50">
+                            <span className="block text-xs font-black text-slate-900 dark:text-zinc-100 font-mono">
+                              {ex.recommendedSets || 4} Sets
+                            </span>
+                          </div>
+                          <div className="py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800/50">
+                            <span className="block text-xs font-black text-slate-900 dark:text-zinc-100 font-mono">
+                              {ex.recommendedReps || '8-12'} Reps
+                            </span>
+                          </div>
+                          <div className="py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800/50">
+                            <span className="block text-xs font-black text-slate-900 dark:text-zinc-100 font-mono">
+                              {ex.restInterval || '90s'} Rest
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION 2: MATCHING WORKOUT ROUTINES / SPLITS */}
+              {searchedWorkouts.length > 0 && (
+                <div className="p-4 sm:p-6 rounded-2xl bg-[#FFFFFF] dark:bg-[#14171A] border border-[#DDE1E6] dark:border-[#292E34] space-y-4 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-[#DDE1E6] dark:border-[#292E34] pb-3">
+                    <h3 className="text-sm sm:text-base font-black uppercase text-[#111418] dark:text-[#F5F7FA] flex items-center gap-2">
+                      <Target className="w-4 h-4 text-[#E63946] dark:text-[#FF4D5A]" />
+                      Matching Workout Routines &amp; Splits ({searchedWorkouts.length})
+                    </h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    {searchedWorkouts.map((prog) => {
+                      const isSelected = selectedProgramKey === prog.id || selectedProgramKey === prog.title || selectedProgramKey === prog.name;
+                      return (
+                        <div
+                          key={prog.id || prog.title}
+                          className="p-4 sm:p-5 rounded-2xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] flex flex-col md:flex-row md:items-center justify-between gap-4"
+                        >
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-0.5 text-[10px] font-black uppercase rounded bg-[#E63946]/15 text-[#E63946] dark:bg-[#FF4D5A]/20 dark:text-[#FF4D5A]">
+                                {prog.category || 'WORKOUT SPLIT'}
+                              </span>
+                              <span className="text-[11px] font-mono font-bold text-[#2563EB] dark:text-[#4D8DFF]">
+                                {prog.duration || '6 Days/Wk'}
+                              </span>
+                            </div>
+                            <h4 className="text-sm sm:text-base font-black text-[#111418] dark:text-[#F5F7FA]">
+                              {prog.title || prog.name}
+                            </h4>
+                            <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] leading-relaxed max-w-3xl">
+                              {prog.description}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleActivateProgram(prog.id || prog.title || '')}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 shrink-0 ${
+                              isSelected
+                                ? 'bg-[#16A34A] text-white shadow-sm'
+                                : 'bg-[#E63946] hover:bg-[#C92F3B] text-white dark:bg-[#FF4D5A] dark:text-[#0B0D0F]'
+                            }`}
+                          >
+                            {isSelected ? (
+                              <>
+                                <Check className="w-4 h-4" /> Active Program
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-4 h-4" /> Select Split
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Normal tab contents when no global search query is active */}
+          {/* ── TAB 1: 3D SCI-FI TARGET SCANNER (DEFAULT VIEW) ──────────────────── */}
+          {activeTab === 'SCANNER' && (
         <div className="space-y-4 sm:space-y-8">
           <HumanBodyMap
             selectedMuscle={selectedMuscle}
@@ -812,6 +1090,9 @@ export const WorkoutsAndDiets: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                           <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
                             {ex.muscleGroup}
+                          </span>
+                          <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded-full bg-slate-100 dark:bg-zinc-800 text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-zinc-700 flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3 text-blue-500" /> Keyframes
                           </span>
                         </div>
 
@@ -874,127 +1155,186 @@ export const WorkoutsAndDiets: React.FC = () => {
                 </h2>
               </div>
               <p className="text-[11px] sm:text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-0.5 hidden sm:block">
-                Select your overall workout program split (PPL, Upper/Lower, Full Body). Each focus offers 10 exercises.
+                Select your overall workout program split (PPL, Upper/Lower, Full Body).
               </p>
             </div>
 
-            {selectedProgramKey && PROGRAM_SPLITS_CONFIG[selectedProgramKey] && (
-              <div className="px-3 py-1.5 rounded-xl bg-[#16A34A]/10 border border-[#16A34A]/30 text-xs font-black text-[#16A34A] dark:bg-[#16A34A]/20 dark:border-[#16A34A]/50 flex items-center gap-2 shadow-sm">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />
-                <span className="truncate">Active: <strong>{PROGRAM_SPLITS_CONFIG[selectedProgramKey].title}</strong></span>
-              </div>
-            )}
-          </div>
-
-          {/* Program Cards Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {Object.values(PROGRAM_SPLITS_CONFIG).map((prog) => {
-              const isSelected = selectedProgramKey === prog.key;
+            {selectedProgramKey && (() => {
+              const activeProg = presetSplits.find(
+                s => s.id === selectedProgramKey || s.title === selectedProgramKey || s.name === selectedProgramKey
+              );
+              const displayName = activeProg?.title || activeProg?.name || selectedProgramKey;
               return (
-                <div
-                  key={prog.key}
-                  className={`p-4 sm:p-6 rounded-2xl border transition-all flex flex-col justify-between space-y-4 sm:space-y-5 shadow-lg ${
-                    isSelected
-                      ? 'bg-[#EEF0F3] dark:bg-[#1C2024] border-[#E63946] dark:border-[#FF4D5A] ring-2 ring-[#E63946]/50 dark:ring-[#FF4D5A]/50 text-[#111418] dark:text-[#F5F7FA]'
-                      : 'bg-[#FFFFFF] dark:bg-[#14171A] border-[#DDE1E6] dark:border-[#292E34] text-[#111418] dark:text-[#F5F7FA] hover:border-[#E63946]/50 dark:hover:border-[#FF4D5A]/50'
-                  }`}
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className={`px-2.5 py-1 text-[10px] font-black uppercase rounded-lg border ${
-                        isSelected ? 'bg-[#E63946]/15 border-[#E63946]/30 text-[#E63946] dark:bg-[#FF4D5A]/20 dark:text-[#FF4D5A] dark:border-[#FF4D5A]/40' : 'bg-[#EEF0F3] dark:bg-[#1C2024] border-[#DDE1E6] dark:border-[#292E34] text-[#626A73] dark:text-[#A7AFB8]'
-                      }`}>
-                        {prog.badge}
-                      </span>
-                      {isSelected && (
-                        <span className="px-2.5 py-1 text-[10px] font-black uppercase rounded-lg bg-[#16A34A]/15 text-[#16A34A] border border-[#16A34A]/30 flex items-center gap-1.5 shadow-sm">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" /> Active Program
-                        </span>
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="text-base font-black text-[#111418] dark:text-[#F5F7FA]">{prog.title}</h3>
-                      <p className="text-xs text-[#2563EB] dark:text-[#4D8DFF] font-black mt-0.5">{prog.subtitle}</p>
-                      <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium mt-2 leading-relaxed">{prog.description}</p>
-                    </div>
-
-                    {/* Sub-Focuses & 10-Exercise Custom Selection */}
-                    <div className="space-y-4 pt-3 border-t border-[#DDE1E6] dark:border-[#292E34]">
-                      {prog.focusKeys.map((focusKey) => {
-                        const focusCatalog = EXERCISES_CATALOG[focusKey];
-                        if (!focusCatalog) return null;
-                        const selectedIds = customExerciseSelections[focusKey] || focusCatalog.exercises.map(e => e.id);
-
-                        return (
-                          <div key={focusKey} className="space-y-2.5 p-3.5 rounded-xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34]">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] flex items-center gap-1.5">
-                                <Dumbbell className="w-3.5 h-3.5 text-[#E63946] dark:text-[#FF4D5A]" /> {focusCatalog.label}
-                              </span>
-                              <span className="text-[10px] font-black text-[#2563EB] dark:text-[#4D8DFF]">
-                                {selectedIds.length} / {focusCatalog.exercises.length} Selected
-                              </span>
-                            </div>
-
-                            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 text-xs">
-                              {focusCatalog.exercises.map((ex, idx) => {
-                                const isChecked = selectedIds.includes(ex.id);
-                                return (
-                                  <label
-                                    key={ex.id}
-                                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                                      isChecked
-                                        ? 'bg-[#FFFFFF] dark:bg-[#14171A] border-[#2563EB] dark:border-[#4D8DFF] text-[#111418] dark:text-[#F5F7FA] font-bold shadow-sm'
-                                        : 'bg-[#FFFFFF]/60 dark:bg-[#14171A]/60 border-[#DDE1E6] dark:border-[#292E34] text-[#626A73] dark:text-[#A7AFB8] hover:border-[#2563EB]/40'
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={() => toggleExerciseSelection(focusKey, ex.id)}
-                                        className="w-3.5 h-3.5 rounded border-[#DDE1E6] dark:border-[#292E34] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#14171A] cursor-pointer"
-                                      />
-                                      <span className="truncate text-xs font-extrabold">{idx + 1}. {ex.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0 font-mono text-[10px]">
-                                      <span className="text-[#626A73] dark:text-[#A7AFB8] font-bold">{ex.target}</span>
-                                      <span className="text-[#2563EB] dark:text-[#4D8DFF] font-black">{ex.sets}×{ex.reps}</span>
-                                    </div>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleActivateProgram(prog.key)}
-                    className={`w-full py-3 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 shadow-md ${
-                      isSelected
-                        ? 'bg-[#16A34A] text-white hover:bg-[#15803D] shadow-sm'
-                        : 'bg-[#E63946] hover:bg-[#C92F3B] text-white dark:bg-[#FF4D5A] dark:hover:bg-[#FF6670] dark:text-[#0B0D0F]'
-                    }`}
-                  >
-                    {isSelected ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" /> Currently Active Program Split
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4" /> Activate This Program Split
-                      </>
-                    )}
-                  </button>
+                <div className="px-3 py-1.5 rounded-xl bg-[#16A34A]/10 border border-[#16A34A]/30 text-xs font-black text-[#16A34A] dark:bg-[#16A34A]/20 dark:border-[#16A34A]/50 flex items-center gap-2 shadow-sm">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />
+                  <span className="truncate">
+                    ✅ Active Program: <strong>{displayName}</strong>
+                  </span>
                 </div>
               );
-            })}
+            })()}
           </div>
+
+          {/* Program Cards List - Full Width Folder Layout & 6-Day Schedules */}
+          {presetSplits.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] space-y-3">
+              <Info className="w-8 h-8 text-[#626A73] dark:text-[#A7AFB8] mx-auto" />
+              <h3 className="text-sm font-black text-[#111418] dark:text-[#F5F7FA]">No Workout Programs Loaded</h3>
+              <p className="text-xs text-[#626A73] dark:text-[#A7AFB8]">Workout split data will display automatically once fetched from the backend database.</p>
+            </div>
+          ) : (
+            <div className="space-y-8 w-full">
+              {presetSplits.map((prog) => {
+                const isSelected = selectedProgramKey === prog.id || selectedProgramKey === prog.title || selectedProgramKey === prog.name;
+                const dbSplitDays = Array.isArray(prog.splitDays) ? prog.splitDays : [];
+                const dbExercises = Array.isArray(prog.exercises) ? prog.exercises : [];
+
+                return (
+                  <div
+                    key={prog.id || prog.title}
+                    className={`w-full p-5 sm:p-7 rounded-3xl border transition-all space-y-6 shadow-xl ${
+                      isSelected
+                        ? 'bg-[#EEF0F3] dark:bg-[#1C2024] border-[#E63946] dark:border-[#FF4D5A] ring-2 ring-[#E63946]/50 dark:ring-[#FF4D5A]/50 text-[#111418] dark:text-[#F5F7FA]'
+                        : 'bg-[#FFFFFF] dark:bg-[#14171A] border-[#DDE1E6] dark:border-[#292E34] text-[#111418] dark:text-[#F5F7FA]'
+                    }`}
+                  >
+                    {/* Header Banner: Title, Category Badge & Activation Action */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-[#DDE1E6] dark:border-[#292E34]">
+                      <div className="space-y-2 min-w-0">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className={`px-3 py-1 text-[11px] font-black uppercase rounded-lg border ${
+                            isSelected ? 'bg-[#E63946]/15 border-[#E63946]/30 text-[#E63946] dark:bg-[#FF4D5A]/20 dark:text-[#FF4D5A] dark:border-[#FF4D5A]/40' : 'bg-[#EEF0F3] dark:bg-[#1C2024] border-[#DDE1E6] dark:border-[#292E34] text-[#626A73] dark:text-[#A7AFB8]'
+                          }`}>
+                            {prog.badge || prog.category || 'DATABASE SPLIT'}
+                          </span>
+                          <span className="px-3 py-1 text-[11px] font-mono font-black text-[#2563EB] dark:text-[#4D8DFF] bg-[#2563EB]/10 rounded-lg border border-[#2563EB]/20">
+                            {prog.duration || (prog.daysPerWeek ? `${prog.daysPerWeek} Days/Wk` : '6 Days/Wk')}
+                          </span>
+                          {isSelected && (
+                            <span className="px-3 py-1 text-[11px] font-black uppercase rounded-lg bg-[#16A34A]/15 text-[#16A34A] border border-[#16A34A]/30 flex items-center gap-1.5 shadow-sm">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" /> Active Program
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="text-xl sm:text-2xl font-black tracking-tight text-[#111418] dark:text-[#F5F7FA]">
+                          {prog.title || prog.name}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-[#626A73] dark:text-[#A7AFB8] font-medium leading-relaxed max-w-4xl">
+                          {prog.description}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleActivateProgram(prog.id || prog.title)}
+                        className={`py-3.5 px-6 rounded-2xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 shadow-lg shrink-0 ${
+                          isSelected
+                            ? 'bg-[#16A34A] text-white hover:bg-[#15803D] shadow-sm'
+                            : 'bg-[#E63946] hover:bg-[#C92F3B] text-white dark:bg-[#FF4D5A] dark:hover:bg-[#FF6670] dark:text-[#0B0D0F]'
+                        }`}
+                      >
+                        {isSelected ? (
+                          <>
+                            <Check className="w-4 h-4 sm:w-5 sm:h-5" /> Active Program Split
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4 sm:w-5 sm:h-5" /> Select This Program Split
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Dynamic Split Days & Exercise Routine Breakdown from PostgreSQL */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#111418] dark:text-[#F5F7FA] flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-[#E63946] dark:text-[#FF4D5A]" />
+                          Weekly Split Routine & Muscle Target Breakdown
+                        </h4>
+                        <span className="text-[11px] font-bold text-[#626A73] dark:text-[#A7AFB8]">
+                          Fetched Live from PostgreSQL Backend
+                        </span>
+                      </div>
+
+                      {dbSplitDays.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {dbSplitDays.map((sd: any, sIdx: number) => {
+                            const exerciseList: string[] = (sd.muscles || sd.description || '')
+                              .split(',')
+                              .map((e: string) => e.trim())
+                              .filter(Boolean);
+                            return (
+                              <div
+                                key={sd.id || sIdx}
+                                className="p-4 sm:p-5 rounded-2xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] space-y-3 shadow-md flex flex-col hover:border-[#E63946]/40 dark:hover:border-[#FF4D5A]/40 transition"
+                              >
+                                {/* Day label header */}
+                                <div className="flex items-center gap-2 pb-2 border-b border-[#DDE1E6]/60 dark:border-[#292E34]/80">
+                                  <span className="px-2.5 py-0.5 text-[10px] font-black font-mono rounded-md bg-[#E63946]/15 text-[#E63946] dark:bg-[#FF4D5A]/20 dark:text-[#FF4D5A] shrink-0">
+                                    {sd.day || sd.dayLabel || `Day ${sIdx + 1}`}
+                                  </span>
+                                  <h5 className="text-xs sm:text-sm font-black text-[#111418] dark:text-[#F5F7FA] leading-tight truncate">
+                                    {sd.title || sd.name}
+                                  </h5>
+                                </div>
+
+                                {/* Exercise bullet list */}
+                                {exerciseList.length > 0 ? (
+                                  <ul className="space-y-1.5">
+                                    {exerciseList.map((exName: string, exIdx: number) => (
+                                      <li key={exIdx} className="flex items-start gap-2">
+                                        <span className="mt-0.5 w-4 h-4 rounded-full bg-[#E63946]/15 dark:bg-[#FF4D5A]/20 text-[#E63946] dark:text-[#FF4D5A] text-[9px] font-black flex items-center justify-center shrink-0">
+                                          {exIdx + 1}
+                                        </span>
+                                        <span className="text-[11px] font-medium text-[#111418] dark:text-[#F5F7FA] leading-snug">
+                                          {exName}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-[11px] text-[#626A73] dark:text-[#A7AFB8] italic">
+                                    Exercises loaded from database
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : dbExercises.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {dbExercises.map((ex: any, eIdx: number) => (
+                            <div
+                              key={ex.id || eIdx}
+                              className="p-3 rounded-2xl bg-[#EEF0F3] dark:bg-[#1C2024] border border-[#DDE1E6] dark:border-[#292E34] flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <span className="text-xs font-black text-[#111418] dark:text-[#F5F7FA] block truncate">
+                                  {eIdx + 1}. {ex.name}
+                                </span>
+                                <span className="text-[10px] text-[#626A73] dark:text-[#A7AFB8] font-medium block truncate">
+                                  {ex.muscleGroup || ex.category || 'Target Muscle'}
+                                </span>
+                              </div>
+                              <span className="px-2 py-1 text-[10px] font-mono font-black rounded-lg bg-white dark:bg-[#14171A] text-[#2563EB] dark:text-[#4D8DFF] border border-[#DDE1E6] dark:border-[#292E34] shrink-0">
+                                {ex.sets || 4}×{ex.reps || '8-12'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-[#626A73] dark:text-[#A7AFB8] font-medium italic">
+                          No sub-split routines recorded for this program. Select to activate.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1993,6 +2333,8 @@ export const WorkoutsAndDiets: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
 
       {/* Exercise Detail Modal */}

@@ -3,11 +3,29 @@ import { API_CONFIG } from '../../config/api';
 import { DietPlan, FoodItem } from '../../types';
 
 const BASE_URL = `${API_CONFIG.WORKOUT_SERVICE_URL}/api/workout/diet-plan`;
-const FOOD_URL = `${API_CONFIG.USER_MANAGEMENT_URL}/api/user/food`;
+const FOOD_URL = `${API_CONFIG.USER_MANAGEMENT_URL}/api/user/food/list`;
 
 export async function getDietPlans(): Promise<DietPlan[]> {
   const response = await fetchWithAuth(BASE_URL);
   return response.data || [];
+}
+
+export async function getUserDietPlans(userId: string): Promise<any[]> {
+  try {
+    const response = await fetchWithAuth(`${BASE_URL}/${userId}`);
+    return response.data || [];
+  } catch (err) {
+    console.warn('Error fetching user diet plans:', err);
+    return [];
+  }
+}
+
+export async function assignUserDietPlan(userId: string, plan: any): Promise<any> {
+  const response = await fetchWithAuth(`${BASE_URL}/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(plan),
+  });
+  return response.data;
 }
 
 export async function createDietPlan(plan: Partial<DietPlan>): Promise<DietPlan> {
