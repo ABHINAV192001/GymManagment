@@ -48,6 +48,7 @@ import { OnboardingWizard } from '../../components/onboarding/OnboardingWizard';
 import { HydrationModal } from '../../components/member-portal/HydrationModal';
 import { FoodLogModal, LoggedFoodPayload, ModalTab } from '../../components/member-portal/FoodLogModal';
 
+
 export interface FoodLogDashboardEntry {
   id: string;
   foodName: string;
@@ -691,6 +692,8 @@ export const MemberDashboard: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
+
+
       {/* TOP SECTION: 2 COLUMNS (Left: Concentric Rings & Stats, Right: Today's Workout) */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">

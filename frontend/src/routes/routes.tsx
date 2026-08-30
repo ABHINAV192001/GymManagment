@@ -28,8 +28,13 @@ import { Settings } from '../pages/settings/Settings';
 import { RBAC } from '../pages/rbac/RBAC';
 import { CRM } from '../pages/crm/CRM';
 import { Roster } from '../pages/roster/Roster';
+import { DuoPage } from '../pages/duo/DuoPage';
+import { DuoJoinHandler } from '../pages/duo/DuoJoinHandler';
+import { claimDuoInviteCode } from '../lib/api/duo';
+
 import { POS } from '../pages/pos/POS';
 import { AiAgentPage } from '../pages/ai/AiAgentPage';
+
 
 // Dummy functions to satisfy props while maintaining UI
 const dummyTrigger = (msg: string) => console.log('Announcement:', msg);
@@ -59,6 +64,19 @@ const LoginRoute = () => {
     // If user has active token, auto redirect to primary page
     const token = getStoredToken();
     if (token) {
+      const pendingCode = sessionStorage.getItem('pending_duo_invite');
+      if (pendingCode) {
+        claimDuoInviteCode(pendingCode)
+          .then(() => {
+            sessionStorage.removeItem('pending_duo_invite');
+            navigate('/duo', { replace: true });
+          })
+          .catch(() => {
+            getRedirectPathForUser().then(path => navigate(path, { replace: true }));
+          });
+        return;
+      }
+
       getRedirectPathForUser()
         .then((path) => navigate(path, { replace: true }))
         .catch(() => logout());
@@ -67,6 +85,18 @@ const LoginRoute = () => {
 
 
   const handleLogin = async () => {
+    const pendingCode = sessionStorage.getItem('pending_duo_invite');
+    if (pendingCode) {
+      try {
+        await claimDuoInviteCode(pendingCode);
+        sessionStorage.removeItem('pending_duo_invite');
+        navigate('/duo', { replace: true });
+        return;
+      } catch (err) {
+        console.error('Failed to claim pending duo invite post login:', err);
+      }
+    }
+
     const targetPath = await getRedirectPathForUser();
     navigate(targetPath, { replace: true });
   };
@@ -83,6 +113,11 @@ export function AppRoutes() {
           path="/auth/login" 
           element={<LoginRoute />} 
         />
+        <Route 
+          path="/duo/join" 
+          element={<DuoJoinHandler />} 
+        />
+
         <Route 
           path="/auth/register/join" 
           element={<JoinPage />} 
@@ -110,8 +145,10 @@ export function AppRoutes() {
           
           {/* Workouts & Diet */}
           <Route path="/workouts" element={<WorkoutsAndDiets />} />
+          <Route path="/duo" element={<DuoPage />} />
           <Route path="/activities" element={<Activities />} />
           <Route path="/diets" element={<DietDatabase />} />
+
 
           
           {/* Financials & Inventory */}

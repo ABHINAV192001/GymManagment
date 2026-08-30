@@ -184,7 +184,8 @@ public class RbacServiceImpl implements RbacService {
             "SETTINGS:VIEW", "SETTINGS:CREATE", "SETTINGS:EDIT", "SETTINGS:DELETE", "SETTINGS:EXPORT",
             "CRM:VIEW", "CRM:CREATE", "CRM:EDIT", "CRM:DELETE", "CRM:EXPORT", "CRM:ASSIGN",
             "ROSTER:VIEW", "ROSTER:CREATE", "ROSTER:EDIT", "ROSTER:DELETE", "ROSTER:EXPORT", "ROSTER:ASSIGN",
-            "POS:VIEW", "POS:CREATE", "POS:EDIT", "POS:DELETE", "POS:EXPORT", "POS:CHECKOUT", "POS:REFUND"
+            "POS:VIEW", "POS:CREATE", "POS:EDIT", "POS:DELETE", "POS:EXPORT", "POS:CHECKOUT", "POS:REFUND",
+            "AI_AGENT:VIEW", "AI_AGENT:CHAT", "AI_AGENT:EXECUTE", "AI_AGENT:EXPORT"
         );
 
         for (String subMod : defaultAllModulePerms) {
