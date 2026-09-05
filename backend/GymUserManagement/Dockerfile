@@ -7,11 +7,11 @@ RUN if [ -f "backend/GymUserManagement/pom.xml" ]; then cp -rf backend/GymUserMa
 RUN mvn clean package -DskipTests -B
 
 # ---------- Stage 2: Runtime ----------
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 
 # Security: run as non-root
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 # Create uploads directory with correct ownership
 RUN mkdir -p /app/uploads && chown appuser:appgroup /app/uploads
