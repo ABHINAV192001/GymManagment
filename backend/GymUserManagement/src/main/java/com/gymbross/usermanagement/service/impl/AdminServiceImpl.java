@@ -51,11 +51,9 @@ public class AdminServiceImpl implements AdminService {
         private final com.gymbross.usermanagement.repository.PaymentRepository paymentRepository;
         private final com.gymbross.usermanagement.repository.StaffProfileRepository staffProfileRepository;
         private final com.gymbross.usermanagement.service.AuditLogService auditLogService;
+        private final com.Gym.GymCommonServices.service.AppUrlService appUrlService;
         @jakarta.persistence.PersistenceContext
         private jakarta.persistence.EntityManager entityManager;
-
-        @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
-        private String frontendUrl;
 
         @Override
         public List<AdminDashboardDtos.UserDetailDto> getAllUsers(java.util.UUID organizationId, java.util.UUID branchId) {
@@ -368,7 +366,7 @@ public class AdminServiceImpl implements AdminService {
                         user.setCreatedBy(((User) auth.getPrincipal()).getId());
                 }
 
-                User savedUser = userRepository.save(user);
+                User savedUser = userRepository.saveAndFlush(user);
 
                 if (savedUser.getAmountPaid() != null && savedUser.getAmountPaid().compareTo(BigDecimal.ZERO) > 0) {
                         try {
@@ -391,25 +389,34 @@ public class AdminServiceImpl implements AdminService {
                         }
                 }
 
-                // Send Invite & OTP Email for verification and password setup
+                // Send Invite & OTP Email for verification, password setup, and login navigation
                 if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
                         String adminCode = "Unknown";
                         if (branch != null) {
                                 adminCode = userRepository.findTopByBranchId(branch.getId())
                                                 .map(User::getAdminCode).orElse("Unknown");
                         }
-                        String inviteLink = frontendUrl + "/auth/register/join?u=" + user.getUserCode() 
-                                        + "&ref=" + adminCode + "&role=" + user.getRole()
+                        String baseUrl = otpService.getCleanFrontendUrl();
+                        String userIdentifier = user.getUserCode() != null ? user.getUserCode() : user.getId().toString();
+                        String userRole = user.getRole() != null ? user.getRole() : "MEMBER";
+                        String inviteLink = baseUrl + "/auth/register/join?u=" + userIdentifier 
+                                        + "&ref=" + adminCode + "&role=" + userRole
                                         + "&email=" + java.net.URLEncoder.encode(user.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8);
                         try {
-                                otpService.sendOtp(user.getEmail().trim(), user.getPhone(), "REGISTER", inviteLink);
+                                otpService.sendRegistrationOtp(savedUser, user.getEmail().trim(), user.getPhone(), inviteLink, true);
                         } catch (Exception e) {
                                 System.err.println("Warning: otpService error during member creation: " + e.getMessage());
                                 try {
-                                        emailService.sendEmail(
+                                        String loginLink = baseUrl + "/auth/login";
+                                        String gymName = branch != null && branch.getName() != null ? branch.getName() : (org != null && org.getName() != null ? org.getName() : "GymBross");
+                                        String htmlFallback = otpService.buildRegistrationAndLoginHtmlEmail(
+                                                user.getName(), user.getEmail(), user.getUserCode(), userRole,
+                                                gymName, "------", 15, inviteLink, loginLink
+                                        );
+                                        emailService.sendHtmlEmail(
                                                 user.getEmail().trim(),
-                                                "Set Password & Join GymBross",
-                                                "Hello " + user.getName() + ",\n\nWelcome to GymBross! Your account has been registered. Please click the link below to set your password:\n" + inviteLink
+                                                "Welcome to " + gymName + " - Complete Registration & Login",
+                                                htmlFallback
                                         );
                                 } catch (Exception mailEx) {
                                         System.err.println("Failed to send welcome email fallback: " + mailEx.getMessage());
@@ -454,34 +461,26 @@ public class AdminServiceImpl implements AdminService {
                         System.out.println("Notice: Could not resolve user role for invite link: " + e.getMessage());
                 }
 
-                String baseUrl = null;
-                if (clientOrigin != null && !clientOrigin.trim().isEmpty()) {
-                        baseUrl = clientOrigin.trim();
-                        int queryIdx = baseUrl.indexOf("?");
-                        if (queryIdx != -1) baseUrl = baseUrl.substring(0, queryIdx);
-                        int pathIdx = baseUrl.indexOf("/", 8);
-                        if (pathIdx != -1) baseUrl = baseUrl.substring(0, pathIdx);
-                }
-                if (baseUrl == null || baseUrl.isEmpty()) {
-                        baseUrl = (frontendUrl != null && !frontendUrl.trim().isEmpty()) ? frontendUrl.trim() : "https://gymmanagment-wi3u.onrender.com";
-                }
-                if (baseUrl.endsWith("/")) {
-                        baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-                }
-
-                String inviteLink = baseUrl + "/auth/register/join?u=" + user.getUserCode()
+                String baseUrl = appUrlService.resolveFrontendUrl(clientOrigin);
+                String inviteLink = appUrlService.buildFrontendUrl("/auth/register/join?u=" + user.getUserCode()
                                 + "&ref=" + adminCode + "&role=" + role
-                                + "&email=" + java.net.URLEncoder.encode(user.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8);
+                                + "&email=" + java.net.URLEncoder.encode(user.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8), baseUrl);
 
                 try {
-                        otpService.sendOtp(user.getEmail().trim(), user.getPhone(), "REGISTER", inviteLink);
+                        otpService.sendRegistrationOtp(user, user.getEmail().trim(), user.getPhone(), inviteLink, true);
                 } catch (Exception e) {
                         System.err.println("Resend OTP warning: " + e.getMessage() + ". Attempting direct email notification...");
                         try {
-                                emailService.sendEmail(
+                                String loginLink = baseUrl + "/auth/login";
+                                String gymName = user.getBranch() != null ? user.getBranch().getName() : (user.getOrganization() != null ? user.getOrganization().getName() : "GymBross");
+                                String htmlFallback = otpService.buildRegistrationAndLoginHtmlEmail(
+                                        user.getName(), user.getEmail(), user.getUserCode(), role,
+                                        gymName, "------", 15, inviteLink, loginLink
+                                );
+                                emailService.sendHtmlEmail(
                                         user.getEmail().trim(),
-                                        "Set Your Password - GymBross Account Invitation",
-                                        "Hello " + user.getName() + ",\n\nPlease click the link below to set your password and access your GymBross account:\n\n" + inviteLink
+                                        "Set Your Password - " + gymName + " Account Invitation",
+                                        htmlFallback
                                 );
                         } catch (Exception mailEx) {
                                 System.err.println("Direct email fallback notice: " + mailEx.getMessage());
@@ -768,7 +767,25 @@ public class AdminServiceImpl implements AdminService {
                         trainer.setCreatedBy(((User) auth.getPrincipal()).getId());
                 }
 
-                userRepository.save(trainer);
+                trainer = userRepository.saveAndFlush(trainer);
+
+                if (trainer.getEmail() != null && !trainer.getEmail().trim().isEmpty()) {
+                        String adminCode = "Unknown";
+                        if (branch != null) {
+                                adminCode = userRepository.findTopByBranchId(branch.getId())
+                                                .map(User::getAdminCode).orElse("Unknown");
+                        }
+                        String baseUrl = appUrlService.resolveFrontendUrl();
+                        String userIdentifier = trainer.getUserCode() != null ? trainer.getUserCode() : (trainer.getTrainerCode() != null ? trainer.getTrainerCode() : trainer.getId().toString());
+                        String inviteLink = appUrlService.buildFrontendUrl("/auth/register/join?u=" + userIdentifier
+                                        + "&ref=" + adminCode + "&role=TRAINER"
+                                        + "&email=" + java.net.URLEncoder.encode(trainer.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8), baseUrl);
+                        try {
+                                otpService.sendRegistrationOtp(trainer, trainer.getEmail().trim(), trainer.getPhone(), inviteLink, true);
+                        } catch (Exception ex) {
+                                System.err.println("Notice: Failed to send trainer invite OTP: " + ex.getMessage());
+                        }
+                }
 
                 auditLogService.logAction(trainer.getId(), trainer.getOrganization() != null ? trainer.getOrganization().getId() : null, 
                         "TRAINER_CREATED", "Trainer created: " + trainer.getName());
@@ -949,7 +966,26 @@ public class AdminServiceImpl implements AdminService {
                         .build();
                 staff.setStaffProfile(staffProfile);
 
-                staff = userRepository.save(staff);
+                staff = userRepository.saveAndFlush(staff);
+
+                if (staff.getEmail() != null && !staff.getEmail().trim().isEmpty()) {
+                        String adminCode = "Unknown";
+                        if (branch != null) {
+                                adminCode = userRepository.findTopByBranchId(branch.getId())
+                                                .map(User::getAdminCode).orElse("Unknown");
+                        }
+                        String baseUrl = appUrlService.resolveFrontendUrl();
+                        String staffRole = staff.getRole() != null ? staff.getRole() : "STAFF";
+                        String userIdentifier = staff.getUserCode() != null ? staff.getUserCode() : (staff.getStaffCode() != null ? staff.getStaffCode() : staff.getId().toString());
+                        String inviteLink = appUrlService.buildFrontendUrl("/auth/register/join?u=" + userIdentifier
+                                        + "&ref=" + adminCode + "&role=" + staffRole
+                                        + "&email=" + java.net.URLEncoder.encode(staff.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8), baseUrl);
+                        try {
+                                otpService.sendRegistrationOtp(staff, staff.getEmail().trim(), staff.getPhone(), inviteLink, true);
+                        } catch (Exception ex) {
+                                System.err.println("Notice: Failed to send staff invite OTP: " + ex.getMessage());
+                        }
+                }
 
                 auditLogService.logAction(staff.getId(), staff.getOrganization() != null ? staff.getOrganization().getId() : null, 
                         "STAFF_CREATED", "Staff created: " + staff.getName());

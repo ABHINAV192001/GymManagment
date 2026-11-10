@@ -173,11 +173,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="bg-zinc-900 border-0 sm:border border-zinc-800 rounded-none sm:rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col h-[100dvh] sm:h-auto sm:max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
         
         {/* Header Bar */}
-        <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
+        <div className="p-4 sm:p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
               <Sparkles className="w-5 h-5" />
@@ -206,7 +206,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         </div>
 
         {/* Step Content Viewport */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0 space-y-5 sm:space-y-6 overscroll-contain">
           
           {/* =================================================================== */}
           {/* STEP 1: BIOMETRICS & BMI INITIALIZATION                            */}
@@ -319,7 +319,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               {/* Workout Days Per Week */}
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-zinc-400">Weekly Workout Commitment</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
                     { value: 3, label: '2 - 3 Days / Wk', desc: 'Casual / Maintenance' },
                     { value: 5, label: '4 - 5 Days / Wk', desc: 'Consistent / Active' },
@@ -518,11 +518,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         </div>
 
         {/* Footer Bar: Nav Buttons */}
-        <div className="p-6 border-t border-zinc-800 flex items-center justify-between bg-zinc-950/60 shrink-0">
+        <div className="p-4 sm:p-6 border-t border-zinc-800 flex items-center justify-between bg-zinc-950/60 shrink-0">
           <button
             onClick={handlePrevStep}
             disabled={step === 1 || isSubmitting}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 font-bold text-xs transition"
+            className="flex items-center gap-1.5 px-4 py-3 sm:py-2.5 min-h-[44px] rounded-xl border border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 font-bold text-xs transition"
           >
             <ChevronLeft className="w-4 h-4" /> Back
           </button>
@@ -530,7 +530,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           {step < 4 ? (
             <button
               onClick={handleNextStep}
-              className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg transition"
+              className="flex items-center gap-1.5 px-5 sm:px-6 py-3 sm:py-2.5 min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg transition"
             >
               Continue <ChevronRight className="w-4 h-4" />
             </button>
@@ -538,7 +538,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             <button
               onClick={handleSubmitOnboarding}
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg transition"
+              className="flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-2.5 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg transition"
             >
               {isSubmitting ? (
                 <>

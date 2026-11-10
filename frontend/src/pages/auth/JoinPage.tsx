@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Lock, KeyRound, CheckCircle2, AlertCircle, Eye, EyeOff, Mail } from 'lucide-react';
 import { completeRegistration, resendOtp } from '../../lib/api/auth';
+import { BrandMark } from '../../components/brand/BrandMark';
+import { BRAND } from '../../constants/brand';
 
 export function JoinPage() {
   const [searchParams] = useSearchParams();
@@ -115,11 +117,9 @@ export function JoinPage() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-2xl bg-blue-600 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-blue-600/30">
-            G
-          </div>
+          <BrandMark size="lg" className="rounded-2xl shadow-lg shadow-black/20" />
           <div>
-            <span className="text-base font-extrabold tracking-tight block">GymOS Pro</span>
+            <span className="text-base font-extrabold tracking-tight block">{BRAND.name} Pro</span>
             <span className="text-[10px] text-zinc-400 font-semibold tracking-wider uppercase">Account Setup</span>
           </div>
         </div>

@@ -28,7 +28,7 @@ services:
     container_name: gym-redis
     ports:
       - "6379:6379"
-    command: redis-server --requirepass ${REDIS_PASS:-}
+    command: redis-server
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

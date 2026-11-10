@@ -137,7 +137,7 @@ export const A11yControls: React.FC<A11yProps> = ({ settings, onChange, announce
                     className={`px-2 py-1.5 text-xs rounded border text-left flex items-center justify-between ${
                       settings.theme === item.key
                         ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 font-bold'
-                        : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-850'
+                        : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                     }`}
                     aria-label={`Switch theme to ${item.label}`}
                   >
@@ -166,7 +166,7 @@ export const A11yControls: React.FC<A11yProps> = ({ settings, onChange, announce
                     className={`px-1 py-1 rounded border text-center text-[11px] ${
                       settings.fontSize === item.key
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 font-bold'
-                        : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-850'
+                        : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                     }`}
                     aria-label={`Set font scale to ${item.label}`}
                   >

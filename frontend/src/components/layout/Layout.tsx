@@ -47,6 +47,7 @@ import { getAdminBranches } from '../../lib/api/admin';
 import { getMyOrg } from '../../lib/api/organizations';
 
 import { A11yControls } from '../A11yControls';
+import { BrandMark } from '../brand/BrandMark';
 import { logout } from '../../lib/api/auth';
 import { getStoredToken } from '../../lib/api/client';
 import { getMyPermissions } from '../../lib/api/rbac';
@@ -297,7 +298,11 @@ export const Layout = () => {
 
         if (!resolvedRole) {
           logout();
-          navigate('/auth/login', { replace: true });
+          const currentPath = window.location.pathname + window.location.search;
+          const redirectQuery = currentPath && currentPath !== '/' && !currentPath.startsWith('/auth')
+            ? `?redirect=${encodeURIComponent(currentPath)}`
+            : '';
+          navigate(`/auth/login${redirectQuery}`, { replace: true });
           return;
         }
 
@@ -308,7 +313,11 @@ export const Layout = () => {
         const hasExistingAuth = getStoredToken();
         if (!hasExistingAuth) {
           logout();
-          navigate('/auth/login', { replace: true });
+          const currentPath = window.location.pathname + window.location.search;
+          const redirectQuery = currentPath && currentPath !== '/' && !currentPath.startsWith('/auth')
+            ? `?redirect=${encodeURIComponent(currentPath)}`
+            : '';
+          navigate(`/auth/login${redirectQuery}`, { replace: true });
         }
       } finally {
         setIsLoadingPermissions(false);
@@ -525,11 +534,13 @@ export const Layout = () => {
                 <>
                   <div className="flex items-center gap-2.5 min-w-0">
                     {org.logoUrl ? (
-                      <img src={org.logoUrl} alt="Logo" className="w-8 h-8 rounded-xl object-cover shadow-md shrink-0" />
+                      <img
+                        src={org.logoUrl}
+                        alt={`${org.name} logo`}
+                        className="w-8 h-8 rounded-xl object-cover shadow-md shrink-0"
+                      />
                     ) : (
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-md shrink-0">
-                        {org.name && org.name !== 'Loading...' ? org.name.substring(0, 2).toUpperCase() : 'GY'}
-                      </div>
+                      <BrandMark size="md" className="shadow-md" />
                     )}
                     <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white truncate">
                       {org.name}
@@ -650,11 +661,13 @@ export const Layout = () => {
             {/* Left: Branding & Branch Selector */}
             <div className="flex items-center gap-2 min-w-0">
               {org.logoUrl ? (
-                <img src={org.logoUrl} alt="Logo" className="w-7 h-7 rounded-lg object-cover shadow-xs shrink-0" />
+                <img
+                  src={org.logoUrl}
+                  alt={`${org.name} logo`}
+                  className="w-7 h-7 rounded-lg object-cover shadow-xs shrink-0"
+                />
               ) : (
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0">
-                  {org.name && org.name !== 'Loading...' ? org.name.substring(0, 2).toUpperCase() : 'GY'}
-                </div>
+                <BrandMark size="sm" className="shadow-xs" />
               )}
               <div className="min-w-0">
                 <h1 className="font-extrabold text-xs text-zinc-900 dark:text-zinc-100 truncate leading-tight">
@@ -858,7 +871,7 @@ export const Layout = () => {
           </header>
 
           {/* Desktop Header Navbar (Shown exclusively on desktop >= md) */}
-          <header className="hidden md:flex h-16 border-b border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-900/50 backdrop-blur-sm items-center justify-between px-6 shrink-0 relative z-30">
+          <header className="hidden md:flex h-16 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 backdrop-blur-sm items-center justify-between px-6 shrink-0 relative z-30">
             {/* Left Header Info */}
             <div className="flex items-center gap-3">
               {branches.length > 1 ? (
@@ -888,6 +901,22 @@ export const Layout = () => {
             {/* Right Header Actions */}
             <div className="flex items-center gap-3 relative">
               
+              {/* Brand Logo (Desktop) */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl shrink-0">
+                {org.logoUrl ? (
+                  <img
+                    src={org.logoUrl}
+                    alt={`${org.name} logo`}
+                    className="w-6 h-6 rounded-lg object-cover shadow-xs"
+                  />
+                ) : (
+                  <BrandMark size="sm" className="shadow-xs" />
+                )}
+                <span className="font-bold text-sm text-zinc-900 dark:text-white truncate max-w-[160px]">
+                  {org.name}
+                </span>
+              </div>
+
               {/* AI Icon Button */}
               <button
                 onClick={() => {

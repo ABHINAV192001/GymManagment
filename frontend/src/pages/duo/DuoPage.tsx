@@ -31,6 +31,7 @@ import {
   removeDuoPartnership
 } from '../../lib/api/duo';
 import { getUserProfile } from '../../lib/api/user';
+import { DuoChallenge, DuoPartnership } from '../../types/duo';
 import { InvitePartnerModal } from '../member-portal/components/InvitePartnerModal';
 import { CreateDuoChallengeModal } from '../member-portal/components/CreateDuoChallengeModal';
 import { DuoVictoryModal } from '../member-portal/components/DuoVictoryModal';

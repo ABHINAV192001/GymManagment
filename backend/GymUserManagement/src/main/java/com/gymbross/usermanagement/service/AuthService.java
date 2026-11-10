@@ -53,9 +53,7 @@ public class AuthService {
     private final jakarta.persistence.EntityManager entityManager;
     private final AuditLogService auditLogService;
     private final com.Gym.GymCommonServices.service.WhatsAppService whatsAppService;
-
-    @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
-    private String frontendUrl;
+    private final com.Gym.GymCommonServices.service.AppUrlService appUrlService;
 
     @Transactional
     public RegisterResponse registerOrganization(RegisterRequest request) {
@@ -264,10 +262,14 @@ public class AuthService {
                 .isActive(false).isDeleted(false).build();
 
         assignDefaultUserRole(user);
-        userRepository.save(user);
-        otpService.sendOtp(request.getEmail(), request.getPhone(), "REGISTER");
+        user = userRepository.saveAndFlush(user);
+        String baseUrl = appUrlService.resolveFrontendUrl();
+        String inviteLink = appUrlService.buildFrontendUrl("/auth/register/join?u=" + user.getUserCode() 
+                + "&ref=Unknown&role=MEMBER"
+                + "&email=" + java.net.URLEncoder.encode(user.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8), baseUrl);
+        otpService.sendRegistrationOtp(user, request.getEmail(), request.getPhone(), inviteLink, true);
         if (request.getPhone() != null && !request.getPhone().isBlank()) {
-            whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), null, "MEMBER");
+            whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), inviteLink, "MEMBER");
         }
         return "User registered successfully";
     }
@@ -293,10 +295,12 @@ public class AuthService {
                 .build();
         trainer.setStaffProfile(profile);
 
-        userRepository.save(trainer);
-        // We omit the adminCode part for invite link right now
-        String inviteLink = frontendUrl + "/auth/register/join?u=" + trainer.getUserCode() + "&ref=Unknown&role=TRAINER";
-        otpService.sendOtp(request.getEmail(), request.getPhone(), "REGISTER", inviteLink);
+        trainer = userRepository.saveAndFlush(trainer);
+        String baseUrl = appUrlService.resolveFrontendUrl();
+        String inviteLink = appUrlService.buildFrontendUrl("/auth/register/join?u=" + trainer.getUserCode() 
+                + "&ref=Unknown&role=TRAINER"
+                + "&email=" + java.net.URLEncoder.encode(trainer.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8), baseUrl);
+        otpService.sendRegistrationOtp(trainer, request.getEmail(), request.getPhone(), inviteLink, true);
         if (request.getPhone() != null && !request.getPhone().isBlank()) {
             whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), inviteLink, "TRAINER");
         }
@@ -324,9 +328,12 @@ public class AuthService {
                 .build();
         staff.setStaffProfile(profile);
 
-        userRepository.save(staff);
-        String inviteLink = frontendUrl + "/auth/register/join?u=" + staff.getUserCode() + "&ref=Unknown&role=STAFF";
-        otpService.sendOtp(request.getEmail(), request.getPhone(), "REGISTER", inviteLink);
+        staff = userRepository.saveAndFlush(staff);
+        String baseUrl = appUrlService.resolveFrontendUrl();
+        String inviteLink = appUrlService.buildFrontendUrl("/auth/register/join?u=" + staff.getUserCode() 
+                + "&ref=Unknown&role=STAFF"
+                + "&email=" + java.net.URLEncoder.encode(staff.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8), baseUrl);
+        otpService.sendRegistrationOtp(staff, request.getEmail(), request.getPhone(), inviteLink, true);
         if (request.getPhone() != null && !request.getPhone().isBlank()) {
             whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), inviteLink, "STAFF");
         }
@@ -355,10 +362,14 @@ public class AuthService {
         pu.setMemberProfile(profile);
 
         assignDefaultUserRole(pu);
-        userRepository.save(pu);
-        otpService.sendOtp(request.getEmail(), request.getPhone(), "REGISTER");
+        pu = userRepository.saveAndFlush(pu);
+        String baseUrl = appUrlService.resolveFrontendUrl();
+        String inviteLink = appUrlService.buildFrontendUrl("/auth/register/join?u=" + pu.getUserCode() 
+                + "&ref=Unknown&role=PREMIUM_MEMBER"
+                + "&email=" + java.net.URLEncoder.encode(pu.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8), baseUrl);
+        otpService.sendRegistrationOtp(pu, request.getEmail(), request.getPhone(), inviteLink, true);
         if (request.getPhone() != null && !request.getPhone().isBlank()) {
-            whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), null, "PREMIUM_MEMBER");
+            whatsAppService.sendAccountCreatedNotification(request.getPhone(), request.getName(), request.getEmail(), inviteLink, "PREMIUM_MEMBER");
         }
         return "Premium User registered successfully";
     }
@@ -425,10 +436,13 @@ public class AuthService {
     public String resendInvite(ResendInviteRequest request) {
         User user = userRepository.findByUserCode(request.getUserCode())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        String roleStr = user.getRoles().isEmpty() ? "USER" : user.getRoles().iterator().next().getName();
-        String inviteLink = frontendUrl + "/auth/register/join?u=" + user.getUserCode() 
-                + "&ref=Unknown&role=" + roleStr;
-        otpService.sendOtp(user.getEmail(), user.getPhone(), "REGISTER", inviteLink);
+        String baseUrl = appUrlService.resolveFrontendUrl();
+        String roleStr = (user.getRole() != null && !user.getRole().isBlank()) ? user.getRole() : 
+                (!user.getRoles().isEmpty() ? user.getRoles().iterator().next().getName() : "MEMBER");
+        String inviteLink = appUrlService.buildFrontendUrl("/auth/register/join?u=" + user.getUserCode() 
+                + "&ref=Unknown&role=" + roleStr
+                + "&email=" + java.net.URLEncoder.encode(user.getEmail().trim(), java.nio.charset.StandardCharsets.UTF_8), baseUrl);
+        otpService.sendRegistrationOtp(user, user.getEmail(), user.getPhone(), inviteLink, true);
         return "Invite email resent successfully";
     }
 

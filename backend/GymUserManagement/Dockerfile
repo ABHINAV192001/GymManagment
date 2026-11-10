@@ -1,10 +1,10 @@
 # ---------- Stage 1: Build GymUserManagement (Unified Monolith) ----------
-FROM maven:3.9-eclipse-temurin-17 AS builder
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /build/service
 
 COPY . ./
 RUN if [ -f "backend/GymUserManagement/pom.xml" ]; then cp -rf backend/GymUserManagement/* ./ ; fi
-RUN mvn clean package -DskipTests -B
+RUN if [ ! -f "target/usermanagement-0.0.1-SNAPSHOT.jar" ]; then mvn clean package -DskipTests -B ; fi
 
 # ---------- Stage 2: Runtime ----------
 FROM eclipse-temurin:17-jre

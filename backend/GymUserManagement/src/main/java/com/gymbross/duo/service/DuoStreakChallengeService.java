@@ -25,6 +25,7 @@ public class DuoStreakChallengeService {
     private final DuoChallengeEventRepository eventRepository;
     private final DuoChallengeTaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final com.Gym.GymCommonServices.service.AppUrlService appUrlService;
 
     public DuoPartnershipDTO mapToPartnershipDTO(DuoPartnership partnership) {
         if (partnership == null) return null;
@@ -155,8 +156,7 @@ public class DuoStreakChallengeService {
 
         partnershipRepository.save(partnership);
 
-        String host = (originUrl != null && !originUrl.isBlank()) ? originUrl : "http://localhost:3000";
-        String inviteUrl = host + "/duo/join?code=" + inviteCode;
+        String inviteUrl = appUrlService.buildFrontendUrl("/duo/join?code=" + inviteCode, originUrl);
 
         String rawMsg = String.format(
                 "Hey! %s invited you to pair up as Gym Duo partners at %s on GymOS! 🔥\n\nClick the link to accept your invite & start workout streaks:\n%s",

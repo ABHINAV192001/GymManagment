@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Activity, ShieldCheck, UsersRound } from 'lucide-react';
 import { LoginForm } from '../../features/auth/components/LoginForm';
 import { ForgotPasswordFlow } from '../../features/auth/components/ForgotPasswordFlow';
+import { BrandMark } from '../../components/brand/BrandMark';
+import { BRAND } from '../../constants/brand';
 
 type LoginPageProps = {
   onLogin: () => void;
@@ -16,8 +18,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <section className="relative hidden overflow-hidden bg-zinc-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.35),transparent_30%),radial-gradient(circle_at_80%_80%,rgba(14,165,233,0.22),transparent_35%)]" />
         <div className="relative flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-black">G</div>
-          <span className="text-lg font-extrabold tracking-tight">GymOS Pro</span>
+          <BrandMark size="lg" />
+          <span className="text-lg font-extrabold tracking-tight">{BRAND.name} Pro</span>
         </div>
 
         <div className="relative max-w-lg">
@@ -36,8 +38,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <section className="flex min-h-[calc(100vh-2rem)] items-center justify-center rounded-2xl bg-white px-5 py-10 shadow-sm lg:min-h-screen lg:rounded-none lg:shadow-none">
         <div className="w-full max-w-md">
           <div className="mb-9 lg:hidden">
-            <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-black text-white">G</div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-600">GymOS Pro</p>
+            <BrandMark size="lg" className="mb-5 block" />
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-600">{BRAND.name} Pro</p>
           </div>
 
           {!isForgotPassword ? (

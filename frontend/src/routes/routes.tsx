@@ -64,6 +64,13 @@ const LoginRoute = () => {
     // If user has active token, auto redirect to primary page
     const token = getStoredToken();
     if (token) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectParam = searchParams.get('redirect');
+      if (redirectParam && redirectParam.startsWith('/')) {
+        navigate(redirectParam, { replace: true });
+        return;
+      }
+
       const pendingCode = sessionStorage.getItem('pending_duo_invite');
       if (pendingCode) {
         claimDuoInviteCode(pendingCode)
@@ -85,6 +92,13 @@ const LoginRoute = () => {
 
 
   const handleLogin = async () => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const redirectParam = searchParams.get('redirect');
+    if (redirectParam && redirectParam.startsWith('/')) {
+      navigate(redirectParam, { replace: true });
+      return;
+    }
+
     const pendingCode = sessionStorage.getItem('pending_duo_invite');
     if (pendingCode) {
       try {

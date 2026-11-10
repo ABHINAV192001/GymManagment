@@ -14,7 +14,8 @@ import {
   ChevronRight,
   ChevronLeft,
   BrainCircuit,
-  ChevronDown
+  ChevronDown,
+  Menu
 } from 'lucide-react';
 import {
   streamAgentResponse,
@@ -40,7 +41,7 @@ export const AiAgentPage: React.FC = () => {
   const [thinkingText, setThinkingText] = useState('');
   const [showThinkingDetails, setShowThinkingDetails] = useState<Record<string, boolean>>({});
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -64,6 +65,9 @@ export const AiAgentPage: React.FC = () => {
     setCurrentSessionId(sessionId);
     setIsGenerating(false);
     setIsThinking(false);
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
     const history = await fetchSessionMessages(sessionId);
     setMessages(history);
   };
@@ -74,6 +78,9 @@ export const AiAgentPage: React.FC = () => {
     setIsGenerating(false);
     setIsThinking(false);
     setThinkingText('');
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
   };
 
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
@@ -194,10 +201,20 @@ export const AiAgentPage: React.FC = () => {
   return (
     <div className="h-full w-full bg-zinc-950 text-zinc-100 flex overflow-hidden font-sans">
       
+      {/* ── Mobile Backdrop ────────────────────────── */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-xs"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Left Sidebar (Chat History) ────────────────────────── */}
       <div
-        className={`bg-zinc-900/90 border-r border-zinc-800/80 flex flex-col transition-all duration-300 z-20 shrink-0 ${
-          isSidebarOpen ? 'w-64 md:w-72 p-3' : 'w-16 p-2.5 items-center'
+        className={`bg-zinc-900 border-r border-zinc-800/80 flex flex-col transition-all duration-300 shrink-0 fixed inset-y-0 left-0 z-40 md:relative md:z-20 ${
+          isSidebarOpen
+            ? 'w-72 p-3 translate-x-0 shadow-2xl md:shadow-none'
+            : 'w-0 md:w-16 p-0 md:p-2.5 -translate-x-full md:translate-x-0 md:items-center overflow-hidden pointer-events-none md:pointer-events-auto'
         }`}
       >
         {/* Toggle Header Button */}
@@ -277,15 +294,23 @@ export const AiAgentPage: React.FC = () => {
       <div className="flex-1 flex flex-col h-full bg-zinc-950 relative overflow-hidden">
         
         {/* Top Minimal Toolbar */}
-        <div className="px-4 py-2.5 border-b border-zinc-800/60 flex items-center justify-between shrink-0">
+        <div className="px-3 sm:px-4 py-2.5 border-b border-zinc-800/60 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition md:hidden"
+              title="Toggle chat history"
+              type="button"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-indigo-400" />
               AI Assistant
             </span>
           </div>
 
-          <div className="text-[11px] text-zinc-500 font-mono">
+          <div className="text-[11px] text-zinc-500 font-mono hidden sm:block">
             NVIDIA Nemotron 3 Ultra
           </div>
         </div>
@@ -405,7 +430,7 @@ export const AiAgentPage: React.FC = () => {
         </div>
 
         {/* Bottom Input Field (Normal Clean Toolbar) */}
-        <div className="p-3 md:p-4 border-t border-zinc-800/80 bg-zinc-950 max-w-4xl w-full mx-auto shrink-0 mb-16 md:mb-0 relative z-10">
+        <div className="p-3 md:p-4 border-t border-zinc-800/80 bg-zinc-950 max-w-4xl w-full mx-auto shrink-0 mb-20 md:mb-0 relative z-10">
           <form
             onSubmit={(e) => {
               e.preventDefault();
