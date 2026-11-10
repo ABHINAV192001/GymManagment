@@ -720,15 +720,7 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (mobileStep === 'detail') {
-                      setMobileStep('search');
-                    if (false) {
-                      onClose();
-                    } else {
-                      onClose();
-                    }
-                  }}
+                  onClick={onClose}
                   className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 font-semibold transition"
                 >
                   Close
@@ -870,7 +862,6 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
             {/* LEFT COLUMN: Food Search, Filters & Catalog List                */}
             {/* ─────────────────────────────────────────────────────────────── */}
             <div className={`${mobileStep === 'detail' ? 'hidden md:flex' : 'flex'} md:col-span-6 flex-col space-y-3 min-h-0 flex-1`}>
-            <div className="md:col-span-6 flex flex-col space-y-3 min-h-0 flex-1">
               
               {/* Eaten Summary Banner for Current Meal */}
               {currentTabEatenItems.length > 0 && (
@@ -1005,8 +996,6 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
             {/* ─────────────────────────────────────────────────────────────── */}
             {/* RIGHT COLUMN: Serving Unit Scaler, Live Macros & Donut Chart    */}
             {/* ─────────────────────────────────────────────────────────────── */}
-            <div className={`${mobileStep === 'search' ? 'hidden md:flex' : 'flex'} md:col-span-6 flex-col justify-between space-y-3 bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-4`}>
-              {/* Mobile Back Button (Step 2 Header) */}
             <div className="hidden md:flex md:col-span-6 flex-col justify-between space-y-3 bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-4">
 
               <div className="md:hidden flex items-center justify-between pb-1 border-b border-zinc-200 dark:border-zinc-800/60">
@@ -1223,15 +1212,7 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
               <div className="flex items-center gap-2.5 pt-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (mobileStep === 'detail') {
-                      setMobileStep('search');
-                    if (false) {
-                      onClose();
-                    } else {
-                      onClose();
-                    }
-                  }}
+                  onClick={onClose}
                   className="w-1/3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold text-xs transition"
                 >
                   Cancel
