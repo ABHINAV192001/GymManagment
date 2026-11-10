@@ -29,6 +29,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     // Auth endpoints: 10 requests per minute per IP
     private static final int AUTH_LIMIT_PER_MINUTE = 10;
+    // AI & resource-intensive endpoints: 20 requests per minute per IP
+    private static final int AI_LIMIT_PER_MINUTE = 20;
     // General API endpoints: 150 requests per minute per IP
     private static final int GENERAL_LIMIT_PER_MINUTE = 150;
 
@@ -60,9 +62,13 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         String clientIp = getClientIp(request);
         boolean isAuthEndpoint = isSensitiveAuthEndpoint(path);
-        int maxAllowed = isAuthEndpoint ? AUTH_LIMIT_PER_MINUTE : GENERAL_LIMIT_PER_MINUTE;
+        boolean isAiEndpoint = isResourceIntensiveEndpoint(path);
 
-        String cacheKey = (isAuthEndpoint ? "AUTH:" : "GEN:") + clientIp;
+        int maxAllowed = isAuthEndpoint ? AUTH_LIMIT_PER_MINUTE
+                       : isAiEndpoint ? AI_LIMIT_PER_MINUTE
+                       : GENERAL_LIMIT_PER_MINUTE;
+
+        String cacheKey = (isAuthEndpoint ? "AUTH:" : isAiEndpoint ? "AI:" : "GEN:") + clientIp;
         long now = System.currentTimeMillis();
 
         // Perform periodic cleanup of stale windows if map grows too large
@@ -108,6 +114,14 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                lower.contains("/api/auth/reset-password") ||
                lower.contains("/api/auth/register-") ||
                lower.contains("/api/auth/resend-otp");
+    }
+
+    private boolean isResourceIntensiveEndpoint(String path) {
+        if (path == null) return false;
+        String lower = path.toLowerCase();
+        return lower.contains("/api/ai-chat/") ||
+               lower.contains("/api/ai/") ||
+               lower.contains("/api/user/onboarding");
     }
 
     private boolean isExcludedPath(String path) {

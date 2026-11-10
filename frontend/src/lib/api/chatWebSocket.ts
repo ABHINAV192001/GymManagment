@@ -1,5 +1,6 @@
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { API_CONFIG } from '../../config/api';
 
 export type MessageHandler = (message: any) => void;
 
@@ -21,12 +22,9 @@ class ChatWebSocketClient {
 
     const token = localStorage.getItem('gymos_token') || localStorage.getItem('accessToken') || '';
 
-    // Determine backend WebSocket URL
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    const host = window.location.host;
-    const wsUrl = process.env.NODE_ENV === 'production'
-      ? `${protocol}//${host}/ws/chat`
-      : 'http://localhost:8080/ws/chat';
+    // Determine backend WebSocket URL using API_CONFIG
+    const baseUrl = (API_CONFIG.CHAT_SERVICE_URL || 'http://localhost:8080').replace(/\/+$/, '');
+    const wsUrl = `${baseUrl}/ws/chat`;
 
     this.client = new Client({
       webSocketFactory: () => new SockJS(wsUrl),

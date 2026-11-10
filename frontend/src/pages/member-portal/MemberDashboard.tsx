@@ -48,6 +48,7 @@ import { OnboardingWizard } from '../../components/onboarding/OnboardingWizard';
 import { HydrationModal } from '../../components/member-portal/HydrationModal';
 import { FoodLogModal, LoggedFoodPayload, ModalTab } from '../../components/member-portal/FoodLogModal';
 
+
 export interface FoodLogDashboardEntry {
   id: string;
   foodName: string;
@@ -691,6 +692,8 @@ export const MemberDashboard: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
+
+
       {/* TOP SECTION: 2 COLUMNS (Left: Concentric Rings & Stats, Right: Today's Workout) */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
@@ -1108,7 +1111,7 @@ export const MemberDashboard: React.FC = () => {
         {/* Card 1: Check BMI */}
         <button
           onClick={() => navigate('/workouts?tab=BMI_CALCULATOR')}
-          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-blue-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
+          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-blue-500/50 hover:bg-zinc-800/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
           <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 group-hover:bg-blue-500/20 transition-all">
             <Calculator className="w-4 h-4 sm:w-6 sm:h-6" />
@@ -1122,7 +1125,7 @@ export const MemberDashboard: React.FC = () => {
         {/* Card 2: Check Other Workout */}
         <button
           onClick={() => navigate('/workouts')}
-          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
+          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-800/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
           <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all">
             <Dumbbell className="w-4 h-4 sm:w-6 sm:h-6" />
@@ -1136,7 +1139,7 @@ export const MemberDashboard: React.FC = () => {
         {/* Card 3: Check Activity */}
         <button
           onClick={() => navigate('/activities')}
-          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
+          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-800/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
           <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 group-hover:bg-amber-500/20 transition-all">
             <Activity className="w-4 h-4 sm:w-6 sm:h-6" />
@@ -1150,7 +1153,7 @@ export const MemberDashboard: React.FC = () => {
         {/* Card 4: Check Workout Splits */}
         <button
           onClick={() => navigate('/workouts?tab=SELECT_WORKOUT')}
-          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
+          className="p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-800/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
           <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 group-hover:bg-indigo-500/20 transition-all">
             <Layers className="w-4 h-4 sm:w-6 sm:h-6" />
@@ -1164,7 +1167,7 @@ export const MemberDashboard: React.FC = () => {
         {/* Card 5: Check Diets & Recipes */}
         <button
           onClick={() => navigate('/diets')}
-          className="col-span-2 sm:col-span-1 p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-rose-500/50 hover:bg-zinc-850/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
+          className="col-span-2 sm:col-span-1 p-3.5 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-rose-500/50 hover:bg-zinc-800/80 transition-all text-center flex flex-col items-center justify-center space-y-2 sm:space-y-3 group shadow-md sm:shadow-lg"
         >
           <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 group-hover:bg-rose-500/20 transition-all">
             <Utensils className="w-4 h-4 sm:w-6 sm:h-6" />

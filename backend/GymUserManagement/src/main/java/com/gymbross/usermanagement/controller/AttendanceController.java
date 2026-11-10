@@ -24,6 +24,8 @@ public class AttendanceController {
 
     private final AttendanceService attendanceService;
     private final UserRepository userRepository;
+    private final com.gymbross.usermanagement.service.EmailService emailService;
+    private final com.gymbross.usermanagement.scheduler.AttendanceReminderScheduler attendanceReminderScheduler;
 
     @PostMapping("/checkin")
     @PreAuthorize("isAuthenticated()")
@@ -176,5 +178,44 @@ public class AttendanceController {
         }
         AttendanceDtos.TodayStatusDto status = attendanceService.getTodayAttendanceStatus(userId);
         return ResponseEntity.ok(ApiResponse.success(status));
+    }
+
+    /**
+     * POST /api/v1/attendance/send-reminders
+     * Triggers the daily attendance reminder scheduler manually.
+     */
+    @PostMapping("/send-reminders")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_ORG_ADMIN') or hasAuthority('ATTENDANCE:EDIT')")
+    public ResponseEntity<ApiResponse<String>> triggerAttendanceReminders() {
+        attendanceReminderScheduler.sendDailyAttendanceReminders();
+        return ResponseEntity.ok(ApiResponse.success("Daily attendance reminder job executed successfully"));
+    }
+
+    /**
+     * POST /api/v1/attendance/test-reminder
+     * Sends a test attendance reminder email to the specified email or authenticated user.
+     */
+    @PostMapping("/test-reminder")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<String>> testAttendanceReminder(@RequestParam(required = false) String email) {
+        String targetEmail = email;
+        String targetName = "Valued Member";
+        if (targetEmail == null || targetEmail.isBlank()) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getName() != null) {
+                targetEmail = auth.getName();
+                Optional<User> uOpt = userRepository.findByEmail(targetEmail);
+                if (uOpt.isPresent()) {
+                    targetName = uOpt.get().getName();
+                }
+            }
+        }
+        if (targetEmail == null || targetEmail.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Target email is required", 400));
+        }
+
+        String todayStr = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy"));
+        emailService.sendMissedAttendanceReminder(targetEmail.trim(), targetName, todayStr, "GymBross Fitness");
+        return ResponseEntity.ok(ApiResponse.success("Attendance reminder email sent successfully to " + targetEmail));
     }
 }

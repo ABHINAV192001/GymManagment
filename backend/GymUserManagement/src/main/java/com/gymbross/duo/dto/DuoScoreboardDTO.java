@@ -1,0 +1,23 @@
+package com.gymbross.duo.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class DuoScoreboardDTO {
+    private UUID userId;
+    private String userName;
+    private Integer totalPoints;
+    private Integer attendancePoints;
+    private Integer workoutPoints;
+    private Integer prPoints;
+    private Integer duoSyncPoints;
+    private Integer currentStreak;
+}

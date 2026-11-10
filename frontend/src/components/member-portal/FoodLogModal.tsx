@@ -12,6 +12,7 @@ import {
   Droplets,
   Clock,
   ChevronRight,
+  ChevronLeft,
   Plus,
   Minus,
   Apple,
@@ -188,6 +189,8 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
   const [selectedFood, setSelectedFood] = useState<FoodItemRecord | null>(null);
   const [selectedUnitId, setSelectedUnitId] = useState<string>('grams');
   const [enteredQuantity, setEnteredQuantity] = useState<string>('100');
+  const [mobileStep, setMobileStep] = useState<'search' | 'detail'>('search');
+  const [isDetailPopupOpen, setIsDetailPopupOpen] = useState<boolean>(false);
 
   // Fasting tab state
   const [fastingProtocol, setFastingProtocol] = useState<'16_8' | '18_6' | '20_4' | '24_0'>('16_8');
@@ -348,6 +351,7 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
     const foodName = selectedFood.foodName || selectedFood.name || (selectedFood as any)?.title || 'Food Item';
     const dateStr = logDate || new Date().toISOString().split('T')[0];
 
+    setIsDetailPopupOpen(false);
     await onLogFoodItem({
       foodId: selectedFood.id,
       foodName: foodName,
@@ -377,17 +381,17 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-5 animate-in fade-in duration-200"
       onClick={onClose}
     >
       {/* Rectangular / A4 Landscape Container (zero overall scrollbar) */}
       <div
-        className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl max-w-5xl w-full overflow-hidden flex flex-col justify-between"
+        className="bg-white dark:bg-zinc-900 border-0 sm:border border-zinc-200 dark:border-zinc-800 rounded-none sm:rounded-3xl shadow-2xl max-w-5xl w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: '92vh' }}
+
       >
         {/* ── TOP NAVIGATION HEADER & CATEGORY TABS ───────────────────────── */}
-        <div className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/60 p-4 sm:px-6">
+        <div className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/60 p-3 sm:p-4 sm:px-6 shrink-0">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-inner">
@@ -498,7 +502,11 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
                     <button
                       key={tab}
                       type="button"
-                      onClick={() => setActiveTab(tab)}
+                      onClick={() => {
+                        setActiveTab(tab);
+                        setMobileStep('search');
+                        setIsDetailPopupOpen(false);
+                      }}
                       className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
                         isActive
                           ? tab === 'Water'
@@ -543,7 +551,7 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
 
         {/* ── VIEW EATEN FOODS COMPONENT IN POPUP ─────────────────────────── */}
         {modalViewMode === 'eaten' && (
-          <div className="p-4 sm:p-6 space-y-4 flex-1 overflow-y-auto">
+          <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 flex-1 min-h-0 overflow-y-auto">
             
             {/* Sub-Header with Meal Category Filter Chips */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 dark:border-zinc-800 pb-3">
@@ -616,7 +624,7 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[50vh] sm:max-h-[380px] overflow-y-auto pr-1">
                 {filteredEatenLogs.map((item) => {
                   const mealLower = (item.mealType || '').toLowerCase();
                   let badgeTheme = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
@@ -712,7 +720,15 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={() => {
+                    if (mobileStep === 'detail') {
+                      setMobileStep('search');
+                    if (false) {
+                      onClose();
+                    } else {
+                      onClose();
+                    }
+                  }}
                   className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 font-semibold transition"
                 >
                   Close
@@ -725,7 +741,7 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
 
         {/* ── TAB CONTENT: WATER TAB VIEW ──────────────────────────────────── */}
         {modalViewMode === 'log' && activeTab === 'Water' && (
-          <div className="p-8 flex flex-col items-center justify-center text-center space-y-6 flex-1">
+          <div className="p-4 sm:p-8 flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6 flex-1 min-h-0 overflow-y-auto">
             <div className="w-20 h-20 rounded-3xl bg-cyan-500/10 border-2 border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-xl shadow-cyan-500/10">
               <Droplets className="w-10 h-10 animate-bounce" />
             </div>
@@ -773,7 +789,7 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
 
         {/* ── TAB CONTENT: FASTING TAB VIEW ────────────────────────────────── */}
         {modalViewMode === 'log' && activeTab === 'Fasting' && (
-          <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center flex-1">
+          <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 items-center flex-1 min-h-0 overflow-y-auto">
             <div className="md:col-span-6 flex flex-col items-center justify-center text-center p-6 rounded-2xl bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-500/20">
               <div className="relative w-44 h-44 flex items-center justify-center">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
@@ -848,12 +864,13 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
 
         {/* ── TAB CONTENT: MEAL MODES (Breakfast / Lunch / Snacks / Dinner) ── */}
         {modalViewMode === 'log' && activeTab !== 'Water' && activeTab !== 'Fasting' && (
-          <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch overflow-hidden">
+          <div className="p-3 sm:p-6 flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5 items-stretch">
             
             {/* ─────────────────────────────────────────────────────────────── */}
             {/* LEFT COLUMN: Food Search, Filters & Catalog List                */}
             {/* ─────────────────────────────────────────────────────────────── */}
-            <div className="md:col-span-6 flex flex-col justify-between space-y-3 overflow-hidden">
+            <div className={`${mobileStep === 'detail' ? 'hidden md:flex' : 'flex'} md:col-span-6 flex-col space-y-3 min-h-0 flex-1`}>
+            <div className="md:col-span-6 flex flex-col space-y-3 min-h-0 flex-1">
               
               {/* Eaten Summary Banner for Current Meal */}
               {currentTabEatenItems.length > 0 && (
@@ -919,7 +936,7 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
               </div>
 
               {/* Food Catalog List (Scrollable Sub-window) */}
-              <div className="h-64 sm:h-72 overflow-y-auto space-y-2 pr-1 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-2 bg-zinc-50/50 dark:bg-zinc-950/60">
+              <div className="h-[360px] sm:h-72 flex-1 min-h-[260px] overflow-y-auto space-y-2 pr-1 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-2 bg-zinc-50/50 dark:bg-zinc-950/60">
                 {isSearching ? (
                   <div className="h-full flex items-center justify-center gap-2 text-xs text-zinc-400">
                     <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> Searching database...
@@ -939,7 +956,11 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
                     return (
                       <div
                         key={item.id}
-                        onClick={() => setSelectedFood(item)}
+                        onClick={() => {
+                          setSelectedFood(item);
+                          setMobileStep('detail');
+                          setIsDetailPopupOpen(true);
+                        }}
                         className={`p-2.5 rounded-xl border text-xs cursor-pointer flex justify-between items-center transition group ${
                           isSelected
                             ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/70 shadow-sm ring-1 ring-emerald-500/30'
@@ -984,7 +1005,23 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
             {/* ─────────────────────────────────────────────────────────────── */}
             {/* RIGHT COLUMN: Serving Unit Scaler, Live Macros & Donut Chart    */}
             {/* ─────────────────────────────────────────────────────────────── */}
-            <div className="md:col-span-6 flex flex-col justify-between space-y-3 bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-4">
+            <div className={`${mobileStep === 'search' ? 'hidden md:flex' : 'flex'} md:col-span-6 flex-col justify-between space-y-3 bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-4`}>
+              {/* Mobile Back Button (Step 2 Header) */}
+            <div className="hidden md:flex md:col-span-6 flex-col justify-between space-y-3 bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-4">
+
+              <div className="md:hidden flex items-center justify-between pb-1 border-b border-zinc-200 dark:border-zinc-800/60">
+                <button
+                  type="button"
+                  onClick={() => setMobileStep('search')}
+
+                  className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Back to Food List
+
+                </button>
+                <span className="text-[10px] text-zinc-400 font-mono">Step 2 of 2</span>
+
+              </div>
               
               {/* Selected Food Header Banner */}
               <div className="border-b border-zinc-200 dark:border-zinc-800/80 pb-2.5">
@@ -1186,7 +1223,15 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
               <div className="flex items-center gap-2.5 pt-1">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={() => {
+                    if (mobileStep === 'detail') {
+                      setMobileStep('search');
+                    if (false) {
+                      onClose();
+                    } else {
+                      onClose();
+                    }
+                  }}
                   className="w-1/3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold text-xs transition"
                 >
                   Cancel
@@ -1211,6 +1256,220 @@ export const FoodLogModal: React.FC<FoodLogModalProps> = ({
 
             </div>
 
+          </div>
+        )}
+
+        {/* ── MOBILE FOOD DETAIL POPUP MODAL ───────────────────────── */}
+        {modalViewMode === 'log' && isDetailPopupOpen && selectedFood && (
+          <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 md:hidden animate-in fade-in duration-200"
+            onClick={() => setIsDetailPopupOpen(false)}
+          >
+            <div
+              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[88vh] overflow-y-auto p-4 sm:p-5 shadow-2xl flex flex-col space-y-4 animate-in slide-in-from-bottom duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Grab handle */}
+              <div className="w-12 h-1 bg-zinc-300 dark:bg-zinc-700 rounded-full mx-auto sm:hidden -mt-1 mb-1" />
+
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    Selected for {activeTab}
+                  </span>
+                  <h4 className="text-base font-extrabold text-zinc-900 dark:text-zinc-100 truncate">
+                    {selectedFood.foodName || selectedFood.name || (selectedFood as any)?.title || 'Food Details'}
+                  </h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-xl border border-emerald-500/30">
+                    {totalGrams}g
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsDetailPopupOpen(false)}
+                    className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Portion Unit & Direct Numeric Input */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                  <div className="sm:col-span-6">
+                    <label className="block text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mb-1">
+                      Serving Unit
+                    </label>
+                    <select
+                      value={selectedUnitId}
+                      onChange={(e) => handleUnitChange(e.target.value)}
+                      className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-zinc-900 dark:text-zinc-100 text-xs font-semibold focus:outline-none focus:border-emerald-500"
+                    >
+                      {SERVING_UNITS.map((unit) => (
+                        <option key={unit.id} value={unit.id}>
+                          {unit.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-6">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
+                        {currentServingUnit.isGrams ? 'Exact Grams (g)' : 'Quantity / Servings'}
+                      </label>
+                      {!currentServingUnit.isGrams && totalGrams > 0 && (
+                        <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          = {totalGrams}g
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative flex items-center">
+                      <input
+                        type="number"
+                        step="any"
+                        min="0.1"
+                        value={enteredQuantity}
+                        onChange={(e) => setEnteredQuantity(e.target.value)}
+                        placeholder={currentServingUnit.isGrams ? "e.g. 65, 75, 295" : "e.g. 1.5"}
+                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 pr-12 text-zinc-900 dark:text-zinc-100 text-xs font-bold font-mono focus:outline-none focus:border-emerald-500"
+                      />
+                      <span className="absolute right-3 text-[11px] font-mono font-bold text-zinc-400 pointer-events-none">
+                        {currentServingUnit.isGrams ? 'g' : currentServingUnit.unitName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Selection Numeric Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none text-[10px] font-mono">
+                  <span className="text-zinc-400 text-[10px] shrink-0 font-sans">Quick:</span>
+                  {currentServingUnit.isGrams
+                    ? [50, 65, 75, 100, 150, 200, 295, 395].map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setEnteredQuantity(String(g))}
+                          className={`px-2 py-0.5 rounded-lg border transition shrink-0 ${
+                            enteredQuantity === String(g)
+                              ? 'bg-emerald-500 text-white border-emerald-500 font-bold'
+                              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-emerald-500/40'
+                          }`}
+                        >
+                          {g}g
+                        </button>
+                      ))
+                    : [0.5, 1, 1.5, 2, 2.5, 3].map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setEnteredQuantity(String(s))}
+                          className={`px-2 py-0.5 rounded-lg border transition shrink-0 ${
+                            enteredQuantity === String(s)
+                              ? 'bg-emerald-500 text-white border-emerald-500 font-bold'
+                              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-emerald-500/40'
+                          }`}
+                        >
+                          {s} {currentServingUnit.unitName}
+                        </button>
+                      ))}
+                </div>
+              </div>
+
+              {/* Scaled Macro Spec Numbers + Donut Chart */}
+              <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 grid grid-cols-12 gap-3 items-center">
+                <div className="col-span-7 space-y-1.5">
+                  <div className="flex items-baseline justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-1">
+                    <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">Total Calories:</span>
+                    <span className="text-base font-black text-orange-500 dark:text-orange-400 font-mono">
+                      {scaledNutrients.calories} kcal
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5 text-[10px] font-mono">
+                    <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/20 text-center">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold block">Protein</span>
+                      <span className="font-extrabold text-zinc-800 dark:text-zinc-200">{scaledNutrients.protein}g</span>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-500/20 text-center">
+                      <span className="text-cyan-600 dark:text-cyan-400 font-bold block">Carbs</span>
+                      <span className="font-extrabold text-zinc-800 dark:text-zinc-200">{scaledNutrients.carbs}g</span>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/20 text-center">
+                      <span className="text-amber-600 dark:text-amber-400 font-bold block">Fats</span>
+                      <span className="font-extrabold text-zinc-800 dark:text-zinc-200">{scaledNutrients.fat}g</span>
+                    </div>
+                  </div>
+
+                  {scaledNutrients.fiber > 0 && (
+                    <div className="flex justify-between text-[10px] text-zinc-400 font-mono px-0.5">
+                      <span>Fiber: {scaledNutrients.fiber}g</span>
+                      <span>Total: {totalGrams}g</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="col-span-5 flex flex-col items-center justify-center">
+                  <div className="relative w-18 h-18 sm:w-20 sm:h-20 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50" cy="50" r="38" fill="none" className="stroke-emerald-500" strokeWidth="10"
+                        strokeDasharray={238.7} strokeDashoffset={238.7 - (238.7 * macroPercentages.proteinPct) / 100}
+                      />
+                      <circle
+                        cx="50" cy="50" r="38" fill="none" className="stroke-cyan-500" strokeWidth="10"
+                        strokeDasharray={238.7} strokeDashoffset={238.7 - (238.7 * macroPercentages.carbsPct) / 100}
+                        style={{ transform: `rotate(${(macroPercentages.proteinPct / 100) * 360}deg)`, transformOrigin: '50% 50%' }}
+                      />
+                      <circle
+                        cx="50" cy="50" r="38" fill="none" className="stroke-amber-500" strokeWidth="10"
+                        strokeDasharray={238.7} strokeDashoffset={238.7 - (238.7 * macroPercentages.fatPct) / 100}
+                        style={{ transform: `rotate(${((macroPercentages.proteinPct + macroPercentages.carbsPct) / 100) * 360}deg)`, transformOrigin: '50% 50%' }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <PieIcon className="w-3 h-3 text-emerald-400" />
+                      <span className="text-[9px] font-black font-mono text-zinc-900 dark:text-zinc-100">
+                        {scaledNutrients.calories}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1 text-[8px] font-mono font-bold">
+                    <span className="text-emerald-500">P:{macroPercentages.proteinPct}%</span>
+                    <span className="text-cyan-500">C:{macroPercentages.carbsPct}%</span>
+                    <span className="text-amber-500">F:{macroPercentages.fatPct}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsDetailPopupOpen(false)}
+                  className="w-1/3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 font-bold text-xs hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isLogging}
+                  onClick={handleLogFood}
+                  className="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-xs shadow-lg hover:from-emerald-500 hover:to-teal-500 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isLogging ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  <span>Log to {activeTab} ({scaledNutrients.calories} kcal)</span>
+                </button>
+              </div>
+
+            </div>
           </div>
         )}
 

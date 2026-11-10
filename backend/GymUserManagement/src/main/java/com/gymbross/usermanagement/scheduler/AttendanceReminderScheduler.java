@@ -63,8 +63,15 @@ public class AttendanceReminderScheduler {
                     user.getId(), startOfDay, endOfDay);
 
             if (todayLogs.isEmpty()) {
+                String gymName = "GymBross Fitness";
+                if (user.getBranch() != null && user.getBranch().getName() != null && !user.getBranch().getName().isBlank()) {
+                    gymName = user.getBranch().getName().trim();
+                } else if (user.getOrganization() != null && user.getOrganization().getName() != null && !user.getOrganization().getName().isBlank()) {
+                    gymName = user.getOrganization().getName().trim();
+                }
+
                 // User missed attendance! Send email
-                emailService.sendMissedAttendanceReminder(user.getEmail(), user.getName(), todayStr);
+                emailService.sendMissedAttendanceReminder(user.getEmail(), user.getName(), todayStr, gymName);
                 count++;
             }
         }

@@ -55,3 +55,8 @@ frontend/public/exercises/
 temp.java
 old_dataseeder*.txt
 
+# Local Keys and Scripts (Do Not Commit)
+imp file/
+*.key
+oci_retry_launch.sh
+

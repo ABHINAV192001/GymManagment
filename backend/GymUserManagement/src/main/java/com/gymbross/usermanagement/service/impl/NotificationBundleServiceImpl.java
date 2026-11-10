@@ -29,6 +29,7 @@ public class NotificationBundleServiceImpl implements NotificationBundleService 
     private final CalorieCalculatorService calorieCalculatorService;
     private final EmailService emailService;
     private final com.Gym.GymCommonServices.service.WhatsAppService whatsAppService;
+    private final com.Gym.GymCommonServices.service.AppUrlService appUrlService;
 
     // In-memory cache for user preferences
     private final ConcurrentHashMap<String, NotificationBundleDto> userPreferencesCache = new ConcurrentHashMap<>();
@@ -55,8 +56,8 @@ public class NotificationBundleServiceImpl implements NotificationBundleService 
         int carbsGrams = (int) Math.round((targetCalories * 0.45) / 4.0);
         int fatGrams = (int) Math.round((targetCalories * 0.25) / 9.0);
 
-        String userEmail = user.getEmail() != null ? user.getEmail() : "user@gymbross.com";
-        String goal = user.getGoal() != null ? user.getGoal().toUpperCase() : "FITNESS & STRENGTH";
+        String userEmail = user.getEmail() != null ? user.getEmail() : "";
+        String goal = user.getGoal() != null ? user.getGoal().toUpperCase() : "GENERAL FITNESS";
 
         NotificationBundleDto bundle = NotificationBundleDto.builder()
                 .enabled(true)
@@ -160,10 +161,11 @@ public class NotificationBundleServiceImpl implements NotificationBundleService 
         String userName = user.getName() != null ? user.getName() : username;
 
         String subject = "🔔 Your GymBross Daily Fitness & Routine Digest - " + todayFormatted;
-        String body = buildEmailBody(userName, todayFormatted, dto);
+        String portalLink = appUrlService.buildFrontendUrl("/member-portal");
+        String htmlContent = buildNotificationBundleHtmlEmail(userName, todayFormatted, dto, portalLink);
 
-        log.info("Dispatching Daily Routine Notification Bundle to email: {}", recipient);
-        emailService.sendEmail(recipient, subject, body);
+        log.info("Dispatching Daily Routine Notification Bundle HTML email to: {}", recipient);
+        emailService.sendHtmlEmail(recipient, subject, htmlContent);
 
         // Also dispatch to WhatsApp if user has a phone number
         if (user.getPhone() != null && !user.getPhone().isBlank()) {
@@ -190,82 +192,150 @@ public class NotificationBundleServiceImpl implements NotificationBundleService 
         }
     }
 
-    private String buildEmailBody(String name, String date, NotificationBundleDto bundle) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("====================================================\n");
-        sb.append("      GYMBROSS - DAILY ROUTINE & NOTIFICATION BUNDLE\n");
-        sb.append("====================================================\n\n");
-        sb.append("Hello ").append(name).append(",\n");
-        sb.append("Here is your personalized daily routine and fitness plan for today (").append(date).append("):\n\n");
-
-        // 1. Workout Section
+    private String buildNotificationBundleHtmlEmail(String name, String date, NotificationBundleDto bundle, String portalLink) {
+        StringBuilder workoutHtml = new StringBuilder();
         if (bundle.getWorkoutReminder() != null && Boolean.TRUE.equals(bundle.getWorkoutReminder().getEnabled())) {
-            sb.append("🏋️‍♂️ 1. TODAY'S WORKOUT ROUTINE\n");
-            sb.append("----------------------------------------------------\n");
-            sb.append(" • Scheduled Workout Time: ").append(bundle.getWorkoutReminder().getPreferredTime()).append("\n");
-            sb.append(" • Split Focus: ").append(bundle.getWorkoutReminder().getSplitFocus()).append("\n");
+            workoutHtml.append("<div style=\"background-color:#141417; border:1px solid #27272a; border-radius:12px; padding:18px; margin-bottom:18px;\">\n")
+                    .append("  <div style=\"font-size:14px; font-weight:800; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;\">🏋️‍♂️ 1. Today's Workout Routine</div>\n")
+                    .append("  <div style=\"font-size:13px; color:#f4f4f5; margin-bottom:6px;\"><strong>Focus Split:</strong> <span style=\"color:#38bdf8; font-weight:700;\">")
+                    .append(bundle.getWorkoutReminder().getSplitFocus() != null ? bundle.getWorkoutReminder().getSplitFocus() : "General Fitness").append("</span></div>\n")
+                    .append("  <div style=\"font-size:13px; color:#a1a1aa; margin-bottom:6px;\"><strong>Scheduled Time:</strong> ")
+                    .append(bundle.getWorkoutReminder().getPreferredTime() != null ? bundle.getWorkoutReminder().getPreferredTime() : "Flexible").append("</div>\n");
+
             if (Boolean.TRUE.equals(bundle.getWorkoutReminder().getIncludeWarmup())) {
-                sb.append(" • Warm-up: 5 mins treadmill dynamic stretch + rotator cuff activation\n");
+                workoutHtml.append("  <div style=\"font-size:12px; color:#e4e4e7; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.25); padding:8px 12px; border-radius:8px; margin:8px 0;\">🔥 <strong>Warm-up:</strong> 5 mins treadmill dynamic stretch + rotator cuff activation</div>\n");
             }
-            if (bundle.getWorkoutReminder().getTargetExercises() != null) {
-                sb.append(" • Planned Exercises:\n");
+
+            if (bundle.getWorkoutReminder().getTargetExercises() != null && !bundle.getWorkoutReminder().getTargetExercises().isEmpty()) {
+                workoutHtml.append("  <div style=\"font-size:12px; color:#a1a1aa; margin-top:8px;\"><strong>Planned Exercises:</strong>\n")
+                        .append("    <ul style=\"margin:6px 0 0 0; padding-left:18px; color:#d4d4d8;\">\n");
                 for (String ex : bundle.getWorkoutReminder().getTargetExercises()) {
-                    sb.append("    - ").append(ex).append("\n");
+                    workoutHtml.append("      <li style=\"margin-bottom:3px;\">").append(ex).append("</li>\n");
                 }
+                workoutHtml.append("    </ul>\n  </div>\n");
             }
-            sb.append("\n");
+            workoutHtml.append("</div>\n");
         }
 
-        // 2. Diet Section
+        StringBuilder dietHtml = new StringBuilder();
         if (bundle.getDietReminder() != null && Boolean.TRUE.equals(bundle.getDietReminder().getEnabled())) {
-            sb.append("🥗 2. DIET & NUTRITION ('WHAT TO EAT')\n");
-            sb.append("----------------------------------------------------\n");
-            sb.append(" • Daily Target: ").append(bundle.getDietReminder().getDailyCalorieTarget()).append(" kcal\n");
-            sb.append(" • Target Macros: Protein: ").append(bundle.getDietReminder().getProteinTargetGrams()).append("g | ");
-            sb.append("Carbs: ").append(bundle.getDietReminder().getCarbsTargetGrams()).append("g | ");
-            sb.append("Fats: ").append(bundle.getDietReminder().getFatTargetGrams()).append("g\n");
-            sb.append(" • Meal Schedule:\n");
-            sb.append("    - Breakfast (").append(bundle.getDietReminder().getBreakfastTime()).append("): Oatmeal with whey protein, chia seeds & banana\n");
-            sb.append("    - Lunch (").append(bundle.getDietReminder().getLunchTime()).append("): Grilled chicken/paneer breast with brown rice & broccoli\n");
-            sb.append("    - Evening Snack (").append(bundle.getDietReminder().getSnackTime()).append("): Greek yogurt with raw almonds & berries\n");
-            sb.append("    - Dinner (").append(bundle.getDietReminder().getDinnerTime()).append("): Salmon or tofu stir-fry with quinoa & avocado salad\n\n");
+            dietHtml.append("<div style=\"background-color:#141417; border:1px solid #27272a; border-radius:12px; padding:18px; margin-bottom:18px;\">\n")
+                    .append("  <div style=\"font-size:14px; font-weight:800; color:#34d399; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;\">🥗 2. Diet & Macro Targets</div>\n")
+                    .append("  <div style=\"font-size:13px; color:#f4f4f5; margin-bottom:8px;\"><strong>Daily Target:</strong> <span style=\"font-size:16px; font-weight:900; color:#34d399;\">")
+                    .append(bundle.getDietReminder().getDailyCalorieTarget()).append(" kcal</span></div>\n")
+                    .append("  <table role=\"presentation\" width=\"100%\" cellspacing=\"4\" cellpadding=\"0\" style=\"margin:10px 0;\">\n")
+                    .append("    <tr>\n")
+                    .append("      <td align=\"center\" style=\"background:#064e3b; border:1px solid #059669; border-radius:8px; padding:8px 4px;\"><div style=\"font-size:11px; color:#a7f3d0;\">Protein</div><div style=\"font-size:14px; font-weight:800; color:#ffffff;\">")
+                    .append(bundle.getDietReminder().getProteinTargetGrams()).append("g</div></td>\n")
+                    .append("      <td align=\"center\" style=\"background:#1e3a8a; border:1px solid #2563eb; border-radius:8px; padding:8px 4px;\"><div style=\"font-size:11px; color:#bfdbfe;\">Carbs</div><div style=\"font-size:14px; font-weight:800; color:#ffffff;\">")
+                    .append(bundle.getDietReminder().getCarbsTargetGrams()).append("g</div></td>\n")
+                    .append("      <td align=\"center\" style=\"background:#78350f; border:1px solid #d97706; border-radius:8px; padding:8px 4px;\"><div style=\"font-size:11px; color:#fde68a;\">Fats</div><div style=\"font-size:14px; font-weight:800; color:#ffffff;\">")
+                    .append(bundle.getDietReminder().getFatTargetGrams()).append("g</div></td>\n")
+                    .append("    </tr>\n")
+                    .append("  </table>\n")
+                    .append("  <div style=\"font-size:12px; color:#a1a1aa; line-height:1.6; margin-top:8px;\">\n")
+                    .append("    • <strong>Breakfast (").append(bundle.getDietReminder().getBreakfastTime()).append("):</strong> Oatmeal with whey protein, chia seeds & banana<br/>\n")
+                    .append("    • <strong>Lunch (").append(bundle.getDietReminder().getLunchTime()).append("):</strong> Grilled chicken/paneer with brown rice & veggies<br/>\n")
+                    .append("    • <strong>Evening Snack (").append(bundle.getDietReminder().getSnackTime()).append("):</strong> Greek yogurt with raw almonds & berries<br/>\n")
+                    .append("    • <strong>Dinner (").append(bundle.getDietReminder().getDinnerTime()).append("):</strong> Salmon or tofu stir-fry with quinoa & avocado salad\n")
+                    .append("  </div>\n")
+                    .append("</div>\n");
         }
 
-        // 3. Hydration Section
+        StringBuilder waterHtml = new StringBuilder();
         if (bundle.getWaterReminder() != null && Boolean.TRUE.equals(bundle.getWaterReminder().getEnabled())) {
             double logged = bundle.getWaterReminder().getCurrentLoggedLiters() != null ? bundle.getWaterReminder().getCurrentLoggedLiters() : 0.0;
             double target = bundle.getWaterReminder().getDailyTargetLiters() != null ? bundle.getWaterReminder().getDailyTargetLiters() : 3.5;
             int pct = bundle.getWaterReminder().getPercentageCompleted() != null ? bundle.getWaterReminder().getPercentageCompleted() : 0;
             int interval = bundle.getWaterReminder().getIntervalHours() != null ? bundle.getWaterReminder().getIntervalHours() : 1;
-
-            sb.append("💧 3. HYDRATION LEVEL & WATER TIMER\n");
-            sb.append("----------------------------------------------------\n");
-            sb.append(" • Current Logged Water: ").append(logged).append("L / ").append(target).append("L (").append(pct).append("% Completed)\n");
-            sb.append(" • Recurring Drink Timer: Every ").append(interval).append(" Hour(s) between ").append(bundle.getWaterReminder().getStartTime()).append(" - ").append(bundle.getWaterReminder().getEndTime()).append("\n");
             double remaining = Math.max(0, target - logged);
-            String actionMsg = remaining > 0 
-                    ? "Drink 1 glass of water now (" + String.format("%.2f", remaining) + "L remaining today)!" 
-                    : "Daily goal achieved! Great job staying hydrated.";
-            sb.append(" • Hydration Action: ").append(actionMsg).append("\n\n");
+
+            waterHtml.append("<div style=\"background-color:#141417; border:1px solid #27272a; border-radius:12px; padding:18px; margin-bottom:18px;\">\n")
+                    .append("  <div style=\"font-size:14px; font-weight:800; color:#60a5fa; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;\">💧 3. Hydration & Water Timer</div>\n")
+                    .append("  <div style=\"font-size:13px; color:#f4f4f5; margin-bottom:6px;\"><strong>Logged Water:</strong> <span style=\"color:#60a5fa; font-weight:800;\">")
+                    .append(String.format("%.1f", logged)).append("L / ").append(String.format("%.1f", target)).append("L</span> (").append(pct).append("% Completed)</div>\n")
+                    .append("  <div style=\"background-color:#27272a; border-radius:6px; height:8px; overflow:hidden; margin:8px 0 12px 0;\">\n")
+                    .append("    <div style=\"background:linear-gradient(90deg, #3b82f6, #60a5fa); width:").append(Math.min(100, Math.max(0, pct))).append("%; height:100%; border-radius:6px;\"></div>\n")
+                    .append("  </div>\n")
+                    .append("  <div style=\"font-size:12px; color:#93c5fd;\">⏰ Reminder frequency: Every ").append(interval).append(" hour(s) | ")
+                    .append(remaining > 0 ? "Drink 1 glass of water now (" + String.format("%.1f", remaining) + "L remaining today)" : "Daily water goal reached! 🎉")
+                    .append("</div>\n")
+                    .append("</div>\n");
         }
 
-        // 4. Walk & Movement Section
+        StringBuilder walkHtml = new StringBuilder();
         if (bundle.getWalkReminder() != null && Boolean.TRUE.equals(bundle.getWalkReminder().getEnabled())) {
             int interval = bundle.getWalkReminder().getIntervalHours() != null ? bundle.getWalkReminder().getIntervalHours() : 1;
             int stepTarget = bundle.getWalkReminder().getDailyStepTarget() != null ? bundle.getWalkReminder().getDailyStepTarget() : 10000;
 
-            sb.append("🚶‍♂️ 4. MOVEMENT & WALK REMINDER\n");
-            sb.append("----------------------------------------------------\n");
-            sb.append(" • Hourly Desk Break: Stand up & take a 5-10 minute walk every ").append(interval).append(" Hour(s)\n");
-            sb.append(" • Daily Evening Walk: Scheduled at ").append(bundle.getWalkReminder().getWalkTime()).append("\n");
-            sb.append(" • Daily Target Steps: ").append(stepTarget).append(" Steps\n\n");
+            walkHtml.append("<div style=\"background-color:#141417; border:1px solid #27272a; border-radius:12px; padding:18px; margin-bottom:22px;\">\n")
+                    .append("  <div style=\"font-size:14px; font-weight:800; color:#fbbf24; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;\">🚶‍♂️ 4. Movement & Daily Steps</div>\n")
+                    .append("  <div style=\"font-size:13px; color:#f4f4f5; margin-bottom:6px;\"><strong>Daily Target:</strong> <span style=\"color:#fbbf24; font-weight:800;\">")
+                    .append(stepTarget).append(" Steps</span></div>\n")
+                    .append("  <div style=\"font-size:12px; color:#a1a1aa;\">Hourly desk breaks: Every ").append(interval).append(" hour(s) • Evening walk scheduled at ").append(bundle.getWalkReminder().getWalkTime()).append("</div>\n")
+                    .append("</div>\n");
         }
 
-        sb.append("----------------------------------------------------\n");
-        sb.append("Stay consistent, hit your targets, and achieve your goals today!\n");
-        sb.append("Log your meals, workouts, and water on: http://localhost:3000/member-portal\n");
-        sb.append("— GymBross Fitness & Health System\n");
-
-        return sb.toString();
+        return "<!DOCTYPE html>\n" +
+                "<html lang=\"en\">\n" +
+                "<head>\n" +
+                "  <meta charset=\"UTF-8\">\n" +
+                "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+                "  <title>Daily Fitness Digest</title>\n" +
+                "</head>\n" +
+                "<body style=\"margin:0; padding:0; background-color:#09090b; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#f4f4f5;\">\n" +
+                "  <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color:#09090b; padding:36px 12px;\">\n" +
+                "    <tr>\n" +
+                "      <td align=\"center\">\n" +
+                "        <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"max-width:620px; background-color:#18181b; border:1px solid #27272a; border-radius:16px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,0.6);\">\n" +
+                "          <!-- Cyan / Teal Header -->\n" +
+                "          <tr>\n" +
+                "            <td style=\"background: linear-gradient(135deg, #0284c7 0%, #0d9488 50%, #2563eb 100%); padding: 32px 24px; text-align: center;\">\n" +
+                "              <div style=\"display:inline-block; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.3); padding:5px 16px; border-radius:9999px; font-size:11px; font-weight:800; color:#ffffff; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:12px;\">\n" +
+                "                🔔 DAILY FITNESS & ROUTINE DIGEST\n" +
+                "              </div>\n" +
+                "              <h1 style=\"margin:0; color:#ffffff; font-size:25px; font-weight:900; letter-spacing:0.5px;\">🏋️‍♂️ GYMBROSS FITNESS</h1>\n" +
+                "              <p style=\"margin:6px 0 0 0; color:#e0f2fe; font-size:14px; font-weight:600;\">" + date + " • Personalized Schedule</p>\n" +
+                "            </td>\n" +
+                "          </tr>\n" +
+                "\n" +
+                "          <!-- Body -->\n" +
+                "          <tr>\n" +
+                "            <td style=\"padding:32px 28px;\">\n" +
+                "              <h2 style=\"margin:0 0 10px 0; color:#ffffff; font-size:22px; font-weight:700;\">Ready to Crush Today, " + name + "? ⚡</h2>\n" +
+                "              <p style=\"margin:0 0 24px 0; color:#a1a1aa; font-size:14px; line-height:1.6;\">\n" +
+                "                Here is your customized routine for today. Follow your meal targets, stay hydrated, and complete your planned workout to maintain your streak!\n" +
+                "              </p>\n" +
+                "\n" +
+                workoutHtml.toString() +
+                dietHtml.toString() +
+                waterHtml.toString() +
+                walkHtml.toString() +
+                "              <!-- Standalone Action Button -->\n" +
+                "              <div style=\"text-align:center; margin:28px 0 16px 0;\">\n" +
+                "                <a href=\"" + portalLink + "\" style=\"display:inline-block; background:linear-gradient(135deg, #0284c7 0%, #0d9488 100%); color:#ffffff; text-decoration:none; font-weight:800; font-size:15px; padding:15px 36px; border-radius:10px; box-shadow:0 4px 16px rgba(2, 132, 199, 0.4); letter-spacing:0.3px;\">\n" +
+                "                  ⚡ Open Member Portal & Log Activity\n" +
+                "                </a>\n" +
+                "              </div>\n" +
+                "\n" +
+                "              <!-- Security Note -->\n" +
+                "              <div style=\"padding-top:16px; border-top:1px solid #27272a; font-size:12px; color:#71717a; line-height:1.5;\">\n" +
+                "                🔒 Track your routine, view calories, and log workouts anytime on the GymBross Member Portal.\n" +
+                "              </div>\n" +
+                "            </td>\n" +
+                "          </tr>\n" +
+                "\n" +
+                "          <!-- Footer -->\n" +
+                "          <tr>\n" +
+                "            <td style=\"background-color:#09090b; padding:20px 24px; text-align:center; border-top:1px solid #27272a; font-size:12px; color:#71717a;\">\n" +
+                "              © 2026 GymBross Inc. All rights reserved. • High Performance Fitness Operations\n" +
+                "            </td>\n" +
+                "          </tr>\n" +
+                "        </table>\n" +
+                "      </td>\n" +
+                "    </tr>\n" +
+                "  </table>\n" +
+                "</body>\n" +
+                "</html>";
     }
 }

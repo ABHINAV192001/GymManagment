@@ -32,8 +32,10 @@ import {
   Layers,
   Sparkles,
   Bot,
+  Flame,
   X
 } from 'lucide-react';
+
 
 
 import {
@@ -45,6 +47,7 @@ import { getAdminBranches } from '../../lib/api/admin';
 import { getMyOrg } from '../../lib/api/organizations';
 
 import { A11yControls } from '../A11yControls';
+import { BrandMark } from '../brand/BrandMark';
 import { logout } from '../../lib/api/auth';
 import { getStoredToken } from '../../lib/api/client';
 import { getMyPermissions } from '../../lib/api/rbac';
@@ -141,6 +144,7 @@ export const MOBILE_CATEGORIES: MobileCategory[] = [
     description: 'Exercise library, group fitness timetables & meal plans',
     items: [
       { id: 'WORKOUT', label: 'Workouts & Exercises', description: 'Exercise routines & database builder', icon: Dumbbell, path: '/workouts', color: 'from-rose-500 to-red-600' },
+      { id: 'DUO_CHALLENGES', label: 'Gym Duo & Streaks', description: 'Partner workout streaks & head-to-head wagers', icon: Flame, path: '/duo', color: 'from-amber-500 to-orange-600' },
       { id: 'ACTIVITY', label: 'Group Classes', description: 'Live timetable, class bookings & voting', icon: Calendar, path: '/activities', color: 'from-violet-500 to-purple-600' },
       { id: 'DIET', label: 'Diet & Nutrition', description: 'Meal plans, macros & calorie tracker', icon: Apple, path: '/diets', color: 'from-emerald-500 to-teal-600' },
     ],
@@ -163,7 +167,10 @@ export const MOBILE_CATEGORIES: MobileCategory[] = [
 const navItems = [
   { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'MEMBER_PORTAL', label: 'My Dashboard', icon: LayoutDashboard, path: '/member-portal' },
+  { id: 'DUO_CHALLENGES', label: 'Gym Duo & Streaks', icon: Flame, path: '/duo' },
   { id: 'BRANCHES', label: 'Branches', icon: MapPin, path: '/branches' },
+
+
   { id: 'USERS', label: 'Members Directory', icon: Users, path: '/members' },
   { id: 'STAFF', label: 'Staff & Payroll', icon: ShieldAlert, path: '/staff' },
   { id: 'PLANS', label: 'Membership Plans', icon: Award, path: '/plans' },
@@ -175,6 +182,7 @@ const navItems = [
   { id: 'ATTENDANCE', label: 'Entrance Desk', icon: UserCheck, path: '/attendance' },
   { id: 'NOTIFICATIONS', label: 'Marketing Blasts', icon: Send, path: '/notifications' },
   { id: 'CHAT', label: 'Client Chat Hub', icon: MessageCircle, path: '/chat' },
+  { id: 'AI_AGENT', label: 'AI Assistant', icon: Sparkles, path: '/ai-agent' },
   { id: 'RBAC', label: 'RBAC Roles Matrix', icon: Key, path: '/rbac' },
   { id: 'SETTINGS', label: 'App Settings', icon: SettingsIcon, path: '/settings' },
   // Enterprise Modules
@@ -290,7 +298,11 @@ export const Layout = () => {
 
         if (!resolvedRole) {
           logout();
-          navigate('/auth/login', { replace: true });
+          const currentPath = window.location.pathname + window.location.search;
+          const redirectQuery = currentPath && currentPath !== '/' && !currentPath.startsWith('/auth')
+            ? `?redirect=${encodeURIComponent(currentPath)}`
+            : '';
+          navigate(`/auth/login${redirectQuery}`, { replace: true });
           return;
         }
 
@@ -301,7 +313,11 @@ export const Layout = () => {
         const hasExistingAuth = getStoredToken();
         if (!hasExistingAuth) {
           logout();
-          navigate('/auth/login', { replace: true });
+          const currentPath = window.location.pathname + window.location.search;
+          const redirectQuery = currentPath && currentPath !== '/' && !currentPath.startsWith('/auth')
+            ? `?redirect=${encodeURIComponent(currentPath)}`
+            : '';
+          navigate(`/auth/login${redirectQuery}`, { replace: true });
         }
       } finally {
         setIsLoadingPermissions(false);
@@ -424,12 +440,14 @@ export const Layout = () => {
 
   const isViewAllowed = (viewId: string) => {
     if (userRole === 'ORG_ADMIN' || userRole === 'ROLE_ORG_ADMIN' || userRole === 'ADMIN') return true;
-    if (userRole === 'MEMBER' && viewId === 'MEMBER_PORTAL') return true;
-    if (userRole === 'MEMBER') return false; // Members only see member portal
+    if (userRole === 'MEMBER' && (viewId === 'MEMBER_PORTAL' || viewId === 'DUO_CHALLENGES' || viewId === 'AI_AGENT')) return true;
+    if (userRole === 'MEMBER') return false; // Members see member portal, gym duo streaks & AI assistant
 
     const moduleName = viewId.toLowerCase();
     const allowed = userPermissions[moduleName] || [];
-    return allowed.some(action => action.toLowerCase() === 'view');
+    if (allowed.some(action => action.toLowerCase() === 'view')) return true;
+    if (viewId === 'DUO_CHALLENGES' || viewId === 'AI_AGENT') return true;
+    return false;
   };
 
 
@@ -474,6 +492,17 @@ export const Layout = () => {
     permissions: userPermissions,
   }), [selectedBranchId, branches, triggerAnnouncement, userPermissions]);
 
+  const allowedMobileCategories = useMemo(() => {
+    return MOBILE_CATEGORIES.map(cat => ({
+      ...cat,
+      items: cat.items.filter(item => isViewAllowed(item.id))
+    })).filter(cat => cat.items.length > 0);
+  }, [userRole, userPermissions]);
+
+  const permittedDirectNavItems = useMemo(() => {
+    return navItems.filter(item => isViewAllowed(item.id));
+  }, [userRole, userPermissions]);
+
   if (isLoadingPermissions) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -505,11 +534,13 @@ export const Layout = () => {
                 <>
                   <div className="flex items-center gap-2.5 min-w-0">
                     {org.logoUrl ? (
-                      <img src={org.logoUrl} alt="Logo" className="w-8 h-8 rounded-xl object-cover shadow-md shrink-0" />
+                      <img
+                        src={org.logoUrl}
+                        alt={`${org.name} logo`}
+                        className="w-8 h-8 rounded-xl object-cover shadow-md shrink-0"
+                      />
                     ) : (
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-md shrink-0">
-                        {org.name && org.name !== 'Loading...' ? org.name.substring(0, 2).toUpperCase() : 'GY'}
-                      </div>
+                      <BrandMark size="md" className="shadow-md" />
                     )}
                     <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white truncate">
                       {org.name}
@@ -630,11 +661,13 @@ export const Layout = () => {
             {/* Left: Branding & Branch Selector */}
             <div className="flex items-center gap-2 min-w-0">
               {org.logoUrl ? (
-                <img src={org.logoUrl} alt="Logo" className="w-7 h-7 rounded-lg object-cover shadow-xs shrink-0" />
+                <img
+                  src={org.logoUrl}
+                  alt={`${org.name} logo`}
+                  className="w-7 h-7 rounded-lg object-cover shadow-xs shrink-0"
+                />
               ) : (
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0">
-                  {org.name && org.name !== 'Loading...' ? org.name.substring(0, 2).toUpperCase() : 'GY'}
-                </div>
+                <BrandMark size="sm" className="shadow-xs" />
               )}
               <div className="min-w-0">
                 <h1 className="font-extrabold text-xs text-zinc-900 dark:text-zinc-100 truncate leading-tight">
@@ -792,22 +825,6 @@ export const Layout = () => {
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   try {
-                                    await voteGroupSession(s.id, 'IN');
-                                    triggerAnnouncement(`Responded IN for ${s.title}`);
-                                  } catch (err: any) {
-                                    triggerAnnouncement(`Vote note: ${err.message || 'Already voted'}`);
-                                  }
-                                  setIsNotificationsOpen(false);
-                                  navigate('/activities');
-                                }}
-                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 text-white shadow-sm flex items-center gap-1 hover:bg-emerald-700 transition"
-                              >
-                                <CheckCircle2 className="w-3 h-3" /> Mark IN
-                              </button>
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
                                     await voteGroupSession(s.id, 'OUT');
                                     triggerAnnouncement(`Responded OUT for ${s.title}`);
                                   } catch (err: any) {
@@ -854,7 +871,7 @@ export const Layout = () => {
           </header>
 
           {/* Desktop Header Navbar (Shown exclusively on desktop >= md) */}
-          <header className="hidden md:flex h-16 border-b border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-900/50 backdrop-blur-sm items-center justify-between px-6 shrink-0 relative z-30">
+          <header className="hidden md:flex h-16 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 backdrop-blur-sm items-center justify-between px-6 shrink-0 relative z-30">
             {/* Left Header Info */}
             <div className="flex items-center gap-3">
               {branches.length > 1 ? (
@@ -884,6 +901,22 @@ export const Layout = () => {
             {/* Right Header Actions */}
             <div className="flex items-center gap-3 relative">
               
+              {/* Brand Logo (Desktop) */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl shrink-0">
+                {org.logoUrl ? (
+                  <img
+                    src={org.logoUrl}
+                    alt={`${org.name} logo`}
+                    className="w-6 h-6 rounded-lg object-cover shadow-xs"
+                  />
+                ) : (
+                  <BrandMark size="sm" className="shadow-xs" />
+                )}
+                <span className="font-bold text-sm text-zinc-900 dark:text-white truncate max-w-[160px]">
+                  {org.name}
+                </span>
+              </div>
+
               {/* AI Icon Button */}
               <button
                 onClick={() => {
@@ -1339,68 +1372,114 @@ export const Layout = () => {
           className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-200 dark:border-zinc-800 safe-bottom shadow-[0_-4px_25px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_30px_rgba(0,0,0,0.6)]"
           aria-label="Mobile Bottom Navigation"
         >
-          <div className="grid grid-cols-5 items-center px-1 py-1 relative">
-            {MOBILE_CATEGORIES.map((cat) => {
-              const CatIcon = cat.icon;
-              const isCenter = cat.key === 'DASHBOARD';
-              const isCategoryActive = cat.items.some(item => location.pathname.startsWith(item.path));
-              const isOpen = activeMobileSheet === cat.key;
+          {allowedMobileCategories.length >= 3 ? (
+            /* Mode 1: Multi-Category Bottom Bar (for Admin / Staff with >=3 authorized categories) */
+            <div className="flex items-center justify-around px-1 py-1 relative">
+              {allowedMobileCategories.map((cat) => {
+                const CatIcon = cat.icon;
+                const isCenter = cat.key === 'DASHBOARD';
+                const isCategoryActive = cat.items.some(item => location.pathname.startsWith(item.path));
+                const isOpen = activeMobileSheet === cat.key;
 
-              if (isCenter) {
-                return (
-                  <div key={cat.key} className="flex flex-col items-center justify-center relative -top-3">
-                    <button
-                      onClick={() => {
-                        setActiveMobileSheet(isOpen ? null : cat.key);
-                        triggerAnnouncement(`Toggled ${cat.label} Menu`);
-                      }}
-                      className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 transform active:scale-95 ${
+                if (isCenter) {
+                  return (
+                    <div key={cat.key} className="flex flex-col items-center justify-center relative -top-3">
+                      <button
+                        onClick={() => {
+                          setActiveMobileSheet(isOpen ? null : cat.key);
+                          triggerAnnouncement(`Toggled ${cat.label} Menu`);
+                        }}
+                        className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 transform active:scale-95 ${
+                          isOpen || isCategoryActive
+                            ? 'bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-700 text-white ring-4 ring-blue-500/30 shadow-blue-500/40 scale-105'
+                            : 'bg-gradient-to-tr from-zinc-900 to-zinc-800 dark:from-zinc-100 dark:to-zinc-200 text-white dark:text-zinc-900 ring-2 ring-zinc-200 dark:ring-zinc-800'
+                        }`}
+                        aria-label="Dashboard Overview Hub"
+                      >
+                        <CatIcon className="w-5 h-5" />
+                      </button>
+                      <span className={`text-[9px] font-extrabold tracking-tight mt-0.5 ${
                         isOpen || isCategoryActive
-                          ? 'bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-700 text-white ring-4 ring-blue-500/30 shadow-blue-500/40 scale-105'
-                          : 'bg-gradient-to-tr from-zinc-900 to-zinc-800 dark:from-zinc-100 dark:to-zinc-200 text-white dark:text-zinc-900 ring-2 ring-zinc-200 dark:ring-zinc-800'
-                      }`}
-                      aria-label="Dashboard Overview Hub"
-                    >
-                      <CatIcon className="w-5 h-5" />
-                    </button>
-                    <span className={`text-[9px] font-extrabold tracking-tight mt-0.5 ${
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-zinc-500 dark:text-zinc-400'
+                      }`}>
+                        {cat.shortLabel}
+                      </span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <button
+                    key={cat.key}
+                    onClick={() => {
+                      setActiveMobileSheet(isOpen ? null : cat.key);
+                      triggerAnnouncement(`Toggled ${cat.label} Menu`);
+                    }}
+                    className={`flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl transition-all active:scale-95 ${
                       isOpen || isCategoryActive
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-zinc-500 dark:text-zinc-400'
-                    }`}>
+                        ? 'text-blue-600 dark:text-blue-400 font-bold'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+                    }`}
+                    aria-label={cat.label}
+                  >
+                    <div className="relative">
+                      <CatIcon className={`w-5 h-5 transition-transform ${isOpen ? 'scale-110' : ''}`} />
+                      {(isOpen || isCategoryActive) && (
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full" />
+                      )}
+                    </div>
+                    <span className="text-[10px] mt-1 tracking-tight truncate max-w-full">
                       {cat.shortLabel}
                     </span>
-                  </div>
+                  </button>
                 );
-              }
+              })}
+            </div>
+          ) : (
+            /* Mode 2: Direct Permitted Navigation Spreading (for Members & Roles with limited categories) */
+            <div className="flex items-center justify-around px-1 py-1.5">
+              {permittedDirectNavItems.slice(0, 5).map((item) => {
+                const ItemIcon = item.icon;
+                const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
 
-              return (
-                <button
-                  key={cat.key}
-                  onClick={() => {
-                    setActiveMobileSheet(isOpen ? null : cat.key);
-                    triggerAnnouncement(`Toggled ${cat.label} Menu`);
-                  }}
-                  className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all active:scale-95 ${
-                    isOpen || isCategoryActive
-                      ? 'text-blue-600 dark:text-blue-400 font-bold'
-                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-                  }`}
-                  aria-label={cat.label}
-                >
-                  <div className="relative">
-                    <CatIcon className={`w-5 h-5 transition-transform ${isOpen ? 'scale-110' : ''}`} />
-                    {(isOpen || isCategoryActive) && (
-                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full" />
-                    )}
-                  </div>
-                  <span className="text-[10px] mt-1 tracking-tight truncate max-w-full">
-                    {cat.shortLabel}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      navigate(item.path);
+                      triggerAnnouncement(`Navigated to ${item.label}`);
+                    }}
+                    className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl transition-all active:scale-95 ${
+                      isActive
+                        ? 'text-blue-600 dark:text-blue-400 font-extrabold'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                    }`}
+                  >
+                    <div className="relative">
+                      <ItemIcon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+                      {isActive && (
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full" />
+                      )}
+                    </div>
+                    <span className="text-[10px] mt-1 tracking-tight truncate max-w-full font-bold">
+                      {item.label === 'Gym Duo & Streaks'
+                        ? 'Duo'
+                        : item.label === 'My Dashboard'
+                        ? 'Dashboard'
+                        : item.label === 'Workouts & Exercises'
+                        ? 'Workouts'
+                        : item.label === 'Diet & Nutrition'
+                        ? 'Diet'
+                        : item.label === 'Group Classes'
+                        ? 'Classes'
+                        : item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </nav>
 
 

@@ -416,11 +416,11 @@ export const RBAC: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6 rounded-2xl text-white shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-4 sm:p-6 rounded-2xl text-white shadow-xl">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-amber-300" />
-            <h1 className="text-xl font-black tracking-tight">Granular RBAC Security Matrix</h1>
+            <h1 className="text-base sm:text-xl font-black tracking-tight">Granular RBAC Security Matrix</h1>
           </div>
           <p className="text-xs text-blue-100 max-w-2xl">
             Configure A-to-Z permissions across all 19 GymOS modules. Manage precisely what each role can view, create, edit, delete, export, or execute.
@@ -441,7 +441,7 @@ export const RBAC: React.FC = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 text-xs">
         {/* Sidebar Role Select */}
-        <div className="xl:col-span-1 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm space-y-4">
+        <div className="xl:col-span-1 p-3.5 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm space-y-3 sm:space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Operational Roles</span>
             {canCreate('rbac') && (
