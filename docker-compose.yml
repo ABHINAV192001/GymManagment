@@ -85,6 +85,7 @@ services:
     container_name: gym-frontend
     ports:
       - "3000:80"
+      - "80:80"
     depends_on:
       - gym-user-management
     restart: unless-stopped
