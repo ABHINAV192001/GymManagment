@@ -110,6 +110,168 @@ html.high-contrast-dark * {
 }
 
 /* ---------------------------------------------------------------------------
+   CLAYMORPHISM DESIGN SYSTEM (Tactile 3D Soft-UI)
+   --------------------------------------------------------------------------- */
+
+:root {
+  --clay-bg-surface: #F0F3F8;
+  --clay-card-shadow: 
+    10px 10px 24px rgba(166, 175, 195, 0.45),
+    -8px -8px 20px rgba(255, 255, 255, 0.95),
+    inset 3px 3px 6px rgba(255, 255, 255, 0.8),
+    inset -3px -3px 6px rgba(166, 175, 195, 0.25);
+  
+  --clay-card-interactive-shadow:
+    8px 8px 18px rgba(166, 175, 195, 0.4),
+    -6px -6px 16px rgba(255, 255, 255, 0.9),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.8),
+    inset -2px -2px 5px rgba(166, 175, 195, 0.2);
+
+  --clay-btn-shadow:
+    6px 6px 14px rgba(166, 175, 195, 0.4),
+    -4px -4px 12px rgba(255, 255, 255, 0.9),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.9),
+    inset -2px -2px 4px rgba(166, 175, 195, 0.25);
+
+  --clay-btn-pressed-shadow:
+    2px 2px 6px rgba(166, 175, 195, 0.3),
+    -2px -2px 6px rgba(255, 255, 255, 0.7),
+    inset 3px 3px 6px rgba(166, 175, 195, 0.35),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.6);
+
+  --clay-input-shadow:
+    inset 3px 3px 7px rgba(166, 175, 195, 0.38),
+    inset -3px -3px 7px rgba(255, 255, 255, 0.85);
+
+  --clay-primary-shadow:
+    0 10px 24px rgba(230, 57, 70, 0.35),
+    inset 3px 3px 6px rgba(255, 255, 255, 0.4),
+    inset -3px -3px 6px rgba(0, 0, 0, 0.25);
+
+  --clay-primary-pressed:
+    0 4px 12px rgba(230, 57, 70, 0.25),
+    inset 3px 3px 6px rgba(0, 0, 0, 0.3),
+    inset -2px -2px 4px rgba(255, 255, 255, 0.2);
+}
+
+.dark {
+  --clay-bg-surface: #14171C;
+  --clay-card-shadow: 
+    12px 12px 28px rgba(0, 0, 0, 0.65),
+    -6px -6px 18px rgba(255, 255, 255, 0.04),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.08),
+    inset -3px -3px 7px rgba(0, 0, 0, 0.7);
+
+  --clay-card-interactive-shadow:
+    8px 8px 20px rgba(0, 0, 0, 0.55),
+    -4px -4px 12px rgba(255, 255, 255, 0.03),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.06),
+    inset -2px -2px 5px rgba(0, 0, 0, 0.6);
+
+  --clay-btn-shadow:
+    6px 6px 14px rgba(0, 0, 0, 0.5),
+    -3px -3px 10px rgba(255, 255, 255, 0.04),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.09),
+    inset -2px -2px 5px rgba(0, 0, 0, 0.65);
+
+  --clay-btn-pressed-shadow:
+    2px 2px 6px rgba(0, 0, 0, 0.4),
+    -1px -1px 4px rgba(255, 255, 255, 0.02),
+    inset 3px 3px 7px rgba(0, 0, 0, 0.8),
+    inset -2px -2px 4px rgba(255, 255, 255, 0.04);
+
+  --clay-input-shadow:
+    inset 3px 3px 7px rgba(0, 0, 0, 0.75),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.04);
+
+  --clay-primary-shadow:
+    0 10px 24px rgba(255, 77, 90, 0.3),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.35),
+    inset -3px -3px 6px rgba(0, 0, 0, 0.4);
+
+  --clay-primary-pressed:
+    0 4px 10px rgba(255, 77, 90, 0.2),
+    inset 3px 3px 6px rgba(0, 0, 0, 0.5),
+    inset -2px -2px 4px rgba(255, 255, 255, 0.15);
+}
+
+.clay-card {
+  background-color: var(--clay-bg-surface);
+  box-shadow: var(--clay-card-shadow);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.clay-card-interactive {
+  background-color: var(--clay-bg-surface);
+  box-shadow: var(--clay-card-interactive-shadow);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.clay-card-interactive:active {
+  transform: scale(0.98);
+}
+
+.clay-btn {
+  background-color: var(--clay-bg-surface);
+  box-shadow: var(--clay-btn-shadow);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.clay-btn:active {
+  transform: scale(0.96);
+  box-shadow: var(--clay-btn-pressed-shadow);
+}
+
+.clay-btn-primary {
+  background: linear-gradient(135deg, #FF5563 0%, #E63946 100%);
+  color: #FFFFFF;
+  box-shadow: var(--clay-primary-shadow);
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.clay-btn-primary:active {
+  transform: scale(0.96);
+  box-shadow: var(--clay-primary-pressed);
+}
+
+.clay-input {
+  box-shadow: var(--clay-input-shadow);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.clay-input:focus {
+  outline: none;
+  border-color: #E63946;
+}
+
+.clay-badge {
+  box-shadow: var(--clay-btn-shadow);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.clay-pill-nav {
+  background-color: var(--clay-bg-surface);
+  box-shadow: var(--clay-card-shadow);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ---------------------------------------------------------------------------
    Enter animations
    `tailwindcss-animate` is not a dependency, so utilities such as `animate-in`,
    `fade-in`, `zoom-in-95` and `slide-in-from-*` were silently dead. This is a

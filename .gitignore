@@ -29,6 +29,7 @@ Thumbs.db
 
 # Misc
 *.log
+*.apk
 temp/
 tmp/
 Upload/

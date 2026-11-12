@@ -1,0 +1,10 @@
+{
+  "appId": "com.gymos.app",
+  "appName": "GymOS",
+  "webDir": "dist",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "http"
+  }
+}
+
